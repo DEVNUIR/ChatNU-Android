@@ -16,8 +16,8 @@ android {
         versionCode = 1
         versionName = "0.1.0-alpha01"
 
-        buildConfigField("String", "DEFAULT_API_URL", "\"https://api.devnu.ir\"")
-        buildConfigField("String", "DEFAULT_WS_URL", "\"wss://api.devnu.ir/realtime\"")
+        buildConfigField("String", "DEFAULT_API_URL", "\"https://chatnu.devnu.ir\"")
+        buildConfigField("String", "DEFAULT_WS_URL", "\"wss://chatnu.devnu.ir/realtime\"")
     }
 
     buildFeatures {

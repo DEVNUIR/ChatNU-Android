@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -51,7 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -193,7 +191,7 @@ private fun SwipeConversationRow(item: Conversation, onClick: () -> Unit, onPin:
     var dragOffset by remember(item.id) { mutableFloatStateOf(0f) }
     val animatedOffset by animateFloatAsState(dragOffset, label = "conversation-swipe")
     Box(Modifier.fillMaxWidth()) {
-        Row(Modifier.matchParentSize().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.PushPin, null, tint = SignalMint)
             Spacer(Modifier.weight(1f))
             Icon(Icons.Rounded.Archive, null, tint = MaterialTheme.colorScheme.error)

@@ -66,6 +66,7 @@ data class LocalIdentity(
     val username: String,
     val displayName: String,
     val deviceId: String,
+    val keyAlias: String,
     val publicIdentityKey: String,
     val fingerprint: String,
     val recoveryCreated: Boolean,

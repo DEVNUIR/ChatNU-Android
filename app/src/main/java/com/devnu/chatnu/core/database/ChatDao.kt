@@ -24,6 +24,9 @@ interface ChatDao {
     @Query("SELECT COUNT(*) FROM conversations")
     suspend fun conversationCount(): Int
 
+    @Query("SELECT * FROM conversations WHERE id = :conversationId LIMIT 1")
+    suspend fun conversation(conversationId: String): ConversationEntity?
+
     @Query("SELECT * FROM messages WHERE id = :messageId LIMIT 1")
     suspend fun message(messageId: String): MessageEntity?
 

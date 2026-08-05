@@ -1,6 +1,7 @@
 package com.devnu.chatnu.core.network
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class HealthResponse(val status: String, val version: String, val nodeId: String)
@@ -15,6 +16,23 @@ data class RegisterRequest(
 
 @Serializable
 data class RegisterResponse(val userId: String, val accessToken: String, val refreshToken: String)
+
+@Serializable
+data class ChallengeRequest(val username: String, val deviceId: String)
+
+@Serializable
+data class ChallengeResponse(val challengeId: String, val nonce: String, val expiresInSeconds: Int)
+
+@Serializable
+data class VerifyChallengeRequest(
+    val username: String,
+    val deviceId: String,
+    val challengeId: String,
+    val signature: String,
+)
+
+@Serializable
+data class TokenResponse(val accessToken: String, val refreshToken: String)
 
 @Serializable
 data class CipherEnvelope(
@@ -35,6 +53,16 @@ data class RealtimeEvent(
     val senderId: String? = null,
     val payload: String? = null,
     val state: String? = null,
+)
+
+@Serializable
+data class SyncPage(val nextCursor: String, val events: List<SyncEvent>)
+
+@Serializable
+data class SyncEvent(
+    val cursor: String,
+    val type: String,
+    val payload: JsonObject,
 )
 
 sealed interface NetworkResult<out T> {

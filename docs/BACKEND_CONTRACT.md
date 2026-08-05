@@ -2,6 +2,16 @@
 
 The backend is a relay and synchronization service. It must not receive plaintext message bodies or attachment contents.
 
+## Canonical deployment
+
+The official ChatNU service is expected at:
+
+```text
+https://chatnu.devnu.ir
+```
+
+The Android client uses this host by default for both REST and realtime traffic. Self-hosted deployments can override these values through build configuration.
+
 ## Ports
 
 A deployment should expose one public TLS endpoint, normally port `443`, and route internally:
@@ -30,7 +40,7 @@ GET  /api/v1/health
 ## WebSocket
 
 ```text
-wss://host/realtime
+wss://chatnu.devnu.ir/realtime
 ```
 
 Events:

@@ -2,11 +2,11 @@
 setlocal
 set "DIR=%~dp0"
 set "CLASSPATH=%DIR%gradle\wrapper\gradle-wrapper.jar"
-set "WRAPPER_URL=https://services.gradle.org/distributions/gradle-8.13-wrapper.jar"
+set "WRAPPER_URL=https://raw.githubusercontent.com/gradle/gradle/v8.13.0/gradle/wrapper/gradle-wrapper.jar"
 set "WRAPPER_SHA256=81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
 
 if not exist "%CLASSPATH%" (
-  echo Bootstrapping the verified Gradle 8.13 wrapper...
+  echo Bootstrapping the verified Gradle 8.13 wrapper from the official Gradle repository...
   powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $dest='%CLASSPATH%'; New-Item -ItemType Directory -Force -Path (Split-Path $dest) ^| Out-Null; Invoke-WebRequest -UseBasicParsing -Uri '%WRAPPER_URL%' -OutFile $dest; $actual=(Get-FileHash $dest -Algorithm SHA256).Hash.ToLower(); if($actual -ne '%WRAPPER_SHA256%'){Remove-Item -Force $dest; throw 'Gradle wrapper checksum mismatch'}"
   if errorlevel 1 exit /b 1
 )

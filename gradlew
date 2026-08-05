@@ -4,7 +4,7 @@ set -eu
 
 APP_HOME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
-WRAPPER_URL="https://services.gradle.org/distributions/gradle-8.13-wrapper.jar"
+WRAPPER_URL="https://raw.githubusercontent.com/gradle/gradle/v8.13.0/gradle/wrapper/gradle-wrapper.jar"
 WRAPPER_SHA256="81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
 
 verify_wrapper() {
@@ -39,7 +39,7 @@ download_wrapper() {
 }
 
 if [ ! -f "$CLASSPATH" ]; then
-  echo "Bootstrapping the verified Gradle 8.13 wrapper..."
+  echo "Bootstrapping the verified Gradle 8.13 wrapper from the official Gradle repository..."
   download_wrapper
 fi
 

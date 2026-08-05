@@ -51,5 +51,8 @@ class KtorChatApi(
     override suspend fun sync(cursor: String?) = call { client.get("/api/v1/sync") { cursor?.let { url.parameters.append("cursor", it) } }.body<SyncPage>() }
 
     private suspend fun <T> call(block: suspend () -> T): NetworkResult<T> = runCatching { block() }
-        .fold(NetworkResult::Success, NetworkResult::Failure)
+        .fold(
+            onSuccess = { value -> NetworkResult.Success(value) },
+            onFailure = { error -> NetworkResult.Failure(error) },
+        )
 }

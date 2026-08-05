@@ -4,6 +4,7 @@ kotlin = "2.3.20"
 coreKtx = "1.17.0"
 activityCompose = "1.13.0"
 compose = "1.11.4"
+composeIcons = "1.7.8"
 material3 = "1.4.0"
 navigation = "2.9.8"
 lifecycle = "2.11.0"
@@ -28,7 +29,7 @@ androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", versi
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "compose" }
 androidx-compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose" }
 androidx-compose-animation = { module = "androidx.compose.animation:animation", version.ref = "compose" }
-androidx-compose-material-icons = { module = "androidx.compose.material:material-icons-extended", version.ref = "compose" }
+androidx-compose-material-icons = { module = "androidx.compose.material:material-icons-extended", version.ref = "composeIcons" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }

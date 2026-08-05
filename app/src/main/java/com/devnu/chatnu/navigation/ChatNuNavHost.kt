@@ -7,17 +7,28 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.devnu.chatnu.data.DemoChatRepository
+import com.devnu.chatnu.di.AppContainer
+import com.devnu.chatnu.di.ConversationViewModelFactory
+import com.devnu.chatnu.di.HomeViewModelFactory
+import com.devnu.chatnu.di.NodeViewModelFactory
+import com.devnu.chatnu.di.OnboardingViewModelFactory
+import com.devnu.chatnu.di.SettingsViewModelFactory
 import com.devnu.chatnu.feature.chat.ConversationScreen
+import com.devnu.chatnu.feature.chat.ConversationViewModel
 import com.devnu.chatnu.feature.home.HomeScreen
+import com.devnu.chatnu.feature.home.HomeViewModel
 import com.devnu.chatnu.feature.node.NodeScreen
+import com.devnu.chatnu.feature.node.NodeViewModel
 import com.devnu.chatnu.feature.onboarding.OnboardingScreen
+import com.devnu.chatnu.feature.onboarding.OnboardingViewModel
 import com.devnu.chatnu.feature.settings.SettingsScreen
+import com.devnu.chatnu.feature.settings.SettingsViewModel
 
 private object Routes {
     const val Onboarding = "onboarding"
@@ -29,7 +40,7 @@ private object Routes {
 }
 
 @Composable
-fun ChatNuNavHost(repository: DemoChatRepository) {
+fun ChatNuNavHost(container: AppContainer) {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
@@ -40,13 +51,15 @@ fun ChatNuNavHost(repository: DemoChatRepository) {
         popExitTransition = { fadeOut() },
     ) {
         composable(Routes.Onboarding) {
-            OnboardingScreen(onContinue = {
+            val vm: OnboardingViewModel = viewModel(factory = OnboardingViewModelFactory(container.identityStore))
+            OnboardingScreen(vm, onContinue = {
                 navController.navigate(Routes.Home) { popUpTo(Routes.Onboarding) { inclusive = true } }
             })
         }
         composable(Routes.Home) {
+            val vm: HomeViewModel = viewModel(factory = HomeViewModelFactory(container.chatRepository))
             HomeScreen(
-                repository = repository,
+                viewModel = vm,
                 onOpenConversation = { navController.navigate(Routes.chat(it)) },
                 onOpenNodes = { navController.navigate(Routes.Nodes) },
                 onOpenSettings = { navController.navigate(Routes.Settings) },
@@ -61,9 +74,19 @@ fun ChatNuNavHost(repository: DemoChatRepository) {
             popExitTransition = { slideOutHorizontally(targetOffsetX = { it / 3 }) + fadeOut() },
         ) { entry ->
             val id = entry.arguments?.getString("conversationId").orEmpty()
-            ConversationScreen(repository, id, onBack = navController::popBackStack)
+            val vm: ConversationViewModel = viewModel(
+                key = "conversation-$id",
+                factory = ConversationViewModelFactory(container.chatRepository, id),
+            )
+            ConversationScreen(vm, onBack = navController::popBackStack)
         }
-        composable(Routes.Nodes) { NodeScreen(repository, onBack = navController::popBackStack) }
-        composable(Routes.Settings) { SettingsScreen(onBack = navController::popBackStack) }
+        composable(Routes.Nodes) {
+            val vm: NodeViewModel = viewModel(factory = NodeViewModelFactory(container.chatRepository))
+            NodeScreen(vm, onBack = navController::popBackStack)
+        }
+        composable(Routes.Settings) {
+            val vm: SettingsViewModel = viewModel(factory = SettingsViewModelFactory(container.identityStore, container.chatRepository))
+            SettingsScreen(vm, onBack = navController::popBackStack)
+        }
     }
 }

@@ -38,11 +38,11 @@ app/src/main/java/com/devnu/chatnu/core/network
 Default endpoints:
 
 ```text
-REST:      https://api.devnu.ir
-WebSocket: wss://api.devnu.ir/realtime
+REST:      https://chatnu.devnu.ir
+WebSocket: wss://chatnu.devnu.ir/realtime
 ```
 
-Override them through build configuration when the backend is ready.
+Override them through build configuration when running a local relay or a self-hosted node.
 
 ## Security status
 

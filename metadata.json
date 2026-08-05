@@ -1,6 +1,0 @@
-{
-  "name": "ChatNU",
-  "description": "Production-Grade Secure Native Android Messenger for ChatNU (devnu.ir)",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

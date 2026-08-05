@@ -30,7 +30,15 @@ jobs:
         shell: bash
         run: |
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            gradle wrapper --gradle-version 8.13 --distribution-type bin
+            bootstrap_dir="$(mktemp -d)"
+            printf 'rootProject.name = "chatnu-wrapper-bootstrap"\n' > "$bootstrap_dir/settings.gradle"
+            gradle -p "$bootstrap_dir" wrapper --gradle-version 8.13 --distribution-type bin
+            mkdir -p gradle/wrapper
+            cp "$bootstrap_dir/gradlew" ./gradlew
+            cp "$bootstrap_dir/gradlew.bat" ./gradlew.bat
+            cp "$bootstrap_dir/gradle/wrapper/gradle-wrapper.jar" ./gradle/wrapper/gradle-wrapper.jar
+            cp "$bootstrap_dir/gradle/wrapper/gradle-wrapper.properties" ./gradle/wrapper/gradle-wrapper.properties
+            chmod +x gradlew
             git config user.name "DEVNU Build Bot"
             git config user.email "devnu@devnu.ir"
             git add gradlew gradlew.bat gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties

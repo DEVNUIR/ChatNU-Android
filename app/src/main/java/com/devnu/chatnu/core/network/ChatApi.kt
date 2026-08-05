@@ -2,9 +2,9 @@ package com.devnu.chatnu.core.network
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -22,6 +22,11 @@ interface ChatApi {
 class KtorChatApi(private val config: ServerConfig) : ChatApi {
     private val client = HttpClient {
         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        install(HttpTimeout) {
+            requestTimeoutMillis = config.connectTimeoutMs
+            connectTimeoutMillis = config.connectTimeoutMs
+            socketTimeoutMillis = 30_000
+        }
         defaultRequest {
             url(config.apiBaseUrl)
             contentType(ContentType.Application.Json)
@@ -29,7 +34,7 @@ class KtorChatApi(private val config: ServerConfig) : ChatApi {
     }
 
     override suspend fun health() = runCatching {
-        client.get("/api/v1/health") { timeout { requestTimeoutMillis = config.connectTimeoutMs } }.body<HealthResponse>()
+        client.get("/api/v1/health").body<HealthResponse>()
     }.fold(NetworkResult::Success, NetworkResult::Failure)
 
     override suspend fun register(request: RegisterRequest) = runCatching {

@@ -5,6 +5,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
@@ -43,9 +44,10 @@ class KtorRealtimeGateway(private val config: ServerConfig) : RealtimeGateway {
         while (active) {
             mutableState.value = ConnectionState.CONNECTING
             try {
-                client.webSocket(urlString = config.websocketUrl, request = {
-                    accessToken?.let { headers.append("Authorization", "Bearer $it") }
-                }) {
+                client.webSocket(
+                    urlString = config.websocketUrl,
+                    request = { accessToken?.let { headers.append(HttpHeaders.Authorization, "Bearer $it") } },
+                ) {
                     attempt = 0
                     mutableState.value = ConnectionState.CONNECTED
                     for (frame in incoming) {
@@ -60,7 +62,8 @@ class KtorRealtimeGateway(private val config: ServerConfig) : RealtimeGateway {
             } catch (_: Throwable) {
                 mutableState.value = ConnectionState.DEGRADED
                 attempt++
-                delay((1_000L shl attempt.coerceAtMost(5)).coerceAtMost(30_000L))
+                val multiplier = 1L shl attempt.coerceAtMost(5)
+                delay((1_000L * multiplier).coerceAtMost(30_000L))
             }
         }
         mutableState.value = ConnectionState.DISCONNECTED
@@ -68,7 +71,6 @@ class KtorRealtimeGateway(private val config: ServerConfig) : RealtimeGateway {
 
     override suspend fun disconnect() {
         active = false
-        client.close()
         mutableState.value = ConnectionState.DISCONNECTED
     }
 }

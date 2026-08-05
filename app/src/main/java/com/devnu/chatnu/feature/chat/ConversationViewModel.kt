@@ -21,45 +21,45 @@ data class ConversationUiState(
     val attachmentTrayVisible: Boolean = false,
 )
 
+private data class ComposerState(
+    val draft: String = "",
+    val replyingTo: ChatMessage? = null,
+    val recording: Boolean = false,
+    val attachmentTrayVisible: Boolean = false,
+)
+
 class ConversationViewModel(
     private val repository: ChatRepository,
     private val conversationId: String,
 ) : ViewModel() {
-    private val draft = MutableStateFlow("")
-    private val replyingTo = MutableStateFlow<ChatMessage?>(null)
-    private val recording = MutableStateFlow(false)
-    private val attachmentTrayVisible = MutableStateFlow(false)
+    private val composer = MutableStateFlow(ComposerState())
     private val conversation = repository.conversations.map { items -> items.firstOrNull { it.id == conversationId } }
 
     val state = combine(
         conversation,
         repository.messages(conversationId),
-        draft,
-        replyingTo,
-        recording,
-        attachmentTrayVisible,
-    ) { values ->
+        composer,
+    ) { currentConversation, messages, currentComposer ->
         ConversationUiState(
-            conversation = values[0] as Conversation?,
-            messages = @Suppress("UNCHECKED_CAST") (values[1] as List<ChatMessage>),
-            draft = values[2] as String,
-            replyingTo = values[3] as ChatMessage?,
-            recording = values[4] as Boolean,
-            attachmentTrayVisible = values[5] as Boolean,
+            conversation = currentConversation,
+            messages = messages,
+            draft = currentComposer.draft,
+            replyingTo = currentComposer.replyingTo,
+            recording = currentComposer.recording,
+            attachmentTrayVisible = currentComposer.attachmentTrayVisible,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ConversationUiState())
 
-    fun updateDraft(value: String) { draft.value = value }
-    fun replyTo(message: ChatMessage?) { replyingTo.value = message }
-    fun toggleRecording() { recording.value = !recording.value }
-    fun toggleAttachmentTray() { attachmentTrayVisible.value = !attachmentTrayVisible.value }
+    fun updateDraft(value: String) { composer.value = composer.value.copy(draft = value) }
+    fun replyTo(message: ChatMessage?) { composer.value = composer.value.copy(replyingTo = message) }
+    fun toggleRecording() { composer.value = composer.value.copy(recording = !composer.value.recording) }
+    fun toggleAttachmentTray() { composer.value = composer.value.copy(attachmentTrayVisible = !composer.value.attachmentTrayVisible) }
 
     fun send() {
-        val body = draft.value.trim()
+        val body = composer.value.draft.trim()
         if (body.isBlank()) return
-        val replyId = replyingTo.value?.id
-        draft.value = ""
-        replyingTo.value = null
+        val replyId = composer.value.replyingTo?.id
+        composer.value = composer.value.copy(draft = "", replyingTo = null)
         viewModelScope.launch { repository.sendMessage(conversationId, body, replyId) }
     }
 

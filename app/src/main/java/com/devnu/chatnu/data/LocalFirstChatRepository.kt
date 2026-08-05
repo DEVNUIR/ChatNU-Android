@@ -57,11 +57,15 @@ class LocalFirstChatRepository(
 
     override val conversations: Flow<List<Conversation>> = combine(dao.observeConversations(), dao.observeUsers()) { conversations, users ->
         val usersById = users.associateBy(UserEntity::id)
-        conversations.mapNotNull { entity -> usersById[entity.peerUserId]?.let(entity::toDomain) }
+        conversations.mapNotNull { entity ->
+            usersById[entity.peerUserId]?.let { peer -> entity.toDomain(peer) }
+        }
     }
-    override val relayNodes = dao.observeRelayNodes().map { nodes -> nodes.map(RelayNodeEntity::toDomain) }
+    override val relayNodes = dao.observeRelayNodes().map { nodes -> nodes.map { node -> node.toDomain() } }
     override val connectionState: Flow<ConnectionState> = realtime.state
-    override fun messages(conversationId: String): Flow<List<ChatMessage>> = dao.observeMessages(conversationId).map { it.map(MessageEntity::toDomain) }
+    override fun messages(conversationId: String): Flow<List<ChatMessage>> = dao.observeMessages(conversationId).map { messages ->
+        messages.map { message -> message.toDomain() }
+    }
 
     override suspend fun sendMessage(conversationId: String, body: String, replyToMessageId: String?) {
         val text = body.trim()

@@ -20,12 +20,12 @@ export async function registerRealtime(app: FastifyInstance): Promise<void> {
       const channel = `user:${claims.sub}`;
       await subscriber.subscribe(channel);
 
-      subscriber.on('message', (_channel, payload) => {
+      subscriber.on('message', (_channel: string, payload: string) => {
         if (socket.readyState === WEBSOCKET_OPEN) socket.send(payload);
       });
       socket.send(JSON.stringify({ type: 'connected', payload: JSON.stringify({ deviceId: claims.deviceId }) }));
 
-      socket.on('message', async (raw) => {
+      socket.on('message', async (raw: Buffer) => {
         try {
           const event = JSON.parse(raw.toString()) as {
             type?: string;

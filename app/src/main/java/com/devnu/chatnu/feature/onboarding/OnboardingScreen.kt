@@ -1,5 +1,6 @@
 package com.devnu.chatnu.feature.onboarding
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -27,10 +28,13 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Router
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +44,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devnu.chatnu.R
 import com.devnu.chatnu.ui.components.AmbientBackdrop
 import com.devnu.chatnu.ui.components.GlassSurface
@@ -49,13 +54,12 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
-fun OnboardingScreen(onContinue: () -> Unit) {
+fun OnboardingScreen(viewModel: OnboardingViewModel, onContinue: () -> Unit) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(state.identity?.userId) { if (state.identity != null) onContinue() }
     AmbientBackdrop {
         Column(
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .padding(top = 72.dp, bottom = 32.dp),
+            Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(top = 72.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -65,31 +69,38 @@ fun OnboardingScreen(onContinue: () -> Unit) {
                     Text("Private by architecture", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-
-            Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                MeshIllustration(Modifier.fillMaxWidth().height(270.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                MeshIllustration(Modifier.fillMaxWidth().height(if (state.showForm) 180.dp else 270.dp))
                 Text("Messaging without a single point of failure.", style = MaterialTheme.typography.displayLarge)
-                Text(
-                    "Your identity belongs to you. Messages are encrypted on-device and relayed through nodes you choose.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FeatureChip(Icons.Rounded.Lock, "End-to-end")
-                    FeatureChip(Icons.Rounded.Router, "Node aware")
-                    FeatureChip(Icons.Rounded.Hub, "Decentralized")
+                Text("Your identity belongs to you. Messages are stored locally and relayed through nodes you choose.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AnimatedVisibility(!state.showForm) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FeatureChip(Icons.Rounded.Lock, "Local keys")
+                        FeatureChip(Icons.Rounded.Router, "Node aware")
+                        FeatureChip(Icons.Rounded.Hub, "Decentralized")
+                    }
+                }
+                AnimatedVisibility(state.showForm) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(value = state.displayName, onValueChange = viewModel::updateDisplayName, modifier = Modifier.fillMaxWidth(), label = { Text("Display name") }, singleLine = true)
+                        OutlinedTextField(value = state.username, onValueChange = viewModel::updateUsername, modifier = Modifier.fillMaxWidth(), label = { Text("Username") }, prefix = { Text("@") }, singleLine = true)
+                        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    }
                 }
             }
-
             Button(
-                onClick = onContinue,
+                onClick = if (state.showForm) viewModel::createIdentity else viewModel::showForm,
+                enabled = !state.creating,
                 modifier = Modifier.fillMaxWidth().height(58.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
             ) {
-                Text("Create local identity")
-                Spacer(Modifier.weight(1f))
-                Icon(Icons.Rounded.ArrowForward, null)
+                if (state.creating) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
+                else {
+                    Text(if (state.showForm) "Generate local identity" else "Create local identity")
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Rounded.ArrowForward, null)
+                }
             }
         }
     }
@@ -108,12 +119,7 @@ private fun FeatureChip(icon: androidx.compose.ui.graphics.vector.ImageVector, t
 @Composable
 private fun MeshIllustration(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "mesh")
-    val phase by transition.animateFloat(
-        0f,
-        360f,
-        infiniteRepeatable(tween(9000), RepeatMode.Restart),
-        label = "phase",
-    )
+    val phase by transition.animateFloat(0f, 360f, infiniteRepeatable(tween(9000), RepeatMode.Restart), label = "phase")
     Box(modifier, contentAlignment = Alignment.Center) {
         Box(Modifier.size(210.dp).background(ElectricViolet.copy(alpha = 0.10f), CircleShape))
         Canvas(Modifier.fillMaxSize()) {
@@ -123,11 +129,7 @@ private fun MeshIllustration(modifier: Modifier = Modifier) {
                 val angle = Math.toRadians((index * (360.0 / 7.0)) + phase * 0.12)
                 Offset(center.x + cos(angle).toFloat() * radius, center.y + sin(angle).toFloat() * radius)
             }
-            nodes.forEachIndexed { i, a ->
-                nodes.drop(i + 1).forEach { b ->
-                    drawLine(Color.White.copy(alpha = 0.08f), a, b, strokeWidth = 1.3f)
-                }
-            }
+            nodes.forEachIndexed { i, a -> nodes.drop(i + 1).forEach { b -> drawLine(Color.White.copy(alpha = 0.08f), a, b, strokeWidth = 1.3f) } }
             drawCircle(ElectricViolet.copy(alpha = 0.16f), radius = radius * 0.46f, center = center)
             drawCircle(ElectricViolet, radius = radius * 0.31f, center = center, style = Stroke(width = 4f))
             drawCircle(Color.White, radius = 8f, center = center)

@@ -24,10 +24,14 @@ import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -38,7 +42,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devnu.chatnu.core.model.RelayNode
-import com.devnu.chatnu.data.DemoChatRepository
 import com.devnu.chatnu.ui.components.AmbientBackdrop
 import com.devnu.chatnu.ui.components.GlassSurface
 import com.devnu.chatnu.ui.theme.ElectricViolet
@@ -46,8 +49,23 @@ import com.devnu.chatnu.ui.theme.SignalMint
 import com.devnu.chatnu.ui.theme.WarningAmber
 
 @Composable
-fun NodeScreen(repository: DemoChatRepository, onBack: () -> Unit) {
-    val nodes by repository.nodes.collectAsStateWithLifecycle()
+fun NodeScreen(viewModel: NodeViewModel, onBack: () -> Unit) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    if (state.showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.showAddDialog(false) },
+            title = { Text("Add relay node") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("ChatNU validates HTTPS, API compatibility and the realtime route before production use.")
+                    OutlinedTextField(value = state.nodeHost, onValueChange = viewModel::updateHost, label = { Text("Node HTTPS URL") }, singleLine = true)
+                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                }
+            },
+            confirmButton = { Button(onClick = viewModel::addNode, enabled = !state.saving) { Text(if (state.saving) "Checking…" else "Add node") } },
+            dismissButton = { TextButton(onClick = { viewModel.showAddDialog(false) }) { Text("Cancel") } },
+        )
+    }
     AmbientBackdrop {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 48.dp, bottom = 40.dp)) {
             item {
@@ -57,14 +75,14 @@ fun NodeScreen(repository: DemoChatRepository, onBack: () -> Unit) {
                         Text("Relay nodes", style = MaterialTheme.typography.headlineMedium)
                         Text("Choose who carries your encrypted traffic", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = {}) { Icon(Icons.Rounded.Add, "Add node") }
+                    IconButton(onClick = { viewModel.showAddDialog(true) }) { Icon(Icons.Rounded.Add, "Add node") }
                 }
                 Spacer(Modifier.size(20.dp))
-                NetworkSummary(nodes.firstOrNull { it.connected })
+                NetworkSummary(state.nodes.firstOrNull { it.connected })
                 Spacer(Modifier.size(20.dp))
                 Text("Available nodes", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
             }
-            items(nodes, key = { it.id }) { node -> NodeCard(node) { repository.connectNode(node.id) } }
+            items(state.nodes, key = { it.id }) { node -> NodeCard(node) { viewModel.select(node.id) } }
         }
     }
 }
@@ -74,9 +92,7 @@ private fun NetworkSummary(connected: RelayNode?) {
     GlassSurface(Modifier.padding(horizontal = 20.dp).fillMaxWidth(), RoundedCornerShape(28.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(46.dp).clip(CircleShape).background(ElectricViolet.copy(alpha = .18f)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Hub, null, tint = ElectricViolet)
-                }
+                Box(Modifier.size(46.dp).clip(CircleShape).background(ElectricViolet.copy(alpha = .18f)), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Hub, null, tint = ElectricViolet) }
                 Column(Modifier.padding(start = 12.dp)) {
                     Text(connected?.name ?: "Disconnected", style = MaterialTheme.typography.titleLarge)
                     Text(connected?.host ?: "Select a relay", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -84,7 +100,7 @@ private fun NetworkSummary(connected: RelayNode?) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Metric(Icons.Rounded.Speed, "${connected?.latencyMs ?: 0} ms")
-                Metric(Icons.Rounded.Lock, "E2EE")
+                Metric(Icons.Rounded.Lock, "Encrypted")
                 Metric(Icons.Rounded.CheckCircle, if (connected?.trusted == true) "Trusted" else "Unverified")
             }
         }

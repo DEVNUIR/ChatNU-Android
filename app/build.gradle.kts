@@ -53,7 +53,12 @@ kotlin {
     }
 }
 
-kapt { correctErrorTypes = true }
+kapt {
+    correctErrorTypes = true
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
+}
 
 dependencies {
     implementation(libs.androidx.core.ktx)
@@ -86,7 +91,6 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.androidx.test.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.tooling.preview)

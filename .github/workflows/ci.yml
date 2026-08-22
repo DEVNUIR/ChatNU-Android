@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   server:
     runs-on: ubuntu-latest
@@ -31,6 +35,7 @@ jobs:
 
   server-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Start full Docker stack
@@ -45,7 +50,6 @@ jobs:
           python3 - <<'PY'
           import json
           import time
-          import urllib.error
           import urllib.request
 
           BASE = "http://127.0.0.1:3000"
@@ -98,7 +102,7 @@ jobs:
               "conversationId": conversation_id,
               "clientId": "ci-message-1",
               "type": "TEXT",
-              "ciphertext": "Y2hhdG51LWNpLXNt b2tl".replace(" ", ""),
+              "ciphertext": "Y2hhdG51LWNpLXNtb2tl",
               "protocolVersion": "ci-smoke"
           }, alice["accessToken"])["message"]
           assert sent["conversationId"] == conversation_id

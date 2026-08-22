@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.example.data.AccountManager
 import com.example.data.CallRepository
 import com.example.model.CallType
 import com.example.model.Conversation
@@ -59,6 +60,10 @@ class ProductionMainActivity : ComponentActivity() {
                     mutableStateOf(if (isLoggedIn) ProductionScreen.HOME else ProductionScreen.AUTH)
                 }
                 var activeConversation by remember { mutableStateOf<Conversation?>(null) }
+
+                LaunchedEffect(currentUser?.id) {
+                    currentUser?.let(AccountManager::bindRemoteUser)
+                }
 
                 LaunchedEffect(isLoggedIn) {
                     if (isLoggedIn) {

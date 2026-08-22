@@ -1,9 +1,17 @@
 # ChatNU API contract
 
 Base REST URL: `https://api.devnu.ir/`
-Realtime endpoint: `wss://api.devnu.ir/realtime?token=<access-token>`
+Realtime endpoint: `wss://api.devnu.ir/realtime`
 
 The Docker development stack exposes the REST API on `http://127.0.0.1:3000`.
+
+All protected REST requests use:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+The WebSocket upgrade uses the same Authorization header. Access tokens are intentionally not accepted in the realtime query string.
 
 ## Authentication
 
@@ -23,12 +31,12 @@ Request: `{ refreshToken }`
 Rotates the refresh token and returns a fresh access token. Revoked devices cannot refresh.
 
 ### `POST /auth/logout`
-Requires Bearer authentication and revokes the current device session.
+Requires Bearer authentication, revokes the current device session and closes local realtime sockets for that device.
 
 ### `POST /auth/recover`
 Request: `{ username, recoveryCode, newPassword }`
 
-Resets the password and revokes all existing device sessions.
+Resets the password, revokes all existing device sessions and closes local realtime sockets for the account.
 
 ## Users
 
@@ -44,7 +52,7 @@ Resets the password and revokes all existing device sessions.
 - `GET /conversations/:id/messages?before=<ISO timestamp>&limit=50`
 - `POST /conversations/:id/read`
 
-Only conversation members may read/send messages or access attachments.
+Only conversation members may read/send messages or access attachments. Direct conversation creation is idempotent for a given user pair.
 
 ## Messages
 
@@ -63,21 +71,21 @@ Request:
 }
 ```
 
-The server treats `ciphertext` as opaque application data and never attempts to decrypt it. `clientId` makes retries idempotent per sender.
+The server treats `ciphertext` as opaque application data and never attempts to decrypt it. `clientId` makes retries idempotent per sender, including concurrent duplicate submissions.
 
 ### `GET /sync?cursor=<ISO timestamp>&limit=200`
 Returns message-created events after the supplied cursor for conversations the user belongs to.
 
 ## Realtime
 
-Connect to `/realtime?token=<access-token>`. Server events currently include:
+Connect to `/realtime` with an `Authorization: Bearer ...` header on the WebSocket handshake. Server events currently include:
 
 - `connected`
 - `message.created`
 - `conversation.created`
 - `conversation.read`
 
-Redis pub/sub allows multiple API instances to fan out events to connected users.
+Redis pub/sub allows multiple API instances to fan out events to connected users. Session validity is checked when the WebSocket is established.
 
 ## Attachments
 
@@ -86,10 +94,10 @@ Multipart form fields:
 - `conversationId`
 - `file`
 
-The server stores the uploaded bytes in MinIO and records metadata in PostgreSQL. Clients that promise E2EE must encrypt attachment bytes before upload.
+The server stores the uploaded bytes on a private persistent attachment volume and records metadata in PostgreSQL. Clients that promise E2EE must encrypt attachment bytes before upload.
 
 ### `GET /attachments/:id/download`
-Returns a short-lived presigned MinIO URL after membership authorization.
+After membership authorization, the API streams the attachment bytes directly to the authenticated client with `Cache-Control: private, no-store`. Filesystem paths are never returned to clients.
 
 ## Health
 

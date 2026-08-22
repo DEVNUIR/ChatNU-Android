@@ -3,7 +3,7 @@ import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { SignJWT, jwtVerify } from "jose";
 import { Client as MinioClient } from "minio";
 import multer from "multer";
@@ -89,6 +89,7 @@ const passwordSchema = z.string().min(10).max(200);
 
 type AuthContext = { userId: string; deviceId: string };
 type AuthedRequest = Request & { auth?: AuthContext };
+type MessageWithSender = Prisma.MessageGetPayload<{ include: { sender: true } }>;
 
 function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
@@ -200,19 +201,7 @@ async function pushToConversation(conversationId: string, event: unknown) {
   await Promise.all(members.map((member) => pushToUser(member.userId, event)));
 }
 
-function serializeMessage(message: {
-  id: string;
-  clientId: string | null;
-  conversationId: string;
-  senderId: string;
-  type: MessageType;
-  ciphertext: string;
-  nonce: string | null;
-  protocolVersion: string | null;
-  metadata: Prisma.JsonValue | null;
-  createdAt: Date;
-  sender: { username: string; displayName: string };
-}) {
+function serializeMessage(message: MessageWithSender) {
   return {
     id: message.id,
     clientId: message.clientId,
@@ -515,23 +504,25 @@ app.post("/conversations/group", requireAuth, async (req: AuthedRequest, res) =>
 });
 
 app.patch("/conversations/:id/preferences", requireAuth, async (req: AuthedRequest, res) => {
+  const conversationId = z.string().min(1).parse(req.params.id);
   const input = z.object({ isPinned: z.boolean().optional(), isMuted: z.boolean().optional() }).parse(req.body);
-  const member = await requireMembership(req.auth!.userId, req.params.id);
+  const member = await requireMembership(req.auth!.userId, conversationId);
   if (!member) return res.status(404).json({ error: "CONVERSATION_NOT_FOUND" });
   const updated = await prisma.conversationMember.update({
-    where: { conversationId_userId: { conversationId: req.params.id, userId: req.auth!.userId } },
+    where: { conversationId_userId: { conversationId, userId: req.auth!.userId } },
     data: input,
   });
   res.json({ isPinned: updated.isPinned, isMuted: updated.isMuted });
 });
 
 app.get("/conversations/:id/messages", requireAuth, async (req: AuthedRequest, res) => {
-  const member = await requireMembership(req.auth!.userId, req.params.id);
+  const conversationId = z.string().min(1).parse(req.params.id);
+  const member = await requireMembership(req.auth!.userId, conversationId);
   if (!member) return res.status(404).json({ error: "CONVERSATION_NOT_FOUND" });
   const query = z.object({ before: z.string().datetime().optional(), limit: z.coerce.number().int().min(1).max(100).default(50) }).parse(req.query);
   const messages = await prisma.message.findMany({
     where: {
-      conversationId: req.params.id,
+      conversationId,
       deletedAt: null,
       ...(query.before ? { createdAt: { lt: new Date(query.before) } } : {}),
     },
@@ -587,16 +578,17 @@ app.post("/messages", requireAuth, async (req: AuthedRequest, res) => {
 });
 
 app.post("/conversations/:id/read", requireAuth, async (req: AuthedRequest, res) => {
-  const member = await requireMembership(req.auth!.userId, req.params.id);
+  const conversationId = z.string().min(1).parse(req.params.id);
+  const member = await requireMembership(req.auth!.userId, conversationId);
   if (!member) return res.status(404).json({ error: "CONVERSATION_NOT_FOUND" });
   const readAt = new Date();
   await prisma.conversationMember.update({
-    where: { conversationId_userId: { conversationId: req.params.id, userId: req.auth!.userId } },
+    where: { conversationId_userId: { conversationId, userId: req.auth!.userId } },
     data: { lastReadAt: readAt },
   });
-  await pushToConversation(req.params.id, {
+  await pushToConversation(conversationId, {
     type: "conversation.read",
-    conversationId: req.params.id,
+    conversationId,
     userId: req.auth!.userId,
     readAt: readAt.toISOString(),
   });
@@ -648,7 +640,8 @@ app.post("/attachments", requireAuth, upload.single("file"), async (req: AuthedR
 });
 
 app.get("/attachments/:id/download", requireAuth, async (req: AuthedRequest, res) => {
-  const attachment = await prisma.attachment.findUnique({ where: { id: req.params.id } });
+  const attachmentId = z.string().min(1).parse(req.params.id);
+  const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId } });
   if (!attachment) return res.status(404).json({ error: "ATTACHMENT_NOT_FOUND" });
   const member = await requireMembership(req.auth!.userId, attachment.conversationId);
   if (!member) return res.status(404).json({ error: "ATTACHMENT_NOT_FOUND" });
@@ -703,7 +696,7 @@ async function start() {
   const exists = await minio.bucketExists(env.MINIO_BUCKET).catch(() => false);
   if (!exists) await minio.makeBucket(env.MINIO_BUCKET);
   await redisSub.psubscribe("chatnu:user:*");
-  redisSub.on("pmessage", (_pattern, channel, message) => {
+  redisSub.on("pmessage", (_pattern: string, channel: string, message: string) => {
     const userId = channel.slice("chatnu:user:".length);
     deliverLocal(userId, message);
   });

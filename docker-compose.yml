@@ -1,46 +1,73 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: chatnu-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: chatnu
-      POSTGRES_USER: chatnu_admin
-      POSTGRES_PASSWORD: devnu_secure_password
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: chatnu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatnu-local-password}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - chatnu_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatnu -d chatnu"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7-alpine
-    container_name: chatnu-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - chatnu_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-chatnu}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-chatnu-local-minio-secret}
+    volumes:
+      - chatnu_minio:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:9001:9001"
 
   api:
-    build: .
-    container_name: chatnu-api
+    build:
+      context: ./server
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://chatnu_admin:devnu_secure_password@postgres:5432/chatnu
+      PORT: 3000
+      DATABASE_URL: postgresql://chatnu:${POSTGRES_PASSWORD:-chatnu-local-password}@postgres:5432/chatnu?schema=public
       REDIS_URL: redis://redis:6379
-      DOMAIN: devnu.ir
+      JWT_SECRET: ${JWT_SECRET:-change-this-local-jwt-secret-32-chars-minimum}
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-chatnu}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-chatnu-local-minio-secret}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chatnu-attachments}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
     ports:
       - "3000:3000"
-    depends_on:
-      - postgres
-      - redis
-
-  livekit:
-    image: livekit/livekit-server:v1.5
-    container_name: chatnu-livekit
-    command: --config /etc/livekit.yaml
-    ports:
-      - "7880:7880"
-      - "7881:7881"
-      - "50000-60000:50000-60000/udp"
 
 volumes:
-  pgdata:
+  chatnu_postgres:
+  chatnu_redis:
+  chatnu_minio:

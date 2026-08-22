@@ -24,6 +24,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm install
+      - name: Audit production dependencies
+        run: npm run audit:prod
       - name: Generate Prisma client
         run: npx prisma generate
       - name: Validate Prisma schema
@@ -42,83 +44,220 @@ jobs:
         env:
           POSTGRES_PASSWORD: ci-postgres-password
           JWT_SECRET: ci-jwt-secret-that-is-definitely-longer-than-thirty-two-characters
-          MINIO_ACCESS_KEY: chatnu
-          MINIO_SECRET_KEY: ci-minio-secret-password
         run: docker compose up -d --build
-      - name: Exercise auth, database and messaging
+      - name: Exercise auth, migrations, realtime, messages and attachments
         run: |
-          python3 - <<'PY'
-          import json
-          import time
-          import urllib.request
+          docker compose exec -T api node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import WebSocket from 'ws';
 
-          BASE = "http://127.0.0.1:3000"
+          const BASE = 'http://127.0.0.1:3000';
+          const suffix = Date.now().toString(36);
 
-          def request(path, data=None, token=None, method=None):
-              headers = {"Content-Type": "application/json"}
-              if token:
-                  headers["Authorization"] = f"Bearer {token}"
-              body = None if data is None else json.dumps(data).encode()
-              req = urllib.request.Request(BASE + path, data=body, headers=headers, method=method)
-              with urllib.request.urlopen(req, timeout=10) as response:
-                  raw = response.read()
-                  return None if not raw else json.loads(raw)
+          async function fetchJson(path, { method = 'GET', token, body } = {}) {
+            const headers = {};
+            if (token) headers.Authorization = `Bearer ${token}`;
+            if (body !== undefined) headers['Content-Type'] = 'application/json';
+            const response = await fetch(BASE + path, {
+              method,
+              headers,
+              body: body === undefined ? undefined : JSON.stringify(body),
+            });
+            const text = await response.text();
+            const data = text ? JSON.parse(text) : null;
+            if (!response.ok) {
+              const error = new Error(`${method} ${path} -> ${response.status}: ${text}`);
+              error.status = response.status;
+              throw error;
+            }
+            return { response, data };
+          }
 
-          for attempt in range(60):
-              try:
-                  health = request("/health")
-                  if health.get("status") == "ok":
-                      break
-              except Exception:
-                  if attempt == 59:
-                      raise
-                  time.sleep(2)
-          else:
-              raise RuntimeError("ChatNU API never became healthy")
+          for (let attempt = 0; attempt < 60; attempt += 1) {
+            try {
+              const response = await fetch(`${BASE}/health`);
+              const health = await response.json();
+              if (response.ok && health.status === 'ok') break;
+            } catch {}
+            if (attempt === 59) throw new Error('ChatNU API never became healthy');
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
 
-          alice = request("/auth/register", {
-              "username": "ci_alice",
-              "password": "correct-horse-ci-alice",
-              "displayName": "CI Alice",
-              "deviceName": "CI Runner"
-          })
-          bob = request("/auth/register", {
-              "username": "ci_bob",
-              "password": "correct-horse-ci-bob",
-              "displayName": "CI Bob",
-              "deviceName": "CI Runner"
-          })
-          assert alice["accessToken"] and alice["refreshToken"] and alice["recoveryCode"]
-          assert bob["accessToken"]
+          const aliceUsername = `ci_alice_${suffix}`;
+          const bobUsername = `ci_bob_${suffix}`;
+          const outsiderUsername = `ci_out_${suffix}`;
 
-          conversation = request(
-              "/conversations/direct",
-              {"username": "ci_bob"},
-              alice["accessToken"]
-          )["conversation"]
-          conversation_id = conversation["id"]
+          const alice = (await fetchJson('/auth/register', {
+            method: 'POST',
+            body: {
+              username: aliceUsername,
+              password: 'correct-horse-ci-alice',
+              displayName: 'CI Alice',
+              deviceName: 'CI Runner',
+            },
+          })).data;
+          const bob = (await fetchJson('/auth/register', {
+            method: 'POST',
+            body: {
+              username: bobUsername,
+              password: 'correct-horse-ci-bob',
+              displayName: 'CI Bob',
+              deviceName: 'CI Runner',
+            },
+          })).data;
+          const outsider = (await fetchJson('/auth/register', {
+            method: 'POST',
+            body: {
+              username: outsiderUsername,
+              password: 'correct-horse-ci-outsider',
+              displayName: 'CI Outsider',
+              deviceName: 'CI Runner',
+            },
+          })).data;
 
-          sent = request("/messages", {
-              "conversationId": conversation_id,
-              "clientId": "ci-message-1",
-              "type": "TEXT",
-              "ciphertext": "Y2hhdG51LWNpLXNtb2tl",
-              "protocolVersion": "ci-smoke"
-          }, alice["accessToken"])["message"]
-          assert sent["conversationId"] == conversation_id
+          assert.ok(alice.accessToken && alice.refreshToken && alice.recoveryCode);
+          assert.ok(bob.accessToken && outsider.accessToken);
 
-          history = request(
-              f"/conversations/{conversation_id}/messages?limit=20",
-              token=bob["accessToken"]
-          )["messages"]
-          assert any(message["id"] == sent["id"] for message in history)
+          const direct = (await fetchJson('/conversations/direct', {
+            method: 'POST',
+            token: alice.accessToken,
+            body: { username: bobUsername },
+          })).data.conversation;
 
-          conversations = request("/conversations", token=bob["accessToken"])["conversations"]
-          assert any(item["id"] == conversation_id for item in conversations)
+          const duplicateDirect = (await fetchJson('/conversations/direct', {
+            method: 'POST',
+            token: alice.accessToken,
+            body: { username: bobUsername },
+          })).data.conversation;
+          assert.equal(duplicateDirect.id, direct.id, 'direct conversation must be idempotent');
 
-          request(f"/conversations/{conversation_id}/read", {}, bob["accessToken"])
-          print("ChatNU smoke test passed: auth -> PostgreSQL -> direct chat -> message -> read")
-          PY
+          const ws = new WebSocket('ws://127.0.0.1:3000/realtime', {
+            headers: { Authorization: `Bearer ${bob.accessToken}` },
+          });
+          const events = [];
+          const waiters = [];
+          ws.on('message', (raw) => {
+            const text = raw.toString();
+            if (text === 'pong') return;
+            const event = JSON.parse(text);
+            events.push(event);
+            for (const waiter of [...waiters]) {
+              if (waiter.predicate(event)) {
+                waiter.resolve(event);
+                waiters.splice(waiters.indexOf(waiter), 1);
+              }
+            }
+          });
+
+          function waitForEvent(predicate, timeoutMs = 5000) {
+            const existing = events.find(predicate);
+            if (existing) return Promise.resolve(existing);
+            return new Promise((resolve, reject) => {
+              const waiter = { predicate, resolve };
+              waiters.push(waiter);
+              const timer = setTimeout(() => {
+                const index = waiters.indexOf(waiter);
+                if (index >= 0) waiters.splice(index, 1);
+                reject(new Error('Timed out waiting for realtime event'));
+              }, timeoutMs);
+              waiter.resolve = (event) => {
+                clearTimeout(timer);
+                resolve(event);
+              };
+            });
+          }
+
+          await waitForEvent((event) => event.type === 'connected');
+
+          const clientId = `ci-message-${suffix}`;
+          const sent = (await fetchJson('/messages', {
+            method: 'POST',
+            token: alice.accessToken,
+            body: {
+              conversationId: direct.id,
+              clientId,
+              type: 'TEXT',
+              ciphertext: 'Y2hhdG51LWNpLXNtb2tl',
+              protocolVersion: 'ci-smoke',
+            },
+          })).data.message;
+
+          const realtimeMessage = await waitForEvent(
+            (event) => event.type === 'message.created' && event.message?.id === sent.id,
+          );
+          assert.equal(realtimeMessage.message.conversationId, direct.id);
+
+          const duplicateMessage = (await fetchJson('/messages', {
+            method: 'POST',
+            token: alice.accessToken,
+            body: {
+              conversationId: direct.id,
+              clientId,
+              type: 'TEXT',
+              ciphertext: 'Y2hhdG51LWNpLXNtb2tl',
+              protocolVersion: 'ci-smoke',
+            },
+          })).data;
+          assert.equal(duplicateMessage.message.id, sent.id, 'message retry must be idempotent');
+          assert.equal(duplicateMessage.duplicate, true);
+
+          const history = (await fetchJson(`/conversations/${direct.id}/messages?limit=20`, {
+            token: bob.accessToken,
+          })).data.messages;
+          assert.ok(history.some((message) => message.id === sent.id));
+
+          const attachmentBytes = new TextEncoder().encode(`chatnu-attachment-${suffix}`);
+          const form = new FormData();
+          form.append('conversationId', direct.id);
+          form.append('file', new Blob([attachmentBytes], { type: 'application/octet-stream' }), 'smoke.bin');
+          const uploadResponse = await fetch(`${BASE}/attachments`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${alice.accessToken}` },
+            body: form,
+          });
+          assert.equal(uploadResponse.status, 201);
+          const attachment = (await uploadResponse.json()).attachment;
+
+          const downloadResponse = await fetch(`${BASE}/attachments/${attachment.id}/download`, {
+            headers: { Authorization: `Bearer ${bob.accessToken}` },
+          });
+          assert.equal(downloadResponse.status, 200);
+          assert.deepEqual(
+            Buffer.from(await downloadResponse.arrayBuffer()),
+            Buffer.from(attachmentBytes),
+            'authorized peer must receive exact attachment bytes',
+          );
+          assert.equal(downloadResponse.headers.get('cache-control'), 'private, no-store');
+
+          const forbiddenDownload = await fetch(`${BASE}/attachments/${attachment.id}/download`, {
+            headers: { Authorization: `Bearer ${outsider.accessToken}` },
+          });
+          assert.equal(forbiddenDownload.status, 404, 'non-member must not access attachments');
+
+          await fetchJson(`/conversations/${direct.id}/read`, {
+            method: 'POST',
+            token: bob.accessToken,
+            body: {},
+          });
+
+          const rotated = (await fetchJson('/auth/refresh', {
+            method: 'POST',
+            body: { refreshToken: alice.refreshToken },
+          })).data;
+          assert.notEqual(rotated.refreshToken, alice.refreshToken, 'refresh tokens must rotate');
+          try {
+            await fetchJson('/auth/refresh', {
+              method: 'POST',
+              body: { refreshToken: alice.refreshToken },
+            });
+            assert.fail('old refresh token unexpectedly remained valid');
+          } catch (error) {
+            assert.equal(error.status, 401);
+          }
+
+          ws.close(1000, 'smoke complete');
+          console.log('ChatNU smoke passed: auth -> migrations -> realtime -> idempotency -> attachments -> authorization -> refresh rotation');
+          NODE
       - name: Show service logs on failure
         if: failure()
         run: docker compose logs --tail=200

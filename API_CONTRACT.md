@@ -3,40 +3,67 @@
 Base REST URL: `https://api.devnu.ir/`
 Realtime endpoint: `wss://api.devnu.ir/realtime`
 
-The Docker development stack exposes the REST API on `http://127.0.0.1:3000`.
+The Docker development stack exposes the API on `http://127.0.0.1:3000`.
 
-All protected REST requests use:
+Protected REST requests and the WebSocket handshake use:
 
 ```http
 Authorization: Bearer <access-token>
 ```
 
-The WebSocket upgrade uses the same Authorization header. Access tokens are intentionally not accepted in the realtime query string.
+Access tokens are not accepted in realtime query strings.
 
 ## Authentication
 
 ### `POST /auth/register`
+
 Request: `{ username, password, displayName, deviceName, identityPublicKey? }`
 
-Returns the user, device ID, short-lived access token, rotating refresh token, token lifetime, and a one-time recovery code. Password and recovery code are hashed server-side using Argon2id.
+Creates the account and first device. Returns user, `deviceId`, short-lived access token, rotating refresh token, lifetime and one-time recovery code.
 
 ### `POST /auth/login`
+
 Request: `{ username, password, deviceName, identityPublicKey? }`
 
-Returns the user, a new device session, access token and refresh token.
+Creates a new device session and returns user, `deviceId`, access token and refresh token.
 
 ### `POST /auth/refresh`
+
 Request: `{ refreshToken }`
 
-Rotates the refresh token and returns a fresh access token. Revoked devices cannot refresh.
+Rotates the refresh token and returns a fresh access token. A revoked device cannot refresh.
 
 ### `POST /auth/logout`
-Requires Bearer authentication, revokes the current device session and closes local realtime sockets for that device.
+
+Revokes the current device session and closes its realtime sockets.
 
 ### `POST /auth/recover`
+
 Request: `{ username, recoveryCode, newPassword }`
 
-Resets the password, revokes all existing device sessions and closes local realtime sockets for the account.
+Changes the password and revokes all existing devices.
+
+## Session and devices
+
+### `GET /session`
+
+Returns the authenticated device ID, user ID, device name, whether an E2EE identity public key is registered, and whether a push token is registered.
+
+### `POST /devices/identity-key`
+
+Request: `{ identityPublicKey }`
+
+Registers/replaces the current device public key. Private identity keys never belong in this API and remain client-side.
+
+### `POST /devices/push-token`
+
+Request: `{ token: string | null }`
+
+Registers or clears the current device FCM token.
+
+### `GET /conversations/:id/keys`
+
+Returns active member devices that have an identity public key. Only a conversation member can call this endpoint. Android uses the result to wrap a fresh message content key independently for every active device.
 
 ## Users
 
@@ -52,11 +79,12 @@ Resets the password, revokes all existing device sessions and closes local realt
 - `GET /conversations/:id/messages?before=<ISO timestamp>&limit=50`
 - `POST /conversations/:id/read`
 
-Only conversation members may read/send messages or access attachments. Direct conversation creation is idempotent for a given user pair.
+Direct conversation creation is idempotent for a user pair.
 
 ## Messages
 
 ### `POST /messages`
+
 Request:
 
 ```json
@@ -66,38 +94,70 @@ Request:
   "type": "TEXT",
   "ciphertext": "opaque-client-envelope",
   "nonce": "optional",
-  "protocolVersion": "optional",
+  "protocolVersion": "ChatNU-DeviceEnvelope-v2",
   "metadata": {}
 }
 ```
 
-The server treats `ciphertext` as opaque application data and never attempts to decrypt it. `clientId` makes retries idempotent per sender, including concurrent duplicate submissions.
+The server treats `ciphertext` as opaque application data and does not decrypt it. `clientId` makes retries idempotent per sender.
+
+For v2 Android messages, payload encryption and per-device key wrapping happen before this request. The API persists and routes the envelope but does not receive private device keys.
 
 ### `GET /sync?cursor=<ISO timestamp>&limit=200`
-Returns message-created events after the supplied cursor for conversations the user belongs to.
+
+Returns message-created events after the cursor for conversations the user belongs to.
+
+## Attachments
+
+### `POST /attachments`
+
+Multipart fields:
+
+- `conversationId`
+- `file`
+
+Membership is required. Current Android encrypts attachment bytes before upload, so the stored file is ciphertext. The API does not perform attachment E2EE itself.
+
+### `GET /attachments/:id/download`
+
+Streams the stored attachment bytes after membership authorization with `Cache-Control: private, no-store`.
+
+## WebRTC / TURN
+
+### `GET /rtc/config`
+
+Returns ICE server configuration. A public STUN entry can be returned without TURN. When `TURN_HOST` and `TURN_SHARED_SECRET` are configured, the response also contains short-lived TURN REST credentials derived server-side. Permanent TURN credentials are not embedded in Android.
+
+### `GET /calls/pending`
+
+Returns recent pending incoming call offers for the authenticated user and consumes/expires them according to the server's pending-call policy. This allows a briefly disconnected peer to receive the call context after reconnecting.
 
 ## Realtime
 
-Connect to `/realtime` with an `Authorization: Bearer ...` header on the WebSocket handshake. Server events currently include:
+Connect to `/realtime` with the Authorization header. Server events include messaging/read/conversation events plus authenticated call signaling.
+
+Message-related examples:
 
 - `connected`
 - `message.created`
 - `conversation.created`
 - `conversation.read`
 
-Redis pub/sub allows multiple API instances to fan out events to connected users. Session validity is checked when the WebSocket is established.
+Client-to-server WebRTC signaling messages:
 
-## Attachments
+- `call.offer`
+- `call.answer`
+- `call.ice`
+- `call.end`
+- `call.reject`
 
-### `POST /attachments`
-Multipart form fields:
-- `conversationId`
-- `file`
+A call signal includes `callId`, `conversationId`, `targetUserId` and the relevant SDP/ICE fields. The server validates that both sender and target belong to the conversation before routing the signal. Signaling is not a media relay; WebRTC carries media directly or through TURN.
 
-The server stores the uploaded bytes on a private persistent attachment volume and records metadata in PostgreSQL. Clients that promise E2EE must encrypt attachment bytes before upload.
+Redis pub/sub fans realtime events across API instances.
 
-### `GET /attachments/:id/download`
-After membership authorization, the API streams the attachment bytes directly to the authenticated client with `Cache-Control: private, no-store`. Filesystem paths are never returned to clients.
+## Push
+
+When FCM is configured, the server can send routing-only data notifications to active device push tokens. Push does not contain message plaintext, E2EE content keys or attachment decryption keys.
 
 ## Health
 

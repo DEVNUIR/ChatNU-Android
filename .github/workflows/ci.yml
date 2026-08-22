@@ -280,12 +280,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
-      - name: Build debug APK
+      - name: Build installable DEVNU debug APK
+        env:
+          CHATNU_API_URL: https://api.devnu.ir/
+          CHATNU_WS_URL: wss://api.devnu.ir/realtime
         run: gradle :app:assembleDebug --stacktrace --no-daemon
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: chatnu-debug-apk
+          name: chatnu-devnu-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7

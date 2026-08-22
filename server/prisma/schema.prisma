@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -32,21 +33,21 @@ enum MessageType {
 }
 
 model User {
-  id                String               @id @default(cuid())
-  username          String               @unique
-  displayName       String
-  passwordHash      String
-  recoveryCodeHash  String
-  avatarUrl         String?
-  bio               String?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  lastSeenAt        DateTime             @default(now())
-  devices           Device[]
-  memberships       ConversationMember[]
-  createdConversations Conversation[]    @relation("ConversationCreator")
-  sentMessages      Message[]            @relation("MessageSender")
-  attachments       Attachment[]
+  id                   String               @id @default(cuid())
+  username             String               @unique
+  displayName          String
+  passwordHash         String
+  recoveryCodeHash     String
+  avatarUrl            String?
+  bio                   String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  lastSeenAt           DateTime             @default(now())
+  devices              Device[]
+  memberships          ConversationMember[]
+  createdConversations Conversation[]       @relation("ConversationCreator")
+  sentMessages         Message[]            @relation("MessageSender")
+  attachments          Attachment[]
 
   @@index([username])
 }
@@ -60,7 +61,7 @@ model Device {
   createdAt         DateTime  @default(now())
   lastSeenAt        DateTime  @default(now())
   revokedAt         DateTime?
-  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -98,16 +99,16 @@ model ConversationMember {
 }
 
 model Message {
-  id              String      @id @default(cuid())
+  id              String       @id @default(cuid())
   clientId        String?
   conversationId  String
   senderId        String
-  type            MessageType @default(TEXT)
+  type            MessageType  @default(TEXT)
   ciphertext      String
   nonce           String?
   protocolVersion String?
   metadata        Json?
-  createdAt       DateTime    @default(now())
+  createdAt       DateTime     @default(now())
   editedAt        DateTime?
   deletedAt       DateTime?
   conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -118,14 +119,14 @@ model Message {
 }
 
 model Attachment {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
   ownerId        String
-  objectKey      String   @unique
+  objectKey      String       @unique
   contentType    String
   sizeBytes      Int
   fileName       String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   owner          User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 

@@ -71,7 +71,6 @@ fun GroupSettingsDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Group Avatar Preview & Edit
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Surface(
                         shape = CircleShape,
@@ -106,7 +105,6 @@ fun GroupSettingsDialog(
                     }
                 }
 
-                // Group Name
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -119,7 +117,6 @@ fun GroupSettingsDialog(
 
                 Divider()
 
-                // Encryption Setting
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
@@ -140,7 +137,7 @@ fun GroupSettingsDialog(
                             Column {
                                 Text("End-to-End Encryption", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
                                 Text(
-                                    text = if (isEncrypted) "Signal Double Ratchet Active" else "Disabled for this channel",
+                                    text = if (isEncrypted) "Encryption enabled" else "Disabled for this channel",
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -157,7 +154,6 @@ fun GroupSettingsDialog(
 
                 Divider()
 
-                // Members Header & Add Member Button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -175,7 +171,6 @@ fun GroupSettingsDialog(
                     }
                 }
 
-                // Member List
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     conversation.members.forEach { member ->
                         Surface(
@@ -219,7 +214,6 @@ fun GroupSettingsDialog(
 
                 Divider()
 
-                // Destructive Leave / Delete Group
                 TextButton(
                     onClick = onLeaveGroup,
                     colors = ButtonDefaults.textButtonColors(contentColor = ChatNuDestructiveRed),
@@ -250,9 +244,8 @@ fun GroupSettingsDialog(
         }
     )
 
-    // Add Member Contact Selector Modal
     if (showAddMemberDialog) {
-        val availableUsers = MockBackend.sampleUsers.filter { user ->
+        val availableUsers = MockBackend.mockUsers.filter { user ->
             conversation.members.none { it.id == user.id }
         }
 

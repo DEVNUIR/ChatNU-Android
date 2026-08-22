@@ -50,7 +50,7 @@ const upload = multer({
     fileSize: env.MAX_UPLOAD_BYTES,
     files: 1,
     fields: 1,
-    parts: 2,
+    parts: 3,
     fieldNameSize: 64,
     fieldSize: 256,
   },

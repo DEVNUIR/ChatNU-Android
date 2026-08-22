@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object AccountManager {
-    private val initialAccounts = mutableListOf(
+    private val demoAccounts = listOf(
         Account(
             id = "acc_01",
             username = "clash8575",
@@ -44,20 +44,50 @@ object AccountManager {
         )
     )
 
-    private val _accounts = MutableStateFlow<List<Account>>(initialAccounts)
+    private val _accounts = MutableStateFlow<List<Account>>(demoAccounts)
     val accounts: StateFlow<List<Account>> = _accounts.asStateFlow()
 
     private val _activeAccountId = MutableStateFlow("acc_01")
     val activeAccountId: StateFlow<String> = _activeAccountId.asStateFlow()
 
     val activeAccount: Account
-        get() = _accounts.value.find { it.id == _activeAccountId.value } ?: _accounts.value.first()
+        get() = _accounts.value.find { it.id == _activeAccountId.value }
+            ?: _accounts.value.firstOrNull()
+            ?: Account(
+                id = "unknown",
+                username = "unknown",
+                displayName = "ChatNU User",
+                avatarUrl = ""
+            )
 
     private val _selectedLanguage = MutableStateFlow("English")
     val selectedLanguage: StateFlow<String> = _selectedLanguage.asStateFlow()
 
     fun setLanguage(lang: String) {
         _selectedLanguage.value = lang
+    }
+
+    /**
+     * Binds the legacy drawer/account UI to the authenticated server user.
+     * The old demo account switcher is intentionally collapsed to the real session account
+     * in production mode so the UI cannot display a fake identity after login.
+     */
+    fun bindRemoteUser(user: User) {
+        val account = Account(
+            id = user.id,
+            username = user.username,
+            displayName = user.displayName,
+            avatarUrl = user.avatarUrl.orEmpty(),
+            bio = user.bio ?: "ChatNU User",
+            relayServerUrl = "wss://api.devnu.ir/realtime",
+            relayLatencyMs = 0,
+            relayStatus = "CONNECTED",
+            identityKeyFingerprint = user.identityKeyFingerprint,
+            unreadCount = 0,
+            isPrimary = true
+        )
+        _accounts.value = listOf(account)
+        _activeAccountId.value = account.id
     }
 
     fun updateActiveAccountProfile(
@@ -95,9 +125,7 @@ object AccountManager {
         relayUrl: String,
         avatarUrl: String? = null
     ): Boolean {
-        if (_accounts.value.size >= 10) {
-            return false // Limit to 10 accounts per device
-        }
+        if (_accounts.value.size >= 10) return false
 
         val formattedRelay = if (relayUrl.startsWith("wss://") || relayUrl.startsWith("ws://")) relayUrl else "wss://$relayUrl"
         val cleanUsername = if (username.startsWith("@")) username.drop(1) else username
@@ -133,15 +161,13 @@ object AccountManager {
         return "${section()}-${section()}-${section()}-${section()}"
     }
 
-    fun toUser(account: Account): User {
-        return User(
-            id = account.id,
-            username = account.username,
-            displayName = account.displayName,
-            avatarUrl = account.avatarUrl,
-            bio = account.bio,
-            identityKeyFingerprint = account.identityKeyFingerprint,
-            isOnline = true
-        )
-    }
+    fun toUser(account: Account): User = User(
+        id = account.id,
+        username = account.username,
+        displayName = account.displayName,
+        avatarUrl = account.avatarUrl,
+        bio = account.bio,
+        identityKeyFingerprint = account.identityKeyFingerprint,
+        isOnline = true
+    )
 }

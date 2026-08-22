@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">ChatNU</string>
+    <string name="welcome_title">Welcome to ChatNU</string>
+    <string name="welcome_subtitle">Secure, End-to-End Encrypted Native Messenger powered by devnu.ir</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="display_name">Display Name</string>
+    <string name="recovery_code">Recovery Code</string>
+    <string name="chats">Chats</string>
+    <string name="groups">Groups</string>
+    <string name="calls">Calls</string>
+    <string name="settings">Settings</string>
+    <string name="search">Search messages or users…</string>
+    <string name="type_message">Type an encrypted message…</string>
+    <string name="send">Send</string>
+    <string name="online">Online</string>
+    <string name="offline">Offline</string>
+    <string name="encrypted_banner">End-to-End Encrypted Session (Signal Protocol)</string>
+</resources>

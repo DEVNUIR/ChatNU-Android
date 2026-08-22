@@ -5,7 +5,6 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { Redis } from "ioredis";
 import { SignJWT, jwtVerify } from "jose";
-import { Client as MinioClient } from "minio";
 import multer from "multer";
 import { Algorithm, hash, verify } from "@node-rs/argon2";
 import {
@@ -16,7 +15,10 @@ import {
   PrismaClient,
 } from "@prisma/client";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { WebSocket, WebSocketServer } from "ws";
 import { z, ZodError } from "zod";
@@ -29,12 +31,7 @@ const env = z
     JWT_SECRET: z.string().min(32),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
     CORS_ORIGIN: z.string().default("*"),
-    MINIO_ENDPOINT: z.string().default("minio"),
-    MINIO_PORT: z.coerce.number().int().positive().default(9000),
-    MINIO_USE_SSL: z.enum(["true", "false"]).default("false"),
-    MINIO_ACCESS_KEY: z.string().min(8),
-    MINIO_SECRET_KEY: z.string().min(16),
-    MINIO_BUCKET: z.string().default("chatnu-attachments"),
+    ATTACHMENT_DIR: z.string().min(1).default("/data/attachments"),
     MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(25 * 1024 * 1024),
   })
   .parse(process.env);
@@ -43,13 +40,6 @@ const prisma = new PrismaClient();
 const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 const redisSub = redis.duplicate();
 const jwtSecret = new TextEncoder().encode(env.JWT_SECRET);
-const minio = new MinioClient({
-  endPoint: env.MINIO_ENDPOINT,
-  port: env.MINIO_PORT,
-  useSSL: env.MINIO_USE_SSL === "true",
-  accessKey: env.MINIO_ACCESS_KEY,
-  secretKey: env.MINIO_SECRET_KEY,
-});
 
 const app = express();
 const server = createServer(app);
@@ -71,8 +61,7 @@ const allowedOrigins = env.CORS_ORIGIN === "*"
   : env.CORS_ORIGIN.split(",").map((value) => value.trim()).filter(Boolean);
 
 app.disable("x-powered-by");
-// ChatNU's Docker deployment binds the API to loopback and puts one reverse proxy in front of it.
-// Trust exactly that first hop so rate limiting sees the real client address.
+// The provided Docker deployment binds the API to loopback and expects one local reverse proxy.
 app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors({ origin: allowedOrigins, credentials: allowedOrigins !== true }));
@@ -754,10 +743,11 @@ app.post("/attachments", requireAuth, upload.single("file"), async (req: AuthedR
   if (!member) return res.status(404).json({ error: "CONVERSATION_NOT_FOUND" });
   if (!req.file) return res.status(400).json({ error: "FILE_REQUIRED" });
 
-  const objectKey = `${conversationId}/${Date.now()}-${randomUUID()}`;
-  await minio.putObject(env.MINIO_BUCKET, objectKey, req.file.buffer, req.file.size, {
-    "Content-Type": req.file.mimetype || "application/octet-stream",
-  });
+  const objectKey = `${conversationId}/${randomUUID()}`;
+  const conversationDir = join(env.ATTACHMENT_DIR, conversationId);
+  const absolutePath = join(env.ATTACHMENT_DIR, objectKey);
+  await mkdir(conversationDir, { recursive: true });
+  await writeFile(absolutePath, req.file.buffer, { flag: "wx", mode: 0o600 });
 
   const attachment = await prisma.attachment.create({
     data: {
@@ -793,8 +783,7 @@ app.get("/attachments/:id/download", requireAuth, async (req: AuthedRequest, res
   res.setHeader("Content-Length", attachment.sizeBytes.toString());
   res.setHeader("Cache-Control", "private, no-store");
   res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
-  const objectStream = await minio.getObject(env.MINIO_BUCKET, attachment.objectKey);
-  await pipeline(objectStream, res);
+  await pipeline(createReadStream(join(env.ATTACHMENT_DIR, attachment.objectKey)), res);
 });
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
@@ -850,9 +839,7 @@ wss.on("connection", (socket, request) => {
 });
 
 async function start() {
-  const exists = await minio.bucketExists(env.MINIO_BUCKET).catch(() => false);
-  if (!exists) await minio.makeBucket(env.MINIO_BUCKET);
-
+  await mkdir(env.ATTACHMENT_DIR, { recursive: true });
   await redisSub.psubscribe("chatnu:user:*");
   redisSub.on("pmessage", (_pattern: string, channel: string, message: string) => {
     const userId = channel.slice("chatnu:user:".length);

@@ -1,6 +1,7 @@
 package com.example.remote
 
 import android.os.Build
+import com.example.crypto.DeviceE2ee
 import com.example.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +16,8 @@ data class AuthResult(
 
 class RemoteAuthRepository(
     private val tokenStore: TokenStore,
-    private val apiClient: ApiClient
+    private val apiClient: ApiClient,
+    private val deviceE2ee: DeviceE2ee
 ) {
     private val _currentUser = MutableStateFlow(tokenStore.loadUser())
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
@@ -24,32 +26,52 @@ class RemoteAuthRepository(
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
     suspend fun login(username: String, password: String): AuthResult {
+        val normalized = username.trim().lowercase()
         return runCatching {
             val response = apiClient.api.login(
                 LoginRequest(
-                    username = username.trim().lowercase(),
+                    username = normalized,
                     password = password,
-                    deviceName = deviceName()
+                    deviceName = deviceName(),
+                    identityPublicKey = deviceE2ee.publicKeyBase64(normalized)
                 )
             )
-            persist(response)
+            persist(response, normalized)
             AuthResult(success = true)
         }.getOrElse { AuthResult(success = false, error = readableError(it)) }
     }
 
     suspend fun register(username: String, password: String, displayName: String): AuthResult {
+        val normalized = username.trim().lowercase()
         return runCatching {
             val response = apiClient.api.register(
                 RegisterRequest(
-                    username = username.trim().lowercase(),
+                    username = normalized,
                     password = password,
                     displayName = displayName.trim(),
-                    deviceName = deviceName()
+                    deviceName = deviceName(),
+                    identityPublicKey = deviceE2ee.publicKeyBase64(normalized)
                 )
             )
-            persist(response)
+            persist(response, normalized)
             AuthResult(success = true, recoveryCode = response.recoveryCode)
         }.getOrElse { AuthResult(success = false, error = readableError(it)) }
+    }
+
+    /** Ensures sessions created by an older ChatNU build receive a current device id and public key. */
+    suspend fun ensureDeviceIdentity() {
+        val user = _currentUser.value ?: return
+        val session = apiClient.api.session()
+        tokenStore.deviceId = session.deviceId
+        tokenStore.cryptoAccount = user.username
+        apiClient.api.updateIdentityKey(
+            IdentityKeyRequest(deviceE2ee.publicKeyBase64(user.username))
+        )
+    }
+
+    suspend fun registerPushToken(token: String?) {
+        if (!_isLoggedIn.value) return
+        apiClient.api.updatePushToken(PushTokenRequest(token))
     }
 
     suspend fun logout() {
@@ -65,9 +87,11 @@ class RemoteAuthRepository(
         _isLoggedIn.value = false
     }
 
-    private fun persist(response: AuthResponse) {
+    private fun persist(response: AuthResponse, cryptoAccount: String) {
         tokenStore.accessToken = response.accessToken
         tokenStore.refreshToken = response.refreshToken
+        tokenStore.deviceId = response.deviceId
+        tokenStore.cryptoAccount = cryptoAccount
         tokenStore.saveUser(response.user)
         _currentUser.value = response.user.toModel()
         _isLoggedIn.value = true

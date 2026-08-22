@@ -32,12 +32,6 @@ class CallForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-            return START_NOT_STICKY
-        }
-
         val peerName = intent?.getStringExtra(EXTRA_PEER_NAME).orEmpty().ifBlank { "ChatNU user" }
         val video = intent?.getBooleanExtra(EXTRA_VIDEO, false) == true
         val notification = buildNotification(peerName, video)
@@ -49,6 +43,11 @@ class CallForegroundService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
         return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        super.onDestroy()
     }
 
     private fun buildNotification(peerName: String, video: Boolean): Notification {
@@ -73,21 +72,18 @@ class CallForegroundService : Service() {
     companion object {
         private const val CHANNEL_ID = "chatnu_active_call"
         private const val NOTIFICATION_ID = 7402
-        private const val ACTION_START = "ir.devnu.chatnu.START_CALL_SERVICE"
-        private const val ACTION_STOP = "ir.devnu.chatnu.STOP_CALL_SERVICE"
         private const val EXTRA_PEER_NAME = "peer_name"
         private const val EXTRA_VIDEO = "video"
 
         fun start(context: Context, peerName: String, video: Boolean) {
             val intent = Intent(context, CallForegroundService::class.java)
-                .setAction(ACTION_START)
                 .putExtra(EXTRA_PEER_NAME, peerName)
                 .putExtra(EXTRA_VIDEO, video)
             ContextCompat.startForegroundService(context, intent)
         }
 
         fun stop(context: Context) {
-            context.startService(Intent(context, CallForegroundService::class.java).setAction(ACTION_STOP))
+            context.stopService(Intent(context, CallForegroundService::class.java))
         }
     }
 }

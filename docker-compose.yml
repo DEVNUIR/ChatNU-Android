@@ -26,18 +26,6 @@ services:
       timeout: 3s
       retries: 20
 
-  minio:
-    image: quay.io/minio/minio:latest
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-chatnu}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-chatnu-local-minio-secret}
-    volumes:
-      - chatnu_minio:/data
-    ports:
-      - "127.0.0.1:9001:9001"
-
   api:
     build:
       context: ./server
@@ -50,24 +38,19 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-local-jwt-secret-32-chars-minimum}
       ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_USE_SSL: "false"
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-chatnu}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-chatnu-local-minio-secret}
-      MINIO_BUCKET: ${MINIO_BUCKET:-chatnu-attachments}
+      ATTACHMENT_DIR: /data/attachments
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio:
-        condition: service_started
+    volumes:
+      - chatnu_attachments:/data/attachments
     ports:
       - "127.0.0.1:3000:3000"
 
 volumes:
   chatnu_postgres:
   chatnu_redis:
-  chatnu_minio:
+  chatnu_attachments:

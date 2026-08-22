@@ -1,10 +1,17 @@
 # ChatNU deployment
 
-This guide targets a single Linux host running Docker Engine and Docker Compose v2.
+This guide targets one Linux host with Docker Engine + Docker Compose v2, Nginx/Caddy for TLS, and an optional Firebase project for offline push.
 
-## 1. DNS
+## 1. DNS and public ports
 
-Point an A/AAAA record such as `api.devnu.ir` at the server. Only the reverse proxy should be public. PostgreSQL and Redis are private Docker services, and the API is bound to host loopback by default.
+Point the API hostname, for example `api.devnu.ir`, to the server. The ChatNU API remains bound to `127.0.0.1:3000` and should only be exposed through a TLS reverse proxy.
+
+For reliable WebRTC calls, set `TURN_HOST` to a public DNS name or IP reachable by phones. The supplied Coturn container uses host networking. Open/forward:
+
+- TCP/UDP `3478` for TURN/STUN, or your configured `TURN_PORT`.
+- UDP `49160-49200` for relayed media, or your configured `TURN_MIN_PORT`/`TURN_MAX_PORT` range.
+
+PostgreSQL and Redis must remain private.
 
 ## 2. Start the stack
 
@@ -16,7 +23,7 @@ chmod +x scripts/chatnu.sh
 ./scripts/chatnu.sh up
 ```
 
-If `.env` does not exist, the helper creates it with random PostgreSQL and JWT secrets, sets file mode `0600`, builds the API image, starts PostgreSQL/Redis/API, applies versioned Prisma migrations and waits for `/health`.
+If `.env` does not exist, `scripts/chatnu.sh` creates it mode `0600` with random PostgreSQL, JWT and TURN shared secrets. It then builds the API, starts PostgreSQL/Redis/API/Coturn, applies committed Prisma migrations and verifies `/health`.
 
 Useful commands:
 
@@ -27,22 +34,64 @@ Useful commands:
 ./scripts/chatnu.sh down
 ```
 
-`./scripts/chatnu.sh reset` deletes the PostgreSQL, Redis and attachment volumes. Do not run it on a production instance unless data loss is intended.
+`./scripts/chatnu.sh reset` destroys PostgreSQL, Redis and attachment volumes. Do not run it on production unless data loss is intentional.
 
-## 3. Network exposure
+## 3. Environment
 
-The supplied Compose file already publishes only:
+Review `.env` before public deployment:
 
-```yaml
-ports:
-  - "127.0.0.1:3000:3000"
+```dotenv
+POSTGRES_PASSWORD=<random-secret>
+JWT_SECRET=<long-random-secret>
+ACCESS_TOKEN_TTL_SECONDS=900
+CORS_ORIGIN=*
+MAX_UPLOAD_BYTES=26214400
+
+TURN_HOST=turn.example.com
+TURN_PORT=3478
+TURN_REALM=chatnu
+TURN_SHARED_SECRET=<random-secret>
+TURN_MIN_PORT=49160
+TURN_MAX_PORT=49200
+TURN_DETECT_EXTERNAL_IP=yes
+
+FIREBASE_SERVICE_ACCOUNT_B64=
 ```
 
-PostgreSQL and Redis have no host ports. Do not change these defaults merely to make troubleshooting easier. SSH tunnels and `docker compose exec` exist precisely so databases do not have to sit naked on the internet.
+`TURN_SHARED_SECRET` must be identical for the API and Coturn. The API derives short-lived TURN REST credentials from it; no permanent TURN password is embedded in Android.
 
-## 4. Nginx reverse proxy
+If the server is behind NAT, ensure the public IP is correctly detected/advertised by Coturn and forward both the listening port and relay range. Test calls from two different networks, not merely two phones on the same Wi-Fi.
 
-Install Nginx and Certbot, then use a server block similar to this:
+## 4. Optional FCM push
+
+ChatNU works without FCM while the realtime WebSocket is connected. For offline wake-up notifications, create a Firebase service account with Firebase Messaging permission and base64-encode its JSON as one line:
+
+```bash
+base64 -w0 firebase-service-account.json
+```
+
+Put the result only on the server:
+
+```dotenv
+FIREBASE_SERVICE_ACCOUNT_B64=<base64-json>
+```
+
+The server uses FCM HTTP v1. Push data contains routing identifiers only; message plaintext and E2EE keys are not sent through Firebase.
+
+Android Firebase client values are supplied at build time:
+
+```text
+FIREBASE_APP_ID
+FIREBASE_API_KEY
+FIREBASE_PROJECT_ID
+FIREBASE_SENDER_ID
+```
+
+Leaving them blank produces a valid build with FCM disabled.
+
+## 5. Nginx reverse proxy
+
+Example:
 
 ```nginx
 server {
@@ -70,7 +119,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 70s;
+        proxy_read_timeout 75s;
     }
 
     location / {
@@ -85,63 +134,73 @@ server {
 }
 ```
 
-Issue the certificate using the normal Certbot Nginx flow before enabling the final TLS server block.
+Issue a valid TLS certificate before using the production Android endpoints. Android production traffic should use HTTPS/WSS only.
 
-## 5. Production environment
+## 6. Database migrations and storage
 
-The generated `.env` is already randomized. Review at least:
-
-```dotenv
-POSTGRES_PASSWORD=<random-secret>
-JWT_SECRET=<at-least-32-random-bytes>
-ACCESS_TOKEN_TTL_SECONDS=900
-CORS_ORIGIN=https://your-web-client.example
-MAX_UPLOAD_BYTES=26214400
-```
-
-If no browser client exists, CORS does not affect the Android app, but restricting it is still preferable before a web client is added.
-
-Attachment bytes are stored at `/data/attachments` inside the API container on the named `chatnu_attachments` volume. Clients never receive a filesystem path; authenticated downloads are streamed through the API.
-
-## 6. Database migrations
-
-Production startup runs:
+API startup runs:
 
 ```bash
 npx prisma migrate deploy
 ```
 
-Migration files live in `server/prisma/migrations/`. Do not replace production migrations with `prisma db push`. For future schema changes, create and review a migration in development, commit it, then deploy the new image.
+Migration files live in `server/prisma/migrations/`. Do not replace production migration history with `prisma db push`.
 
-## 7. Android endpoints
+Attachments are already encrypted on Android before upload. The server stores the encrypted blobs on the `chatnu_attachments` named volume and serves them only through membership-authorized API routes.
 
-Debug builds default to the Android emulator host:
+## 7. Android builds
+
+Debug defaults:
 
 ```text
 http://10.0.2.2:3000/
 ws://10.0.2.2:3000/realtime
 ```
 
-For a real device on a LAN:
-
-```bash
-CHATNU_API_URL=http://192.168.1.10:3000/ \
-CHATNU_WS_URL=ws://192.168.1.10:3000/realtime \
-gradle :app:assembleDebug
-```
-
-Release defaults are:
+DEVNU production defaults:
 
 ```text
 https://api.devnu.ir/
 wss://api.devnu.ir/realtime
 ```
 
-Override them with `CHATNU_API_URL` and `CHATNU_WS_URL` at build time for another domain.
+Override endpoints at build time:
 
-## 8. Backups
+```bash
+CHATNU_API_URL=https://api.example.com/ \
+CHATNU_WS_URL=wss://api.example.com/realtime \
+gradle :app:assembleDebug
+```
 
-PostgreSQL and the attachment volume are durable data. Redis is realtime fan-out/cache state and is not a substitute for PostgreSQL.
+The current Android version is `1.1.0` (`versionCode 3`).
+
+## 8. Production signing and AAB
+
+The release workflow requires these GitHub Actions secrets:
+
+```text
+ANDROID_KEYSTORE_BASE64
+ANDROID_KEYSTORE_PASSWORD
+ANDROID_KEY_ALIAS
+ANDROID_KEY_PASSWORD
+```
+
+Encode the long-lived owner-controlled keystore:
+
+```bash
+base64 -w0 chatnu-release.jks
+```
+
+Store the output as `ANDROID_KEYSTORE_BASE64`. Do not commit the keystore or passwords. Preserve this keystore permanently because Android app updates depend on the signing identity.
+
+The release workflow builds both:
+
+- signed `app-release.apk`
+- signed `app-release.aab`
+
+and verifies the APK signature with `apksigner`.
+
+## 9. Backups
 
 PostgreSQL dump:
 
@@ -149,24 +208,24 @@ PostgreSQL dump:
 docker compose exec -T postgres pg_dump -U chatnu -d chatnu > chatnu-$(date +%F).sql
 ```
 
-Attachment archive:
+Encrypted attachment archive:
 
 ```bash
 docker compose run --rm --no-deps api \
   tar -C /data -czf - attachments > chatnu-attachments-$(date +%F).tar.gz
 ```
 
-Store backups away from the VPS and test restoration. A backup nobody has restored is merely an optimistic file collection.
+Store backups away from the VPS and test restoration.
 
-## 9. Updating
+## 10. Update
 
 ```bash
 git pull --ff-only
 ./scripts/chatnu.sh up
 ```
 
-The API image is rebuilt and pending Prisma migrations are applied on startup. Back up production data before schema-changing deployments.
+Back up data before schema-changing deployments.
 
-## 10. Security boundary
+## 11. Security boundary
 
-The account/auth/database/realtime transport stack in this branch is real. The legacy Android `CryptoEngine` is still a reversible simulation, not Signal/Double-Ratchet E2EE, and the call UI is not wired to a production RTC backend. See `SECURITY_MODEL.md` before making E2EE or secure-call claims.
+New messages and attachments use real client-side device-based E2EE. This implementation is not Signal Protocol/Double Ratchet and does not claim Signal-grade forward secrecy or an external audit. One-to-one calls are real WebRTC using DTLS-SRTP and authenticated signaling; group calling is not implemented. See `SECURITY_MODEL.md` for exact guarantees and metadata limitations.

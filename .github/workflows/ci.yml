@@ -18,10 +18,11 @@ jobs:
       run:
         working-directory: server
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
+          package-manager-cache: false
       - name: Install dependencies
         run: npm install
       - name: Audit production dependencies
@@ -39,13 +40,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Start full Docker stack
         env:
           POSTGRES_PASSWORD: ci-postgres-password
           JWT_SECRET: ci-jwt-secret-that-is-definitely-longer-than-thirty-two-characters
+          TURN_HOST: 127.0.0.1
+          TURN_SHARED_SECRET: ci-turn-shared-secret-for-smoke-tests
+          TURN_DETECT_EXTERNAL_IP: 'no'
         run: docker compose up -d --build
-      - name: Exercise auth, migrations, realtime, messages and attachments
+      - name: Exercise auth, E2EE discovery, realtime, calls, messages and attachments
         run: |
           docker compose exec -T api node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
@@ -53,6 +57,8 @@ jobs:
 
           const BASE = 'http://127.0.0.1:3000';
           const suffix = Date.now().toString(36);
+          const fakeAliceKey = `MIIB-ALICE-${'A'.repeat(220)}`;
+          const fakeBobKey = `MIIB-BOB-${'B'.repeat(220)}`;
 
           async function fetchJson(path, { method = 'GET', token, body } = {}) {
             const headers = {};
@@ -94,6 +100,7 @@ jobs:
               password: 'correct-horse-ci-alice',
               displayName: 'CI Alice',
               deviceName: 'CI Runner',
+              identityPublicKey: fakeAliceKey,
             },
           })).data;
           const bob = (await fetchJson('/auth/register', {
@@ -103,6 +110,7 @@ jobs:
               password: 'correct-horse-ci-bob',
               displayName: 'CI Bob',
               deviceName: 'CI Runner',
+              identityPublicKey: fakeBobKey,
             },
           })).data;
           const outsider = (await fetchJson('/auth/register', {
@@ -130,6 +138,18 @@ jobs:
             body: { username: bobUsername },
           })).data.conversation;
           assert.equal(duplicateDirect.id, direct.id, 'direct conversation must be idempotent');
+
+          const keys = (await fetchJson(`/conversations/${direct.id}/keys`, {
+            token: alice.accessToken,
+          })).data;
+          assert.equal(keys.devices.length, 2, 'both active devices must publish E2EE public keys');
+          assert.deepEqual(keys.missingUserIds, []);
+          assert.ok(keys.devices.some((device) => device.deviceId === alice.deviceId));
+          assert.ok(keys.devices.some((device) => device.deviceId === bob.deviceId));
+
+          const rtc = (await fetchJson('/rtc/config', { token: alice.accessToken })).data;
+          const turnServer = rtc.iceServers.find((entry) => entry.urls.some((url) => url.startsWith('turn:')));
+          assert.ok(turnServer?.username && turnServer?.credential, 'TURN REST credentials must be generated');
 
           const ws = new WebSocket('ws://127.0.0.1:3000/realtime', {
             headers: { Authorization: `Bearer ${bob.accessToken}` },
@@ -168,6 +188,26 @@ jobs:
           }
 
           await waitForEvent((event) => event.type === 'connected');
+
+          const callId = `ci-call-${suffix}`;
+          ws.send(JSON.stringify({
+            type: 'call.offer',
+            callId,
+            conversationId: direct.id,
+            targetUserId: alice.user.id,
+            sdp: 'v=0\\r\\n',
+            video: true,
+          }));
+
+          let pendingCall = null;
+          for (let attempt = 0; attempt < 20; attempt += 1) {
+            const pending = (await fetchJson('/calls/pending', { token: alice.accessToken })).data.calls;
+            pendingCall = pending.find((call) => call.callId === callId);
+            if (pendingCall) break;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          assert.equal(pendingCall?.fromUserId, bob.user.id, 'offline recipient must recover pending call offer');
+          assert.equal(pendingCall?.video, true);
 
           const clientId = `ci-message-${suffix}`;
           const sent = (await fetchJson('/messages', {
@@ -209,7 +249,7 @@ jobs:
           const attachmentBytes = new TextEncoder().encode(`chatnu-attachment-${suffix}`);
           const form = new FormData();
           form.append('conversationId', direct.id);
-          form.append('file', new Blob([attachmentBytes], { type: 'application/octet-stream' }), 'smoke.bin');
+          form.append('file', new Blob([attachmentBytes], { type: 'application/octet-stream' }), 'smoke.enc');
           const uploadResponse = await fetch(`${BASE}/attachments`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${alice.accessToken}` },
@@ -226,7 +266,7 @@ jobs:
           assert.deepEqual(
             Buffer.from(await downloadResponse.arrayBuffer()),
             Buffer.from(attachmentBytes),
-            'authorized peer must receive exact attachment bytes',
+            'authorized peer must receive exact encrypted attachment bytes',
           );
           assert.equal(downloadResponse.headers.get('cache-control'), 'private, no-store');
 
@@ -257,11 +297,11 @@ jobs:
           }
 
           ws.close(1000, 'smoke complete');
-          console.log('ChatNU smoke passed: auth -> migrations -> realtime -> idempotency -> attachments -> authorization -> refresh rotation');
+          console.log('ChatNU smoke passed: auth -> migrations -> E2EE keys -> TURN -> call signaling -> realtime -> idempotency -> attachments -> authorization -> refresh rotation');
           NODE
       - name: Show service logs on failure
         if: failure()
-        run: docker compose logs --tail=200
+        run: docker compose logs --tail=250
       - name: Stop Docker stack
         if: always()
         run: docker compose down -v
@@ -269,8 +309,8 @@ jobs:
   android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'

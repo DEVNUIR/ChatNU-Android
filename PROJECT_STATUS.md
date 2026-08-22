@@ -1,42 +1,49 @@
-# ChatNU - Project Status
+# ChatNU project status
 
-## Overview
-**ChatNU** is a production-grade native Android messenger designed for `devnu.ir` with end-to-end encryption (E2EE) using Signal protocol principles, full voice/video calling state machine, media sharing (images, videos, voice messages, files, view-once, disappearing messages), live location tracking, and multi-device session management.
+## Branch goal
 
-- **App Name**: ChatNU
-- **Application ID**: `ir.devnu.chatnu`
-- **Primary Domain**: `devnu.ir`
-- **REST Backend**: `https://api.devnu.ir`
-- **Realtime Gateway**: `wss://api.devnu.ir/realtime`
-- **RTC / LiveKit**: `wss://rtc.devnu.ir`
-- **Default Locale**: Persian (fa) / English (en) with full RTL mirroring & Jalali/Gregorian date formatting options.
+`feat/production-ready-chatnu` converts the original Android UI prototype into a runnable client/server project while preserving the existing mock/demo UI code for reference.
 
----
+## Implemented
 
-## Current Status & Capabilities
+### Server
+- Node.js 22 + TypeScript API
+- PostgreSQL 16 + Prisma data model
+- Redis realtime fan-out
+- MinIO attachment storage
+- Argon2id account passwords and recovery codes
+- Short-lived JWT access tokens + rotating/revocable refresh tokens
+- Registration, login, logout and recovery
+- User search
+- Direct conversations and groups
+- Message persistence, pagination, idempotent submission and sync
+- Read receipts
+- WebSocket realtime message events
+- Authorized attachment upload/download
+- Docker Compose stack and `scripts/chatnu.sh`
 
-### 1. Client Architecture
-- **MOCK Mode (Default)**: Fully self-contained, interactive mock backend allowing immediate demonstration of all 50+ screens and flows without external network dependencies.
-- **REMOTE Mode**: Seamless abstraction layer through `Repository` pattern to connect directly to `api.devnu.ir` when deployed.
-- **Room Encrypted Database**: Modern Room DB + AES local state encryption.
-- **Jetpack Compose UI**: Material Design 3 custom design system with primary accent `#5B7CFF`, OLED Black theme, and responsive Persian/English RTL/LTR support.
+### Android
+- Standard Gradle `:app` module
+- Production launcher activity separated from the old mock activity
+- Retrofit/OkHttp remote API client
+- Automatic access-token refresh
+- Android Keystore-protected session-token storage
+- Real register/login/logout flow
+- Remote conversation list and message history
+- Direct chat creation by username
+- Group creation
+- Message submission and realtime WebSocket receive
+- Server-backed conversation pinning/read receipts
 
-### 2. Messaging & Media Features
-- [x] Username/Password authentication with argon2id hashing spec & local recovery codes.
-- [x] End-to-end encrypted 1-on-1 and Group chats (Double Ratchet key evolution simulation & verification).
-- [x] View-once images/videos with `FLAG_SECURE` rendering.
-- [x] Disappearing messages with countdown timer state.
-- [x] Audio voice message recorder with live waveform, play/pause, seek, and variable playback speeds.
-- [x] Static and encrypted live location sharing with duration controls (15m, 1h, 8h).
-- [x] Real-time voice/video/group calls with PIP, active speaker UI, camera flip, and mute toggles.
-- [x] Active sessions management, remote device revoking, and key safety numbers verification.
+## Still prototype/local-only
 
----
+- Existing `CryptoEngine` is simulated and **not real E2EE**.
+- Voice/video call UI and state machine are simulated; LiveKit/coturn are not wired to Android yet.
+- Some legacy UI actions remain client-local: emoji reactions, pinned messages, group member administration, group profile edits and leave-group persistence.
+- Media picking/upload UI is not yet connected to the new MinIO attachment endpoint, although the backend endpoint exists.
+- Push notifications for offline Android devices are not yet implemented.
+- The legacy mock repositories and mock data remain in source for demo/reference but are not the production launcher path.
 
-## Infrastructure Requirements for Remote Production Deployment
-1. **Domain Setup**: Point DNS record `api.devnu.ir` to API gateway and `rtc.devnu.ir` to LiveKit media server.
-2. **TLS / SSL Certificates**: Managed via Let's Encrypt / Certbot on Nginx reverse proxy.
-3. **Database**: PostgreSQL 16 with Prisma ORM.
-4. **Cache & Queue**: Redis 7 with BullMQ for offline push wake-up job queues.
-5. **Media Storage**: S3 / MinIO object storage bucket for encrypted attachments.
-6. **TURN / STUN**: coturn instance for WebRTC NAT traversal.
+## Validation
+
+GitHub Actions builds the TypeScript server, validates the Prisma schema and assembles the Android debug APK. Production rollout should happen only after CI is green and the E2EE/RTC limitations above are understood.

@@ -23,7 +23,11 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.UUID
+
+enum class RealtimeStatus { DISCONNECTED, CONNECTING, CONNECTED }
 
 class RemoteChatRepository(
     private val apiClient: ApiClient,
@@ -36,6 +40,9 @@ class RemoteChatRepository(
 
     private val _messagesMap = MutableStateFlow<Map<String, List<Message>>>(emptyMap())
     val messagesMap: StateFlow<Map<String, List<Message>>> = _messagesMap.asStateFlow()
+
+    private val _realtimeStatus = MutableStateFlow(RealtimeStatus.DISCONNECTED)
+    val realtimeStatus: StateFlow<RealtimeStatus> = _realtimeStatus.asStateFlow()
 
     private var webSocket: WebSocket? = null
 
@@ -201,12 +208,20 @@ class RemoteChatRepository(
 
     fun startRealtime() {
         if (webSocket != null) return
-        val token = tokenStore.accessToken ?: return
+        val token = tokenStore.accessToken ?: run {
+            _realtimeStatus.value = RealtimeStatus.DISCONNECTED
+            return
+        }
+        _realtimeStatus.value = RealtimeStatus.CONNECTING
         val request = Request.Builder()
             .url(BuildConfig.CHATNU_WS_URL)
             .header("Authorization", "Bearer $token")
             .build()
         webSocket = apiClient.httpClient.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                _realtimeStatus.value = RealtimeStatus.CONNECTED
+            }
+
             override fun onMessage(webSocket: WebSocket, text: String) {
                 handleRealtime(text)
             }
@@ -217,6 +232,7 @@ class RemoteChatRepository(
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 this@RemoteChatRepository.webSocket = null
+                _realtimeStatus.value = RealtimeStatus.DISCONNECTED
                 if (authRepository.isLoggedIn.value) {
                     scope.launch {
                         delay(3_000)
@@ -227,6 +243,7 @@ class RemoteChatRepository(
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 this@RemoteChatRepository.webSocket = null
+                _realtimeStatus.value = RealtimeStatus.DISCONNECTED
             }
         })
     }
@@ -234,6 +251,7 @@ class RemoteChatRepository(
     fun closeRealtime() {
         webSocket?.close(1000, "logout")
         webSocket = null
+        _realtimeStatus.value = RealtimeStatus.DISCONNECTED
     }
 
     private fun handleRealtime(text: String) {
@@ -289,7 +307,7 @@ class RemoteChatRepository(
         type = type.fromServerType(),
         status = MessageStatus.READ,
         timestamp = createdAt.toDisplayTime(),
-        timestampMillis = System.currentTimeMillis()
+        timestampMillis = createdAt.toEpochMillis()
     )
 
     private fun decrypt(message: MessageDto): String = CryptoEngine.decryptPayload(
@@ -303,6 +321,15 @@ class RemoteChatRepository(
     private fun String.toDisplayTime(): String {
         if (length >= 16 && getOrNull(10) == 'T') return substring(11, 16)
         return ifBlank { "now" }
+    }
+
+    private fun String.toEpochMillis(): Long {
+        val patterns = listOf("yyyy-MM-dd'T'HH:mm:ss.SSSX", "yyyy-MM-dd'T'HH:mm:ssX")
+        for (pattern in patterns) {
+            val parsed = runCatching { SimpleDateFormat(pattern, Locale.US).parse(this)?.time }.getOrNull()
+            if (parsed != null) return parsed
+        }
+        return System.currentTimeMillis()
     }
 
     private fun mergeConversation(conversation: Conversation) {

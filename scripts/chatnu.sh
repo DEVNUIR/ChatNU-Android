@@ -24,18 +24,13 @@ ensure_env() {
   fi
 
   umask 077
-  local postgres_password jwt_secret minio_access minio_secret
+  local postgres_password jwt_secret
   postgres_password="$(random_hex 24)"
   jwt_secret="$(random_hex 48)"
-  minio_access="chatnu-$(random_hex 8)"
-  minio_secret="$(random_hex 32)"
 
   cat > .env <<EOF
 POSTGRES_PASSWORD=${postgres_password}
 JWT_SECRET=${jwt_secret}
-MINIO_ACCESS_KEY=${minio_access}
-MINIO_SECRET_KEY=${minio_secret}
-MINIO_BUCKET=chatnu-attachments
 ACCESS_TOKEN_TTL_SECONDS=900
 CORS_ORIGIN=*
 MAX_UPLOAD_BYTES=26214400
@@ -78,8 +73,7 @@ case "$cmd" in
     ensure_env
     docker compose up -d --build
     wait_for_health
-    echo "API:         http://127.0.0.1:3000"
-    echo "MinIO UI:    http://127.0.0.1:9001 (credentials are stored in .env)"
+    echo "API: http://127.0.0.1:3000"
     ;;
   down)
     require_docker
@@ -94,7 +88,7 @@ case "$cmd" in
   reset)
     require_docker
     ensure_env
-    echo "WARNING: reset deletes PostgreSQL, Redis and MinIO volumes." >&2
+    echo "WARNING: reset deletes PostgreSQL, Redis and attachment volumes." >&2
     docker compose down -v
     docker compose up -d --build
     wait_for_health

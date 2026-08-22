@@ -1,8 +1,13 @@
 package com.example.remote
 
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import com.example.BuildConfig
 import com.example.crypto.CryptoEngine
+import com.example.crypto.DeviceE2ee
 import com.example.crypto.EncryptedEnvelope
+import com.example.crypto.RecipientDeviceKey
 import com.example.model.Conversation
 import com.example.model.ConversationType
 import com.example.model.Message
@@ -13,26 +18,49 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.UUID
 
 enum class RealtimeStatus { DISCONNECTED, CONNECTING, CONNECTED }
 
+data class CallSignalEvent(
+    val type: String,
+    val callId: String,
+    val conversationId: String,
+    val fromUserId: String? = null,
+    val targetUserId: String? = null,
+    val sdp: String? = null,
+    val candidate: String? = null,
+    val sdpMid: String? = null,
+    val sdpMLineIndex: Int? = null,
+    val video: Boolean = false
+)
+
 class RemoteChatRepository(
+    private val context: Context,
     private val apiClient: ApiClient,
     private val tokenStore: TokenStore,
-    private val authRepository: RemoteAuthRepository
+    private val authRepository: RemoteAuthRepository,
+    private val deviceE2ee: DeviceE2ee
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
@@ -43,6 +71,9 @@ class RemoteChatRepository(
 
     private val _realtimeStatus = MutableStateFlow(RealtimeStatus.DISCONNECTED)
     val realtimeStatus: StateFlow<RealtimeStatus> = _realtimeStatus.asStateFlow()
+
+    private val _callEvents = MutableSharedFlow<CallSignalEvent>(extraBufferCapacity = 64)
+    val callEvents: SharedFlow<CallSignalEvent> = _callEvents.asSharedFlow()
 
     private var webSocket: WebSocket? = null
 
@@ -72,7 +103,9 @@ class RemoteChatRepository(
     }
 
     suspend fun createGroup(title: String, usernames: List<String> = emptyList()): Conversation {
-        val dto = apiClient.api.createGroup(GroupConversationRequest(title.trim(), usernames.map { it.trim().lowercase() })).conversation
+        val dto = apiClient.api.createGroup(
+            GroupConversationRequest(title.trim(), usernames.map { it.trim().lowercase() })
+        ).conversation
         val model = dto.toModel()
         mergeConversation(model)
         loadMessages(model.id)
@@ -93,15 +126,128 @@ class RemoteChatRepository(
         fileSize: String? = null,
         fileExtension: String? = null
     ) {
+        sendEncryptedPayload(
+            conversationId = conversationId,
+            plaintext = text,
+            displayText = text,
+            type = type,
+            mediaUrl = mediaUrl,
+            voiceDurationSeconds = voiceDurationSeconds,
+            latitude = latitude,
+            longitude = longitude,
+            fileName = fileName,
+            fileSize = fileSize,
+            fileExtension = fileExtension
+        )
+    }
+
+    fun sendAttachment(conversationId: String, uri: Uri) {
         val me = authRepository.currentUser.value ?: return
+        val info = resolveAttachmentInfo(uri)
         val clientId = UUID.randomUUID().toString()
-        val envelope = CryptoEngine.encryptPayload(text)
+        val type = typeForMime(info.mimeType)
         val optimistic = Message(
             id = clientId,
             conversationId = conversationId,
             senderId = me.id,
             senderName = me.displayName,
-            text = text,
+            text = info.name,
+            type = type,
+            status = MessageStatus.SENDING,
+            timestamp = "now",
+            timestampMillis = System.currentTimeMillis(),
+            fileName = info.name,
+            fileSize = info.size.takeIf { it >= 0 }?.let(::formatBytes),
+            fileExtension = info.name.substringAfterLast('.', "").takeIf { it.isNotBlank() },
+            mimeType = info.mimeType,
+            localUri = uri.toString()
+        )
+        appendMessage(conversationId, optimistic)
+
+        scope.launch {
+            runCatching {
+                val raw = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val bytes = stream.readBytes()
+                    require(bytes.size <= MAX_ATTACHMENT_PLAINTEXT_BYTES) {
+                        "Attachment is larger than 24 MiB"
+                    }
+                    bytes
+                } ?: error("Could not read the selected file")
+
+                val encrypted = deviceE2ee.encryptAttachment(raw)
+                val body = encrypted.ciphertext.toRequestBody("application/octet-stream".toMediaType())
+                val part = MultipartBody.Part.createFormData("file", "chatnu.enc", body)
+                val conversationBody = conversationId.toRequestBody("text/plain".toMediaType())
+                val uploaded = apiClient.api.uploadAttachment(conversationBody, part).attachment
+
+                val payload = JSONObject()
+                    .put("kind", "attachment")
+                    .put("attachmentId", uploaded.id)
+                    .put("name", info.name)
+                    .put("mime", info.mimeType)
+                    .put("size", raw.size)
+                    .put("fileKey", encrypted.keyBase64)
+                    .put("fileNonce", encrypted.nonceBase64)
+                    .toString()
+
+                sendEncryptedPayloadAwait(
+                    conversationId = conversationId,
+                    clientId = clientId,
+                    plaintext = payload,
+                    displayText = info.name,
+                    type = type,
+                    fileName = info.name,
+                    fileSize = formatBytes(raw.size.toLong()),
+                    fileExtension = info.name.substringAfterLast('.', "").takeIf { it.isNotBlank() },
+                    attachmentId = uploaded.id,
+                    mimeType = info.mimeType,
+                    attachmentKeyBase64 = encrypted.keyBase64,
+                    attachmentNonceBase64 = encrypted.nonceBase64,
+                    localUri = uri.toString()
+                )
+            }.onSuccess { serverMessage ->
+                replaceMessage(conversationId, clientId, serverMessage)
+                runCatching { refreshConversations() }
+            }.onFailure {
+                updateMessageStatus(conversationId, clientId, MessageStatus.FAILED)
+            }
+        }
+    }
+
+    suspend fun downloadAttachment(message: Message): File {
+        val attachmentId = message.attachmentId ?: error("Message does not contain an attachment")
+        val fileKey = message.attachmentKeyBase64 ?: error("Attachment key is unavailable")
+        val fileNonce = message.attachmentNonceBase64 ?: error("Attachment nonce is unavailable")
+        val encrypted = apiClient.api.downloadAttachment(attachmentId).bytes()
+        val plaintext = deviceE2ee.decryptAttachment(encrypted, fileKey, fileNonce)
+        val dir = File(context.cacheDir, "chatnu_attachments").apply { mkdirs() }
+        val safeName = sanitizeFilename(message.fileName ?: "attachment")
+        val out = File(dir, "${attachmentId.take(12)}-$safeName")
+        out.writeBytes(plaintext)
+        return out
+    }
+
+    private fun sendEncryptedPayload(
+        conversationId: String,
+        plaintext: String,
+        displayText: String,
+        type: MessageType,
+        mediaUrl: String? = null,
+        voiceDurationSeconds: Int = 0,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        fileName: String? = null,
+        fileSize: String? = null,
+        fileExtension: String? = null
+    ) {
+        val me = authRepository.currentUser.value ?: return
+        val clientId = UUID.randomUUID().toString()
+        val optimistic = Message(
+            id = clientId,
+            conversationId = conversationId,
+            senderId = me.id,
+            senderName = me.displayName,
+            text = displayText,
             type = type,
             status = MessageStatus.SENDING,
             timestamp = "now",
@@ -118,24 +264,19 @@ class RemoteChatRepository(
 
         scope.launch {
             runCatching {
-                apiClient.api.sendMessage(
-                    SendMessageRequest(
-                        conversationId = conversationId,
-                        clientId = clientId,
-                        type = type.toServerType(),
-                        ciphertext = envelope.ciphertext,
-                        nonce = envelope.nonceBase64,
-                        protocolVersion = envelope.protocolVersion
-                    )
-                ).message.toModel().copy(
+                sendEncryptedPayloadAwait(
+                    conversationId = conversationId,
+                    clientId = clientId,
+                    plaintext = plaintext,
+                    displayText = displayText,
+                    type = type,
                     mediaUrl = mediaUrl,
                     voiceDurationSeconds = voiceDurationSeconds,
                     latitude = latitude,
                     longitude = longitude,
                     fileName = fileName,
                     fileSize = fileSize,
-                    fileExtension = fileExtension,
-                    status = MessageStatus.SENT
+                    fileExtension = fileExtension
                 )
             }.onSuccess { serverMessage ->
                 replaceMessage(conversationId, clientId, serverMessage)
@@ -146,20 +287,129 @@ class RemoteChatRepository(
         }
     }
 
+    private suspend fun sendEncryptedPayloadAwait(
+        conversationId: String,
+        clientId: String,
+        plaintext: String,
+        displayText: String,
+        type: MessageType,
+        mediaUrl: String? = null,
+        voiceDurationSeconds: Int = 0,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        fileName: String? = null,
+        fileSize: String? = null,
+        fileExtension: String? = null,
+        attachmentId: String? = null,
+        mimeType: String? = null,
+        attachmentKeyBase64: String? = null,
+        attachmentNonceBase64: String? = null,
+        localUri: String? = null
+    ): Message {
+        val keys = apiClient.api.conversationKeys(conversationId)
+        if (keys.missingUserIds.isNotEmpty()) {
+            error("Some members must open the updated ChatNU app before encrypted messages can be sent")
+        }
+        val recipientKeys = keys.devices.map {
+            RecipientDeviceKey(deviceId = it.deviceId, publicKeyBase64 = it.publicKey)
+        }
+        val serverType = type.toServerType()
+        val aad = messageAad(conversationId, clientId, serverType)
+        val envelope = deviceE2ee.encryptMessage(
+            plaintext = plaintext.toByteArray(Charsets.UTF_8),
+            recipientKeys = recipientKeys,
+            aad = aad
+        )
+        val metadata = mapOf<String, Any?>(
+            "wrappedKeys" to envelope.wrappedKeys,
+            "senderDeviceId" to tokenStore.deviceId,
+            "e2ee" to true
+        )
+        val dto = apiClient.api.sendMessage(
+            SendMessageRequest(
+                conversationId = conversationId,
+                clientId = clientId,
+                type = serverType,
+                ciphertext = envelope.ciphertextBase64,
+                nonce = envelope.nonceBase64,
+                protocolVersion = envelope.protocolVersion,
+                metadata = metadata
+            )
+        ).message
+        return dto.toModel().copy(
+            text = displayText,
+            mediaUrl = mediaUrl,
+            voiceDurationSeconds = voiceDurationSeconds,
+            latitude = latitude,
+            longitude = longitude,
+            fileName = fileName,
+            fileSize = fileSize,
+            fileExtension = fileExtension,
+            attachmentId = attachmentId,
+            mimeType = mimeType,
+            attachmentKeyBase64 = attachmentKeyBase64,
+            attachmentNonceBase64 = attachmentNonceBase64,
+            localUri = localUri,
+            status = MessageStatus.SENT
+        )
+    }
+
     fun togglePinConversation(conversationId: String) {
         val target = _conversations.value.firstOrNull { it.id == conversationId } ?: return
         val newValue = !target.isPinned
-        _conversations.value = _conversations.value.map { if (it.id == conversationId) it.copy(isPinned = newValue) else it }
+        _conversations.value = _conversations.value.map {
+            if (it.id == conversationId) it.copy(isPinned = newValue) else it
+        }
         scope.launch {
-            runCatching { apiClient.api.updatePreferences(conversationId, ConversationPreferencesRequest(isPinned = newValue)) }
-                .onFailure {
-                    _conversations.value = _conversations.value.map { if (it.id == conversationId) it.copy(isPinned = !newValue) else it }
+            runCatching {
+                apiClient.api.updatePreferences(
+                    conversationId,
+                    ConversationPreferencesRequest(isPinned = newValue)
+                )
+            }.onFailure {
+                _conversations.value = _conversations.value.map {
+                    if (it.id == conversationId) it.copy(isPinned = !newValue) else it
                 }
+            }
         }
     }
 
     fun markRead(conversationId: String) {
         scope.launch { runCatching { apiClient.api.markRead(conversationId) } }
+    }
+
+    suspend fun rtcConfig(): RtcConfigResponse = apiClient.api.rtcConfig()
+
+    suspend fun emitPendingCalls() {
+        apiClient.api.pendingCalls().calls.forEach { call ->
+            _callEvents.emit(
+                CallSignalEvent(
+                    type = call.type,
+                    callId = call.callId,
+                    conversationId = call.conversationId,
+                    fromUserId = call.fromUserId,
+                    targetUserId = call.targetUserId,
+                    sdp = call.sdp,
+                    video = call.video
+                )
+            )
+        }
+    }
+
+    fun sendCallSignal(event: CallSignalEvent): Boolean {
+        val socket = webSocket ?: return false
+        val target = event.targetUserId ?: return false
+        val json = JSONObject()
+            .put("type", event.type)
+            .put("callId", event.callId)
+            .put("conversationId", event.conversationId)
+            .put("targetUserId", target)
+            .put("video", event.video)
+        event.sdp?.let { json.put("sdp", it) }
+        event.candidate?.let { json.put("candidate", it) }
+        if (event.sdpMid != null) json.put("sdpMid", event.sdpMid)
+        if (event.sdpMLineIndex != null) json.put("sdpMLineIndex", event.sdpMLineIndex)
+        return socket.send(json.toString())
     }
 
     fun markViewOnceOpened(conversationId: String, messageId: String) {
@@ -185,21 +435,21 @@ class RemoteChatRepository(
 
     fun addMemberToGroup(conversationId: String, user: User) {
         _conversations.value = _conversations.value.map {
-            if (it.id == conversationId && it.members.none { member -> member.id == user.id }) it.copy(members = it.members + user) else it
+            if (it.id == conversationId && it.members.none { member -> member.id == user.id }) {
+                it.copy(members = it.members + user)
+            } else it
         }
     }
 
     fun removeMemberFromGroup(conversationId: String, memberId: String) {
         _conversations.value = _conversations.value.map {
-            if (it.id == conversationId) it.copy(members = it.members.filterNot { member -> member.id == memberId }) else it
+            if (it.id == conversationId) {
+                it.copy(members = it.members.filterNot { member -> member.id == memberId })
+            } else it
         }
     }
 
-    fun toggleGroupEncryption(conversationId: String) {
-        _conversations.value = _conversations.value.map {
-            if (it.id == conversationId) it.copy(isEncrypted = !it.isEncrypted) else it
-        }
-    }
+    fun toggleGroupEncryption(conversationId: String) = Unit
 
     fun leaveGroup(conversationId: String) {
         _conversations.value = _conversations.value.filterNot { it.id == conversationId }
@@ -220,6 +470,7 @@ class RemoteChatRepository(
         webSocket = apiClient.httpClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 _realtimeStatus.value = RealtimeStatus.CONNECTED
+                scope.launch { runCatching { emitPendingCalls() } }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -257,32 +508,60 @@ class RemoteChatRepository(
     private fun handleRealtime(text: String) {
         runCatching {
             val event = JSONObject(text)
-            if (event.optString("type") != "message.created") return
-            val json = event.getJSONObject("message")
-            val dto = MessageDto(
-                id = json.getString("id"),
-                clientId = json.optNullableString("clientId"),
-                conversationId = json.getString("conversationId"),
-                senderId = json.getString("senderId"),
-                senderUsername = json.optNullableString("senderUsername"),
-                senderName = json.optString("senderName", "Unknown"),
-                type = json.optString("type", "TEXT"),
-                ciphertext = json.getString("ciphertext"),
-                nonce = json.optNullableString("nonce"),
-                protocolVersion = json.optNullableString("protocolVersion"),
-                createdAt = json.optString("createdAt", "")
-            )
-            val message = dto.toModel()
-            val existing = _messagesMap.value[message.conversationId].orEmpty()
-            if (existing.none { it.id == message.id || (dto.clientId != null && it.id == dto.clientId) }) {
-                appendMessage(message.conversationId, message)
+            val eventType = event.optString("type")
+            when {
+                eventType == "message.created" -> {
+                    val json = event.getJSONObject("message")
+                    val dto = MessageDto(
+                        id = json.getString("id"),
+                        clientId = json.optNullableString("clientId"),
+                        conversationId = json.getString("conversationId"),
+                        senderId = json.getString("senderId"),
+                        senderUsername = json.optNullableString("senderUsername"),
+                        senderName = json.optString("senderName", "Unknown"),
+                        type = json.optString("type", "TEXT"),
+                        ciphertext = json.getString("ciphertext"),
+                        nonce = json.optNullableString("nonce"),
+                        protocolVersion = json.optNullableString("protocolVersion"),
+                        metadata = json.optJSONObject("metadata")?.toKotlinMap(),
+                        createdAt = json.optString("createdAt", "")
+                    )
+                    val message = dto.toModel()
+                    val existing = _messagesMap.value[message.conversationId].orEmpty()
+                    if (existing.none { it.id == message.id || (dto.clientId != null && it.id == dto.clientId) }) {
+                        appendMessage(message.conversationId, message)
+                    }
+                    scope.launch { runCatching { refreshConversations() } }
+                }
+
+                eventType == "conversation.created" -> {
+                    scope.launch { runCatching { refreshConversations() } }
+                }
+
+                eventType.startsWith("call.") -> {
+                    _callEvents.tryEmit(
+                        CallSignalEvent(
+                            type = eventType,
+                            callId = event.getString("callId"),
+                            conversationId = event.getString("conversationId"),
+                            fromUserId = event.optNullableString("fromUserId"),
+                            targetUserId = event.optNullableString("targetUserId"),
+                            sdp = event.optNullableString("sdp"),
+                            candidate = event.optNullableString("candidate"),
+                            sdpMid = event.optNullableString("sdpMid"),
+                            sdpMLineIndex = if (event.has("sdpMLineIndex") && !event.isNull("sdpMLineIndex")) {
+                                event.optInt("sdpMLineIndex")
+                            } else null,
+                            video = event.optBoolean("video", false)
+                        )
+                    )
+                }
             }
-            scope.launch { runCatching { refreshConversations() } }
         }
     }
 
     private fun ConversationDto.toModel(): Conversation {
-        val preview = lastMessage?.let { decrypt(it) }.orEmpty()
+        val preview = lastMessage?.let { decryptPayload(it).displayText }.orEmpty()
         return Conversation(
             id = id,
             title = title,
@@ -298,25 +577,78 @@ class RemoteChatRepository(
         )
     }
 
-    private fun MessageDto.toModel(): Message = Message(
-        id = id,
-        conversationId = conversationId,
-        senderId = senderId,
-        senderName = senderName,
-        text = decrypt(this),
-        type = type.fromServerType(),
-        status = MessageStatus.READ,
-        timestamp = createdAt.toDisplayTime(),
-        timestampMillis = createdAt.toEpochMillis()
-    )
-
-    private fun decrypt(message: MessageDto): String = CryptoEngine.decryptPayload(
-        EncryptedEnvelope(
-            ciphertext = message.ciphertext,
-            nonceBase64 = message.nonce.orEmpty(),
-            protocolVersion = message.protocolVersion ?: "legacy"
+    private fun MessageDto.toModel(): Message {
+        val decrypted = decryptPayload(this)
+        return Message(
+            id = id,
+            conversationId = conversationId,
+            senderId = senderId,
+            senderName = senderName,
+            text = decrypted.displayText,
+            type = type.fromServerType(),
+            status = MessageStatus.READ,
+            timestamp = createdAt.toDisplayTime(),
+            timestampMillis = createdAt.toEpochMillis(),
+            fileName = decrypted.fileName,
+            fileSize = decrypted.sizeBytes?.let(::formatBytes),
+            fileExtension = decrypted.fileName?.substringAfterLast('.', "")?.takeIf { it.isNotBlank() },
+            attachmentId = decrypted.attachmentId,
+            mimeType = decrypted.mimeType,
+            attachmentKeyBase64 = decrypted.fileKey,
+            attachmentNonceBase64 = decrypted.fileNonce
         )
-    )
+    }
+
+    private fun decryptPayload(message: MessageDto): DecryptedPayload {
+        val plain = runCatching {
+            if (message.protocolVersion == DeviceE2ee.PROTOCOL_VERSION) {
+                val account = tokenStore.cryptoAccount ?: authRepository.currentUser.value?.username
+                    ?: error("No crypto account")
+                val deviceId = tokenStore.deviceId ?: error("No device id")
+                val clientId = message.clientId ?: error("Encrypted message has no client id")
+                val aad = messageAad(message.conversationId, clientId, message.type)
+                String(
+                    deviceE2ee.decryptMessage(
+                        account = account,
+                        deviceId = deviceId,
+                        ciphertextBase64 = message.ciphertext,
+                        nonceBase64 = message.nonce.orEmpty(),
+                        metadata = message.metadata,
+                        aad = aad
+                    ),
+                    Charsets.UTF_8
+                )
+            } else {
+                CryptoEngine.decryptPayload(
+                    EncryptedEnvelope(
+                        ciphertext = message.ciphertext,
+                        nonceBase64 = message.nonce.orEmpty(),
+                        protocolVersion = message.protocolVersion ?: "legacy"
+                    )
+                )
+            }
+        }.getOrElse {
+            return DecryptedPayload(displayText = "🔒 Encrypted message unavailable on this device")
+        }
+
+        return parseDecryptedPayload(plain)
+    }
+
+    private fun parseDecryptedPayload(plain: String): DecryptedPayload {
+        return runCatching {
+            val json = JSONObject(plain)
+            if (json.optString("kind") != "attachment") return@runCatching DecryptedPayload(plain)
+            DecryptedPayload(
+                displayText = json.optString("name", "Attachment"),
+                attachmentId = json.getString("attachmentId"),
+                fileName = json.optString("name", "Attachment"),
+                mimeType = json.optString("mime", "application/octet-stream"),
+                sizeBytes = json.optLong("size").takeIf { it >= 0 },
+                fileKey = json.getString("fileKey"),
+                fileNonce = json.getString("fileNonce")
+            )
+        }.getOrElse { DecryptedPayload(displayText = plain) }
+    }
 
     private fun String.toDisplayTime(): String {
         if (length >= 16 && getOrNull(10) == 'T') return substring(11, 16)
@@ -354,7 +686,9 @@ class RemoteChatRepository(
 
     private fun mutateMessage(conversationId: String, messageId: String, transform: (Message) -> Message) {
         val map = _messagesMap.value.toMutableMap()
-        map[conversationId] = map[conversationId].orEmpty().map { if (it.id == messageId) transform(it) else it }
+        map[conversationId] = map[conversationId].orEmpty().map {
+            if (it.id == messageId) transform(it) else it
+        }
         _messagesMap.value = map
     }
 
@@ -368,8 +702,73 @@ class RemoteChatRepository(
         else -> runCatching { MessageType.valueOf(this) }.getOrDefault(MessageType.TEXT)
     }
 
+    private fun messageAad(conversationId: String, clientId: String, serverType: String): String =
+        "$conversationId|$clientId|$serverType"
+
+    private fun resolveAttachmentInfo(uri: Uri): AttachmentInfo {
+        var name = "attachment"
+        var size = -1L
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (cursor.moveToFirst()) {
+                if (nameIndex >= 0) name = cursor.getString(nameIndex) ?: name
+                if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) size = cursor.getLong(sizeIndex)
+            }
+        }
+        val mime = context.contentResolver.getType(uri) ?: "application/octet-stream"
+        return AttachmentInfo(name = sanitizeFilename(name), size = size, mimeType = mime)
+    }
+
+    private fun typeForMime(mime: String): MessageType = when {
+        mime.startsWith("image/") -> MessageType.IMAGE
+        mime.startsWith("video/") -> MessageType.VIDEO
+        mime.startsWith("audio/") -> MessageType.VOICE
+        else -> MessageType.FILE
+    }
+
+    private fun sanitizeFilename(value: String): String {
+        val cleaned = value.replace(Regex("[\\\\/:*?\"<>|\\u0000-\\u001F]"), "_").trim()
+        return cleaned.take(120).ifBlank { "attachment" }
+    }
+
+    private fun formatBytes(value: Long): String = when {
+        value >= 1024L * 1024L -> String.format(Locale.US, "%.1f MB", value / (1024.0 * 1024.0))
+        value >= 1024L -> String.format(Locale.US, "%.1f KB", value / 1024.0)
+        else -> "$value B"
+    }
+
     private fun JSONObject.optNullableString(key: String): String? {
         if (!has(key) || isNull(key)) return null
         return optString(key).takeIf { it.isNotBlank() && it != "null" }
+    }
+
+    private fun JSONObject.toKotlinMap(): Map<String, Any?> {
+        val result = linkedMapOf<String, Any?>()
+        keys().forEach { key -> result[key] = unwrapJson(opt(key)) }
+        return result
+    }
+
+    private fun unwrapJson(value: Any?): Any? = when (value) {
+        JSONObject.NULL -> null
+        is JSONObject -> value.toKotlinMap()
+        is JSONArray -> (0 until value.length()).map { unwrapJson(value.opt(it)) }
+        else -> value
+    }
+
+    private data class AttachmentInfo(val name: String, val size: Long, val mimeType: String)
+
+    private data class DecryptedPayload(
+        val displayText: String,
+        val attachmentId: String? = null,
+        val fileName: String? = null,
+        val mimeType: String? = null,
+        val sizeBytes: Long? = null,
+        val fileKey: String? = null,
+        val fileNonce: String? = null
+    )
+
+    companion object {
+        private const val MAX_ATTACHMENT_PLAINTEXT_BYTES = 24 * 1024 * 1024
     }
 }

@@ -9,9 +9,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -19,22 +16,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.example.crypto.DeviceE2ee
 import com.example.model.Conversation
 import com.example.model.Message
 import com.example.model.MessageType
 import com.example.remote.ApiClient
+import com.example.remote.CallForegroundService
 import com.example.remote.CallPhase
+import com.example.remote.ChatNuMessagingService
 import com.example.remote.EnhancedProductionConversationScreen
+import com.example.remote.EnhancedProductionSettingsScreen
 import com.example.remote.ProductionAuthScreen
 import com.example.remote.ProductionHomeScreen
-import com.example.remote.ProductionSettingsScreen
 import com.example.remote.PushRegistration
 import com.example.remote.RemoteAuthRepository
 import com.example.remote.RemoteChatRepository
 import com.example.remote.TokenStore
 import com.example.remote.WebRtcCallManager
-import com.example.remote.ChatNuMessagingService
 import com.example.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -83,6 +84,7 @@ class ProductionMainActivity : ComponentActivity() {
                 var homeError by remember { mutableStateOf<String?>(null) }
                 var conversationLoading by remember { mutableStateOf(false) }
                 var conversationError by remember { mutableStateOf<String?>(null) }
+                var callServiceRunning by remember { mutableStateOf(false) }
                 var pendingConversationId by remember {
                     mutableStateOf(intent.getStringExtra(ChatNuMessagingService.EXTRA_CONVERSATION_ID))
                 }
@@ -198,9 +200,28 @@ class ProductionMainActivity : ComponentActivity() {
                     } else {
                         chatRepository.closeRealtime()
                         if (callManager.state.value.phase != CallPhase.IDLE) callManager.endCall()
+                        if (callServiceRunning) {
+                            CallForegroundService.stop(this@ProductionMainActivity)
+                            callServiceRunning = false
+                        }
                         activeConversation = null
                         conversationError = null
                         screen = ProductionScreen.AUTH
+                    }
+                }
+
+                LaunchedEffect(callState.phase, callState.peerName, callState.video) {
+                    val shouldRun = callState.phase == CallPhase.CONNECTING || callState.phase == CallPhase.ACTIVE
+                    if (shouldRun && !callServiceRunning) {
+                        CallForegroundService.start(
+                            this@ProductionMainActivity,
+                            callState.peerName,
+                            callState.video
+                        )
+                        callServiceRunning = true
+                    } else if (!shouldRun && callServiceRunning) {
+                        CallForegroundService.stop(this@ProductionMainActivity)
+                        callServiceRunning = false
                     }
                 }
 
@@ -308,7 +329,7 @@ class ProductionMainActivity : ComponentActivity() {
                         }
                     }
 
-                    ProductionScreen.SETTINGS -> ProductionSettingsScreen(
+                    ProductionScreen.SETTINGS -> EnhancedProductionSettingsScreen(
                         user = currentUser,
                         realtimeStatus = realtimeStatus,
                         onBack = { screen = ProductionScreen.HOME },
@@ -331,6 +352,7 @@ class ProductionMainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        CallForegroundService.stop(this)
         chatRepository.closeRealtime()
         callManager.dispose()
         super.onDestroy()

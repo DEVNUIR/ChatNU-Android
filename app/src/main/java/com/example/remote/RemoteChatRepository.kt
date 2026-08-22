@@ -202,7 +202,10 @@ class RemoteChatRepository(
     fun startRealtime() {
         if (webSocket != null) return
         val token = tokenStore.accessToken ?: return
-        val request = Request.Builder().url("${BuildConfig.CHATNU_WS_URL}?token=$token").build()
+        val request = Request.Builder()
+            .url(BuildConfig.CHATNU_WS_URL)
+            .header("Authorization", "Bearer $token")
+            .build()
         webSocket = apiClient.httpClient.newWebSocket(request, object : WebSocketListener() {
             override fun onMessage(webSocket: WebSocket, text: String) {
                 handleRealtime(text)

@@ -57,6 +57,8 @@ model Device {
   userId            String
   name              String
   identityPublicKey String?
+  pushToken         String?   @unique
+  pushUpdatedAt     DateTime?
   refreshTokenHash  String?
   createdAt         DateTime  @default(now())
   lastSeenAt        DateTime  @default(now())

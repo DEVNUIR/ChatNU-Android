@@ -215,8 +215,9 @@ jobs:
             headers: { Authorization: `Bearer ${alice.accessToken}` },
             body: form,
           });
-          assert.equal(uploadResponse.status, 201);
-          const attachment = (await uploadResponse.json()).attachment;
+          const uploadBody = await uploadResponse.text();
+          assert.equal(uploadResponse.status, 201, `attachment upload failed: ${uploadBody}`);
+          const attachment = JSON.parse(uploadBody).attachment;
 
           const downloadResponse = await fetch(`${BASE}/attachments/${attachment.id}/download`, {
             headers: { Authorization: `Bearer ${bob.accessToken}` },
@@ -281,3 +282,10 @@ jobs:
           gradle-version: '9.3.1'
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatnu-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7

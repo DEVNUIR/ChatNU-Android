@@ -4,7 +4,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { Redis } from "ioredis";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, importPKCS8, jwtVerify } from "jose";
 import multer from "multer";
 import { Algorithm, hash, verify } from "@node-rs/argon2";
 import {
@@ -14,7 +14,7 @@ import {
   Prisma,
   PrismaClient,
 } from "@prisma/client";
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -33,6 +33,11 @@ const env = z
     CORS_ORIGIN: z.string().default("*"),
     ATTACHMENT_DIR: z.string().min(1).default("/data/attachments"),
     MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(25 * 1024 * 1024),
+    FIREBASE_SERVICE_ACCOUNT_B64: z.string().default(""),
+    TURN_HOST: z.string().default(""),
+    TURN_PORT: z.coerce.number().int().positive().default(3478),
+    TURN_SHARED_SECRET: z.string().default(""),
+    TURN_REALM: z.string().default("chatnu"),
   })
   .parse(process.env);
 
@@ -61,7 +66,6 @@ const allowedOrigins = env.CORS_ORIGIN === "*"
   : env.CORS_ORIGIN.split(",").map((value) => value.trim()).filter(Boolean);
 
 app.disable("x-powered-by");
-// The provided Docker deployment binds the API to loopback and expects one local reverse proxy.
 app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors({ origin: allowedOrigins, credentials: allowedOrigins !== true }));
@@ -91,10 +95,16 @@ const usernameSchema = z
   .regex(/^[a-z0-9_.]+$/);
 
 const passwordSchema = z.string().min(10).max(200);
+const identityPublicKeySchema = z.string().min(100).max(16_384);
 
 type AuthContext = { userId: string; deviceId: string };
 type AuthedRequest = Request & { auth?: AuthContext };
 type MessageWithSender = Prisma.MessageGetPayload<{ include: { sender: true } }>;
+type FirebaseServiceAccount = {
+  project_id: string;
+  client_email: string;
+  private_key: string;
+};
 
 function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
@@ -258,11 +268,192 @@ function serializeMessage(message: MessageWithSender) {
   };
 }
 
+let firebaseServiceAccount: FirebaseServiceAccount | null = null;
+let fcmAccessTokenCache: { token: string; expiresAt: number } | null = null;
+
+if (env.FIREBASE_SERVICE_ACCOUNT_B64.trim()) {
+  try {
+    const raw = env.FIREBASE_SERVICE_ACCOUNT_B64.trim();
+    const decoded = raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
+    const parsed = JSON.parse(decoded) as Partial<FirebaseServiceAccount>;
+    if (!parsed.project_id || !parsed.client_email || !parsed.private_key) {
+      throw new Error("service account is missing project_id/client_email/private_key");
+    }
+    firebaseServiceAccount = parsed as FirebaseServiceAccount;
+  } catch (error) {
+    console.error("FCM disabled: FIREBASE_SERVICE_ACCOUNT_B64 is invalid", error);
+  }
+}
+
+async function getFcmAccessToken() {
+  if (!firebaseServiceAccount) return null;
+  if (fcmAccessTokenCache && fcmAccessTokenCache.expiresAt > Date.now() + 60_000) {
+    return fcmAccessTokenCache.token;
+  }
+
+  const privateKey = await importPKCS8(
+    firebaseServiceAccount.private_key.replace(/\\n/g, "\n"),
+    "RS256",
+  );
+  const now = Math.floor(Date.now() / 1000);
+  const assertion = await new SignJWT({
+    scope: "https://www.googleapis.com/auth/firebase.messaging",
+  })
+    .setProtectedHeader({ alg: "RS256", typ: "JWT" })
+    .setIssuer(firebaseServiceAccount.client_email)
+    .setAudience("https://oauth2.googleapis.com/token")
+    .setIssuedAt(now)
+    .setExpirationTime(now + 3600)
+    .sign(privateKey);
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion,
+    }),
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`FCM OAuth failed (${response.status}): ${text}`);
+  const body = JSON.parse(text) as { access_token?: string; expires_in?: number };
+  if (!body.access_token) throw new Error("FCM OAuth response did not include access_token");
+  fcmAccessTokenCache = {
+    token: body.access_token,
+    expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
+  };
+  return body.access_token;
+}
+
+async function sendFcmToDevice(deviceId: string, token: string, data: Record<string, string>) {
+  if (!firebaseServiceAccount) return;
+  try {
+    const accessToken = await getFcmAccessToken();
+    if (!accessToken) return;
+    const response = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(firebaseServiceAccount.project_id)}/messages:send`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: {
+            token,
+            data,
+            android: {
+              priority: data.type === "call" ? "HIGH" : "NORMAL",
+              ttl: data.type === "call" ? "90s" : "86400s",
+            },
+          },
+        }),
+      },
+    );
+    if (response.ok) return;
+    const errorText = await response.text();
+    console.warn(`FCM send failed for device ${deviceId}: ${response.status} ${errorText}`);
+    if (errorText.includes("UNREGISTERED")) {
+      await prisma.device.updateMany({
+        where: { id: deviceId, pushToken: token },
+        data: { pushToken: null, pushUpdatedAt: null },
+      });
+    }
+  } catch (error) {
+    console.warn(`FCM send failed for device ${deviceId}`, error);
+  }
+}
+
+async function sendPushToUser(userId: string, data: Record<string, string>) {
+  if (!firebaseServiceAccount) return;
+  const devices = await prisma.device.findMany({
+    where: { userId, revokedAt: null, pushToken: { not: null } },
+    select: { id: true, pushToken: true },
+  });
+  await Promise.allSettled(
+    devices.map((device) => sendFcmToDevice(device.id, device.pushToken!, data)),
+  );
+}
+
+async function sendPushToConversation(
+  conversationId: string,
+  senderId: string,
+  data: Record<string, string>,
+) {
+  const members = await prisma.conversationMember.findMany({
+    where: { conversationId, userId: { not: senderId } },
+    select: { userId: true },
+  });
+  await Promise.allSettled(members.map((member) => sendPushToUser(member.userId, data)));
+}
+
+const callSignalSchema = z.object({
+  type: z.enum(["call.offer", "call.answer", "call.ice", "call.end", "call.reject"]),
+  callId: z.string().min(8).max(100),
+  conversationId: z.string().min(1).max(200),
+  targetUserId: z.string().min(1).max(200),
+  sdp: z.string().max(1_000_000).optional(),
+  candidate: z.string().max(100_000).optional(),
+  sdpMid: z.string().max(500).nullable().optional(),
+  sdpMLineIndex: z.number().int().min(0).max(10_000).nullable().optional(),
+  video: z.boolean().optional(),
+});
+
+type CallSignal = z.infer<typeof callSignalSchema>;
+
+async function handleCallSignal(auth: AuthContext, signal: CallSignal) {
+  if (signal.targetUserId === auth.userId) throw new Error("CALL_TARGET_SELF");
+  const members = await prisma.conversationMember.findMany({
+    where: {
+      conversationId: signal.conversationId,
+      userId: { in: [auth.userId, signal.targetUserId] },
+    },
+    select: { userId: true },
+  });
+  if (members.length !== 2) throw new Error("CALL_TARGET_NOT_MEMBER");
+
+  const outbound = {
+    ...signal,
+    fromUserId: auth.userId,
+    fromDeviceId: auth.deviceId,
+    sentAt: new Date().toISOString(),
+  };
+
+  if (signal.type === "call.offer") {
+    await redis.set(`chatnu:call:${signal.callId}:offer`, JSON.stringify(outbound), "EX", 120);
+    await redis.sadd(`chatnu:calls:pending:${signal.targetUserId}`, signal.callId);
+    await redis.expire(`chatnu:calls:pending:${signal.targetUserId}`, 180);
+    void sendPushToUser(signal.targetUserId, {
+      type: "call",
+      callId: signal.callId,
+      conversationId: signal.conversationId,
+      fromUserId: auth.userId,
+      video: signal.video ? "1" : "0",
+    });
+  }
+
+  if (signal.type === "call.end" || signal.type === "call.reject") {
+    await redis.del(`chatnu:call:${signal.callId}:offer`);
+    await Promise.allSettled([
+      redis.srem(`chatnu:calls:pending:${signal.targetUserId}`, signal.callId),
+      redis.srem(`chatnu:calls:pending:${auth.userId}`, signal.callId),
+    ]);
+  }
+
+  await pushToUser(signal.targetUserId, outbound);
+}
+
 app.get("/health", async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     const redisStatus = await redis.ping();
-    res.json({ status: "ok", database: "ok", redis: redisStatus.toLowerCase() });
+    res.json({
+      status: "ok",
+      database: "ok",
+      redis: redisStatus.toLowerCase(),
+      push: firebaseServiceAccount ? "configured" : "disabled",
+      turn: env.TURN_HOST && env.TURN_SHARED_SECRET ? "configured" : "disabled",
+    });
   } catch (error) {
     res.status(503).json({
       status: "degraded",
@@ -278,7 +469,7 @@ app.post("/auth/register", authLimiter, async (req, res) => {
       password: passwordSchema,
       displayName: z.string().trim().min(1).max(80),
       deviceName: z.string().trim().min(1).max(120).default("Android"),
-      identityPublicKey: z.string().max(16_384).optional(),
+      identityPublicKey: identityPublicKeySchema.optional(),
     })
     .parse(req.body);
 
@@ -329,7 +520,7 @@ app.post("/auth/login", authLimiter, async (req, res) => {
       username: usernameSchema,
       password: z.string().min(1).max(200),
       deviceName: z.string().trim().min(1).max(120).default("Android"),
-      identityPublicKey: z.string().max(16_384).optional(),
+      identityPublicKey: identityPublicKeySchema.optional(),
     })
     .parse(req.body);
 
@@ -371,7 +562,12 @@ app.post("/auth/refresh", async (req, res) => {
 app.post("/auth/logout", requireAuth, async (req: AuthedRequest, res) => {
   await prisma.device.update({
     where: { id: req.auth!.deviceId },
-    data: { refreshTokenHash: null, revokedAt: new Date() },
+    data: {
+      refreshTokenHash: null,
+      pushToken: null,
+      pushUpdatedAt: null,
+      revokedAt: new Date(),
+    },
   });
   closeSockets(socketsByDevice, req.auth!.deviceId);
   res.status(204).end();
@@ -396,7 +592,12 @@ app.post("/auth/recover", authLimiter, async (req, res) => {
     prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
     prisma.device.updateMany({
       where: { userId: user.id },
-      data: { revokedAt: new Date(), refreshTokenHash: null },
+      data: {
+        revokedAt: new Date(),
+        refreshTokenHash: null,
+        pushToken: null,
+        pushUpdatedAt: null,
+      },
     }),
   ]);
   closeSockets(socketsByUser, user.id);
@@ -406,6 +607,45 @@ app.post("/auth/recover", authLimiter, async (req, res) => {
 app.get("/me", requireAuth, async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.auth!.userId } });
   res.json({ user: publicUser(user) });
+});
+
+app.get("/session", requireAuth, async (req: AuthedRequest, res) => {
+  const device = await prisma.device.findUniqueOrThrow({ where: { id: req.auth!.deviceId } });
+  res.json({
+    deviceId: device.id,
+    userId: device.userId,
+    deviceName: device.name,
+    hasIdentityKey: Boolean(device.identityPublicKey),
+    pushConfigured: Boolean(device.pushToken),
+  });
+});
+
+app.post("/devices/identity-key", requireAuth, async (req: AuthedRequest, res) => {
+  const { identityPublicKey } = z.object({ identityPublicKey: identityPublicKeySchema }).parse(req.body);
+  await prisma.device.update({
+    where: { id: req.auth!.deviceId },
+    data: { identityPublicKey, lastSeenAt: new Date() },
+  });
+  res.json({ status: "ok", deviceId: req.auth!.deviceId });
+});
+
+app.post("/devices/push-token", requireAuth, async (req: AuthedRequest, res) => {
+  const { token } = z.object({ token: z.string().trim().min(20).max(8192).nullable() }).parse(req.body);
+  if (token) {
+    await prisma.device.updateMany({
+      where: { pushToken: token, id: { not: req.auth!.deviceId } },
+      data: { pushToken: null, pushUpdatedAt: null },
+    });
+  }
+  await prisma.device.update({
+    where: { id: req.auth!.deviceId },
+    data: {
+      pushToken: token,
+      pushUpdatedAt: token ? new Date() : null,
+      lastSeenAt: new Date(),
+    },
+  });
+  res.json({ status: "ok" });
 });
 
 app.get("/users/search", requireAuth, async (req: AuthedRequest, res) => {
@@ -478,6 +718,75 @@ app.get("/conversations", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ conversations });
 });
 
+app.get("/conversations/:id/keys", requireAuth, async (req: AuthedRequest, res) => {
+  const conversationId = z.string().min(1).parse(req.params.id);
+  const member = await requireMembership(req.auth!.userId, conversationId);
+  if (!member) return res.status(404).json({ error: "CONVERSATION_NOT_FOUND" });
+
+  const members = await prisma.conversationMember.findMany({
+    where: { conversationId },
+    select: {
+      userId: true,
+      user: {
+        select: {
+          devices: {
+            where: { revokedAt: null, identityPublicKey: { not: null } },
+            select: { id: true, userId: true, identityPublicKey: true },
+          },
+        },
+      },
+    },
+  });
+
+  const devices = members.flatMap((membership) =>
+    membership.user.devices.map((device) => ({
+      deviceId: device.id,
+      userId: device.userId,
+      publicKey: device.identityPublicKey!,
+    })),
+  );
+  const keyedUsers = new Set(devices.map((device) => device.userId));
+  const missingUserIds = members.map((entry) => entry.userId).filter((userId) => !keyedUsers.has(userId));
+  res.json({ devices, missingUserIds });
+});
+
+app.get("/rtc/config", requireAuth, async (req: AuthedRequest, res) => {
+  const iceServers: Array<{ urls: string[]; username?: string; credential?: string }> = [
+    { urls: ["stun:stun.l.google.com:19302"] },
+  ];
+  if (env.TURN_HOST && env.TURN_SHARED_SECRET) {
+    const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+    const username = `${expiresAt}:${req.auth!.userId}`;
+    const credential = createHmac("sha1", env.TURN_SHARED_SECRET)
+      .update(username)
+      .digest("base64");
+    iceServers.push({
+      urls: [
+        `turn:${env.TURN_HOST}:${env.TURN_PORT}?transport=udp`,
+        `turn:${env.TURN_HOST}:${env.TURN_PORT}?transport=tcp`,
+      ],
+      username,
+      credential,
+    });
+  }
+  res.json({ iceServers, realm: env.TURN_REALM });
+});
+
+app.get("/calls/pending", requireAuth, async (req: AuthedRequest, res) => {
+  const key = `chatnu:calls:pending:${req.auth!.userId}`;
+  const callIds = await redis.smembers(key);
+  const pending = await Promise.all(
+    callIds.map(async (callId) => ({ callId, raw: await redis.get(`chatnu:call:${callId}:offer`) })),
+  );
+  const missing = pending.filter((item) => !item.raw).map((item) => item.callId);
+  if (missing.length) await redis.srem(key, ...missing);
+  res.json({
+    calls: pending
+      .filter((item): item is { callId: string; raw: string } => Boolean(item.raw))
+      .map((item) => JSON.parse(item.raw)),
+  });
+});
+
 app.post("/conversations/direct", requireAuth, async (req: AuthedRequest, res) => {
   const { username } = z.object({ username: usernameSchema }).parse(req.body);
   const target = await prisma.user.findUnique({ where: { username } });
@@ -525,7 +834,7 @@ app.post("/conversations/direct", requireAuth, async (req: AuthedRequest, res) =
       type: conversation.type,
       title: target.displayName,
       avatarUrl: target.avatarUrl,
-      members: conversation.members.map((member) => publicUser(member.user)),
+      members: conversation.members.map((entry) => publicUser(entry.user)),
     },
   });
 });
@@ -574,7 +883,7 @@ app.post("/conversations/group", requireAuth, async (req: AuthedRequest, res) =>
       type: conversation.type,
       title: conversation.title,
       avatarUrl: conversation.avatarUrl,
-      members: conversation.members.map((member) => publicUser(member.user)),
+      members: conversation.members.map((entry) => publicUser(entry.user)),
     },
   });
 });
@@ -675,11 +984,18 @@ app.post("/messages", requireAuth, async (req: AuthedRequest, res) => {
     return res.json({ message: serializeMessage(message), duplicate: true });
   }
 
+  const serialized = serializeMessage(message);
   await pushToConversation(input.conversationId, {
     type: "message.created",
-    message: serializeMessage(message),
+    message: serialized,
   });
-  res.status(201).json({ message: serializeMessage(message) });
+  void sendPushToConversation(input.conversationId, req.auth!.userId, {
+    type: "message",
+    conversationId: input.conversationId,
+    senderId: req.auth!.userId,
+    messageId: message.id,
+  });
+  res.status(201).json({ message: serialized });
 });
 
 app.post("/conversations/:id/read", requireAuth, async (req: AuthedRequest, res) => {
@@ -827,9 +1143,24 @@ wss.on("connection", (socket, request) => {
   }));
 
   socket.on("message", (raw) => {
-    if (raw.toString() === "ping" && socket.readyState === WebSocket.OPEN) {
-      socket.send("pong");
+    const text = raw.toString();
+    if (text === "ping") {
+      if (socket.readyState === WebSocket.OPEN) socket.send("pong");
+      return;
     }
+    void (async () => {
+      try {
+        const signal = callSignalSchema.parse(JSON.parse(text));
+        await handleCallSignal(auth, signal);
+      } catch (error) {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: "realtime.error",
+            error: error instanceof Error ? error.message : "INVALID_REALTIME_EVENT",
+          }));
+        }
+      }
+    })();
   });
 
   socket.on("close", () => {

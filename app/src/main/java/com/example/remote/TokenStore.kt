@@ -22,6 +22,14 @@ class TokenStore(context: Context) {
         get() = readEncrypted("refresh_token")
         set(value) = writeEncrypted("refresh_token", value)
 
+    var deviceId: String?
+        get() = readEncrypted("device_id")
+        set(value) = writeEncrypted("device_id", value)
+
+    var cryptoAccount: String?
+        get() = readEncrypted("crypto_account")
+        set(value) = writeEncrypted("crypto_account", value?.trim()?.lowercase())
+
     fun saveUser(user: UserDto) {
         prefs.edit()
             .putString("user_id", user.id)

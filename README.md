@@ -74,7 +74,7 @@ Useful commands:
 
 The API is intentionally bound to `127.0.0.1:3000`. PostgreSQL and Redis are not published on host ports. Put Nginx/Caddy in front of the API for HTTPS/WSS.
 
-For reliable WebRTC through restrictive NATs, set a public `TURN_HOST`, expose the Coturn ports described in `DEPLOYMENT.md`, and keep `TURN_SECRET` private.
+For reliable WebRTC through restrictive NATs, set a public `TURN_HOST`, expose the Coturn ports described in `DEPLOYMENT.md`, and keep `TURN_SHARED_SECRET` private.
 
 ## Android endpoints
 
@@ -100,24 +100,28 @@ CHATNU_WS_URL=wss://chat.example.com/realtime \
 gradle :app:assembleDebug
 ```
 
+Current Android version: `1.1.0` (`versionCode 3`).
+
 ## Production release signing
 
-The repository contains a release workflow that can build signed APK and AAB artifacts after the following GitHub Actions secrets are configured:
+The release workflow builds signed APK and AAB artifacts after these GitHub Actions secrets are configured:
 
-- `CHATNU_KEYSTORE_BASE64`
-- `CHATNU_KEYSTORE_PASSWORD`
-- `CHATNU_KEY_ALIAS`
-- `CHATNU_KEY_PASSWORD`
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+At Gradle runtime the workflow maps those secrets to the `CHATNU_KEYSTORE_*` environment variables expected by `app/build.gradle.kts`.
 
 The production signing keystore must be long-lived and controlled by the app owner. Losing it breaks the normal update path for already installed production builds.
 
-Firebase client values can also be supplied through build secrets/environment when push notifications are enabled. They are not required for a non-FCM build.
+Firebase Android client values can also be supplied as `FIREBASE_APP_ID`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, and `FIREBASE_SENDER_ID` when push is enabled. They are not required for a non-FCM build.
 
 ## Repository layout
 
 - `app/` Android application
 - `server/` Node.js/TypeScript API and Prisma schema/migrations
-- `docker-compose.yml` PostgreSQL + Redis + API + optional/self-hosted TURN service
+- `docker-compose.yml` PostgreSQL + Redis + API + self-hosted TURN service
 - `scripts/chatnu.sh` server lifecycle helper
 - `DEPLOYMENT.md` production deployment, reverse proxy, TURN and backup instructions
 - `API_CONTRACT.md` public API summary

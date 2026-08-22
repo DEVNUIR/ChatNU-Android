@@ -29,6 +29,99 @@ jobs:
       - name: TypeScript build
         run: npm run build
 
+  server-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start full Docker stack
+        env:
+          POSTGRES_PASSWORD: ci-postgres-password
+          JWT_SECRET: ci-jwt-secret-that-is-definitely-longer-than-thirty-two-characters
+          MINIO_ACCESS_KEY: chatnu
+          MINIO_SECRET_KEY: ci-minio-secret-password
+        run: docker compose up -d --build
+      - name: Exercise auth, database and messaging
+        run: |
+          python3 - <<'PY'
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+
+          BASE = "http://127.0.0.1:3000"
+
+          def request(path, data=None, token=None, method=None):
+              headers = {"Content-Type": "application/json"}
+              if token:
+                  headers["Authorization"] = f"Bearer {token}"
+              body = None if data is None else json.dumps(data).encode()
+              req = urllib.request.Request(BASE + path, data=body, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=10) as response:
+                  raw = response.read()
+                  return None if not raw else json.loads(raw)
+
+          for attempt in range(60):
+              try:
+                  health = request("/health")
+                  if health.get("status") == "ok":
+                      break
+              except Exception:
+                  if attempt == 59:
+                      raise
+                  time.sleep(2)
+          else:
+              raise RuntimeError("ChatNU API never became healthy")
+
+          alice = request("/auth/register", {
+              "username": "ci_alice",
+              "password": "correct-horse-ci-alice",
+              "displayName": "CI Alice",
+              "deviceName": "CI Runner"
+          })
+          bob = request("/auth/register", {
+              "username": "ci_bob",
+              "password": "correct-horse-ci-bob",
+              "displayName": "CI Bob",
+              "deviceName": "CI Runner"
+          })
+          assert alice["accessToken"] and alice["refreshToken"] and alice["recoveryCode"]
+          assert bob["accessToken"]
+
+          conversation = request(
+              "/conversations/direct",
+              {"username": "ci_bob"},
+              alice["accessToken"]
+          )["conversation"]
+          conversation_id = conversation["id"]
+
+          sent = request("/messages", {
+              "conversationId": conversation_id,
+              "clientId": "ci-message-1",
+              "type": "TEXT",
+              "ciphertext": "Y2hhdG51LWNpLXNt b2tl".replace(" ", ""),
+              "protocolVersion": "ci-smoke"
+          }, alice["accessToken"])["message"]
+          assert sent["conversationId"] == conversation_id
+
+          history = request(
+              f"/conversations/{conversation_id}/messages?limit=20",
+              token=bob["accessToken"]
+          )["messages"]
+          assert any(message["id"] == sent["id"] for message in history)
+
+          conversations = request("/conversations", token=bob["accessToken"])["conversations"]
+          assert any(item["id"] == conversation_id for item in conversations)
+
+          request(f"/conversations/{conversation_id}/read", {}, bob["accessToken"])
+          print("ChatNU smoke test passed: auth -> PostgreSQL -> direct chat -> message -> read")
+          PY
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
+      - name: Stop Docker stack
+        if: always()
+        run: docker compose down -v
+
   android:
     runs-on: ubuntu-latest
     steps:

@@ -26,6 +26,25 @@ services:
       timeout: 3s
       retries: 20
 
+  turn:
+    image: coturn/coturn:4.17.2
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      DETECT_EXTERNAL_IP: ${TURN_DETECT_EXTERNAL_IP:-yes}
+    command:
+      - -n
+      - --log-file=stdout
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SHARED_SECRET:-change-this-local-turn-secret}
+      - --realm=${TURN_REALM:-chatnu}
+      - --listening-port=${TURN_PORT:-3478}
+      - --min-port=${TURN_MIN_PORT:-49160}
+      - --max-port=${TURN_MAX_PORT:-49200}
+      - --no-cli
+      - --no-multicast-peers
+
   api:
     build:
       context: ./server
@@ -40,6 +59,11 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       ATTACHMENT_DIR: /data/attachments
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
+      FIREBASE_SERVICE_ACCOUNT_B64: ${FIREBASE_SERVICE_ACCOUNT_B64:-}
+      TURN_HOST: ${TURN_HOST:-}
+      TURN_PORT: ${TURN_PORT:-3478}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:-change-this-local-turn-secret}
+      TURN_REALM: ${TURN_REALM:-chatnu}
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,6 +73,12 @@ services:
       - chatnu_attachments:/data/attachments
     ports:
       - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
 volumes:
   chatnu_postgres:

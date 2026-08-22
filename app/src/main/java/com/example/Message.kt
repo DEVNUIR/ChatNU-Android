@@ -44,5 +44,10 @@ data class Message(
     val fileName: String? = null,
     val fileSize: String? = null,
     val fileExtension: String? = null,
+    val attachmentId: String? = null,
+    val mimeType: String? = null,
+    val attachmentKeyBase64: String? = null,
+    val attachmentNonceBase64: String? = null,
+    val localUri: String? = null,
     val isPinned: Boolean = false
 )

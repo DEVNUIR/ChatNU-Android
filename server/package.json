@@ -36,5 +36,8 @@
     "@types/ws": "^8.18.1",
     "tsx": "^4.20.4",
     "typescript": "^5.9.2"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.1"
   }
 }

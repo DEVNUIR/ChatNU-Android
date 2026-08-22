@@ -5,6 +5,11 @@ plugins {
 
 fun q(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
+val releaseKeystorePath = System.getenv("CHATNU_KEYSTORE_PATH")
+val releaseKeystorePassword = System.getenv("CHATNU_KEYSTORE_PASSWORD")
+val releaseKeyAlias = System.getenv("CHATNU_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("CHATNU_KEY_PASSWORD")
+
 android {
     namespace = "com.example"
     compileSdk = 36
@@ -13,9 +18,30 @@ android {
         applicationId = "ir.devnu.chatnu"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "FIREBASE_APP_ID", q(System.getenv("FIREBASE_APP_ID") ?: ""))
+        buildConfigField("String", "FIREBASE_API_KEY", q(System.getenv("FIREBASE_API_KEY") ?: ""))
+        buildConfigField("String", "FIREBASE_PROJECT_ID", q(System.getenv("FIREBASE_PROJECT_ID") ?: ""))
+        buildConfigField("String", "FIREBASE_SENDER_ID", q(System.getenv("FIREBASE_SENDER_ID") ?: ""))
+    }
+
+    signingConfigs {
+        if (
+            !releaseKeystorePath.isNullOrBlank() &&
+            !releaseKeystorePassword.isNullOrBlank() &&
+            !releaseKeyAlias.isNullOrBlank() &&
+            !releaseKeyPassword.isNullOrBlank()
+        ) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -29,6 +55,7 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "CHATNU_API_URL", q(System.getenv("CHATNU_API_URL") ?: "https://api.devnu.ir/"))
             buildConfigField("String", "CHATNU_WS_URL", q(System.getenv("CHATNU_WS_URL") ?: "wss://api.devnu.ir/realtime"))
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 
@@ -69,6 +96,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("com.google.firebase:firebase-messaging:25.0.1")
+    implementation("io.github.webrtc-sdk:android:144.7559.12")
 
     testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")

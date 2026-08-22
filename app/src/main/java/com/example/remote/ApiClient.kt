@@ -6,19 +6,25 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
 import okhttp3.Interceptor
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
+import okhttp3.ResponseBody
 import okhttp3.Route
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 import java.util.concurrent.TimeUnit
 
 interface ChatNuApi {
@@ -33,6 +39,15 @@ interface ChatNuApi {
 
     @POST("auth/logout")
     suspend fun logout()
+
+    @GET("session")
+    suspend fun session(): SessionResponse
+
+    @POST("devices/identity-key")
+    suspend fun updateIdentityKey(@Body request: IdentityKeyRequest): StatusResponse
+
+    @POST("devices/push-token")
+    suspend fun updatePushToken(@Body request: PushTokenRequest): StatusResponse
 
     @GET("users/search")
     suspend fun searchUsers(@Query("q") query: String): UsersResponse
@@ -52,6 +67,9 @@ interface ChatNuApi {
         @Body request: ConversationPreferencesRequest
     )
 
+    @GET("conversations/{id}/keys")
+    suspend fun conversationKeys(@Path("id") conversationId: String): ConversationKeysResponse
+
     @GET("conversations/{id}/messages")
     suspend fun messages(
         @Path("id") conversationId: String,
@@ -64,6 +82,23 @@ interface ChatNuApi {
 
     @POST("conversations/{id}/read")
     suspend fun markRead(@Path("id") conversationId: String)
+
+    @Multipart
+    @POST("attachments")
+    suspend fun uploadAttachment(
+        @Part("conversationId") conversationId: RequestBody,
+        @Part file: MultipartBody.Part
+    ): AttachmentResponse
+
+    @Streaming
+    @GET("attachments/{id}/download")
+    suspend fun downloadAttachment(@Path("id") attachmentId: String): ResponseBody
+
+    @GET("rtc/config")
+    suspend fun rtcConfig(): RtcConfigResponse
+
+    @GET("calls/pending")
+    suspend fun pendingCalls(): PendingCallsResponse
 }
 
 class ApiClient(private val tokenStore: TokenStore) {
@@ -115,8 +150,8 @@ class ApiClient(private val tokenStore: TokenStore) {
         .addInterceptor(authInterceptor)
         .authenticator(authenticator)
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .pingInterval(25, TimeUnit.SECONDS)
         .apply {
             if (BuildConfig.DEBUG) {

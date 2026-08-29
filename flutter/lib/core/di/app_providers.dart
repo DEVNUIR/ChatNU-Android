@@ -6,8 +6,8 @@ import 'package:chatnu/core/network/chatnu_api_client.dart';
 import 'package:chatnu/core/platform/chatnu_native_bridge.dart';
 import 'package:chatnu/core/storage/credential_vault.dart';
 import 'package:chatnu/core/storage/secret_store.dart';
+import 'package:chatnu/features/home/data/messenger_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 
 enum ChatNuAppMode { production, demo }
 
@@ -77,6 +77,14 @@ final deviceE2eeProvider = Provider<DeviceE2ee>((ref) {
 final apiClientProvider = Provider<ChatNuApiClient>((ref) {
   return ChatNuApiClient(
     endpoint: ref.watch(serverEndpointProvider),
+    vault: ref.watch(credentialVaultProvider),
+  );
+});
+
+final messengerRepositoryProvider = Provider<MessengerRepository>((ref) {
+  return MessengerRepository(
+    api: ref.watch(apiClientProvider),
+    e2ee: ref.watch(deviceE2eeProvider),
     vault: ref.watch(credentialVaultProvider),
   );
 });

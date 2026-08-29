@@ -40,43 +40,43 @@ class ChatNuPalette extends ThemeExtension<ChatNuPalette> {
   final Color destructive;
 
   static const dark = ChatNuPalette(
-    backgroundPrimary: Color(0xFF080D16),
-    backgroundSecondary: Color(0xFF0D1420),
-    backgroundElevated: Color(0xFF121B29),
-    glassWeak: Color(0x70131C2B),
-    glassMedium: Color(0xA8172232),
-    glassStrong: Color(0xD4182230),
-    borderSubtle: Color(0x24FFFFFF),
-    borderHighlight: Color(0x42FFFFFF),
-    textPrimary: Color(0xFFF6F8FC),
-    textSecondary: Color(0xFFC5CCDA),
-    textMuted: Color(0xFF8994A7),
-    accentPrimary: Color(0xFF5B7CFF),
-    accentSecondary: Color(0xFF826BFF),
-    accentCyan: Color(0xFF59C8E8),
-    success: Color(0xFF48BE8A),
-    warning: Color(0xFFF0A84D),
-    destructive: Color(0xFFEF6876),
+    backgroundPrimary: Color(0xFF101010),
+    backgroundSecondary: Color(0xFF151515),
+    backgroundElevated: Color(0xFF1A1A1A),
+    glassWeak: Color(0xFF202020),
+    glassMedium: Color(0xFF252525),
+    glassStrong: Color(0xFF1A1A1A),
+    borderSubtle: Color(0xFF2B2B2B),
+    borderHighlight: Color(0xFF3B3B3B),
+    textPrimary: Color(0xFFF7F7F7),
+    textSecondary: Color(0xFFC7C7C7),
+    textMuted: Color(0xFF878787),
+    accentPrimary: Color(0xFFFFCC00),
+    accentSecondary: Color(0xFFF7F7F7),
+    accentCyan: Color(0xFF64B5F6),
+    success: Color(0xFF4FCF88),
+    warning: Color(0xFFFFCC00),
+    destructive: Color(0xFFFF5A5F),
   );
 
   static const light = ChatNuPalette(
-    backgroundPrimary: Color(0xFFF3F6FB),
-    backgroundSecondary: Color(0xFFF9FBFE),
+    backgroundPrimary: Color(0xFFF3F3F3),
+    backgroundSecondary: Color(0xFFFFFFFF),
     backgroundElevated: Color(0xFFFFFFFF),
-    glassWeak: Color(0xB8FFFFFF),
-    glassMedium: Color(0xD9FFFFFF),
-    glassStrong: Color(0xF2FFFFFF),
-    borderSubtle: Color(0x171C2B44),
-    borderHighlight: Color(0x7AFFFFFF),
-    textPrimary: Color(0xFF121826),
-    textSecondary: Color(0xFF4B586D),
-    textMuted: Color(0xFF7D899B),
-    accentPrimary: Color(0xFF526FEA),
-    accentSecondary: Color(0xFF7259DD),
-    accentCyan: Color(0xFF268FAA),
-    success: Color(0xFF20845D),
-    warning: Color(0xFFB66B13),
-    destructive: Color(0xFFC94353),
+    glassWeak: Color(0xFFF7F7F7),
+    glassMedium: Color(0xFFF2F2F2),
+    glassStrong: Color(0xFFFFFFFF),
+    borderSubtle: Color(0xFFECECEC),
+    borderHighlight: Color(0xFFDADADA),
+    textPrimary: Color(0xFF111111),
+    textSecondary: Color(0xFF545454),
+    textMuted: Color(0xFF8A8A8A),
+    accentPrimary: Color(0xFFFFCC00),
+    accentSecondary: Color(0xFF111111),
+    accentCyan: Color(0xFF1473E6),
+    success: Color(0xFF168A54),
+    warning: Color(0xFFB88600),
+    destructive: Color(0xFFD83A42),
   );
 
   @override
@@ -158,20 +158,20 @@ abstract final class ChatNuTheme {
   static ThemeData get light => _build(Brightness.light, ChatNuPalette.light);
 
   static ThemeData _build(Brightness brightness, ChatNuPalette palette) {
-    final colorScheme =
-        ColorScheme.fromSeed(
-          seedColor: palette.accentPrimary,
-          brightness: brightness,
-          surface: palette.backgroundElevated,
-          error: palette.destructive,
-        ).copyWith(
-          primary: palette.accentPrimary,
-          secondary: palette.accentSecondary,
-          tertiary: palette.accentCyan,
-          onSurface: palette.textPrimary,
-          onSurfaceVariant: palette.textSecondary,
-          outline: palette.borderSubtle,
-        );
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: palette.accentPrimary,
+      brightness: brightness,
+      surface: palette.backgroundElevated,
+      error: palette.destructive,
+    ).copyWith(
+      primary: palette.accentPrimary,
+      onPrimary: const Color(0xFF111111),
+      secondary: palette.accentSecondary,
+      tertiary: palette.accentCyan,
+      onSurface: palette.textPrimary,
+      onSurfaceVariant: palette.textSecondary,
+      outline: palette.borderSubtle,
+    );
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -183,38 +183,39 @@ abstract final class ChatNuTheme {
       displaySmall: base.textTheme.displaySmall?.copyWith(
         color: palette.textPrimary,
         fontWeight: FontWeight.w700,
-        letterSpacing: -1.1,
+        letterSpacing: -1.2,
       ),
       headlineMedium: base.textTheme.headlineMedium?.copyWith(
         color: palette.textPrimary,
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.7,
+        letterSpacing: -0.8,
       ),
       headlineSmall: base.textTheme.headlineSmall?.copyWith(
         color: palette.textPrimary,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.45,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.55,
       ),
       titleLarge: base.textTheme.titleLarge?.copyWith(
         color: palette.textPrimary,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.25,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.35,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(
         color: palette.textPrimary,
         fontWeight: FontWeight.w600,
+        letterSpacing: -0.15,
       ),
       bodyLarge: base.textTheme.bodyLarge?.copyWith(
         color: palette.textPrimary,
-        height: 1.5,
+        height: 1.42,
       ),
       bodyMedium: base.textTheme.bodyMedium?.copyWith(
         color: palette.textSecondary,
-        height: 1.45,
+        height: 1.4,
       ),
       bodySmall: base.textTheme.bodySmall?.copyWith(
         color: palette.textMuted,
-        height: 1.4,
+        height: 1.35,
       ),
       labelLarge: base.textTheme.labelLarge?.copyWith(
         color: palette.textPrimary,
@@ -223,7 +224,7 @@ abstract final class ChatNuTheme {
     );
 
     final inputBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       borderSide: BorderSide(color: palette.borderSubtle),
     );
     return base.copyWith(
@@ -236,36 +237,47 @@ abstract final class ChatNuTheme {
         filled: true,
         fillColor: palette.glassWeak,
         hintStyle: textTheme.bodyMedium?.copyWith(color: palette.textMuted),
+        labelStyle: textTheme.bodyMedium?.copyWith(color: palette.textSecondary),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 13,
+          horizontal: 18,
+          vertical: 16,
         ),
         border: inputBorder,
         enabledBorder: inputBorder,
         focusedBorder: inputBorder.copyWith(
-          borderSide: BorderSide(
-            color: palette.accentPrimary.withValues(alpha: 0.72),
-            width: 1.4,
-          ),
+          borderSide: BorderSide(color: palette.textPrimary, width: 1.3),
         ),
       ),
-      tooltipTheme: TooltipThemeData(
-        decoration: BoxDecoration(
-          color: palette.backgroundElevated,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: palette.borderSubtle),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: palette.backgroundElevated,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
         ),
-        textStyle: textTheme.bodySmall?.copyWith(color: palette.textPrimary),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: palette.backgroundElevated,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: palette.backgroundElevated,
+        backgroundColor: palette.textPrimary,
         contentTextStyle: textTheme.bodyMedium?.copyWith(
-          color: palette.textPrimary,
+          color: brightness == Brightness.light ? Colors.white : Colors.black,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
-      focusColor: palette.accentPrimary.withValues(alpha: 0.14),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: palette.textPrimary,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        textStyle: textTheme.bodySmall?.copyWith(
+          color: brightness == Brightness.light ? Colors.white : Colors.black,
+        ),
+      ),
+      focusColor: palette.accentPrimary.withValues(alpha: 0.22),
     );
   }
 }

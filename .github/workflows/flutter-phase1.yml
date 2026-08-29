@@ -42,37 +42,53 @@ jobs:
         run: flutter analyze --fatal-infos
       - name: Test
         run: flutter test
-      - name: Prepare ChatNU release signing
+      - name: Prepare ChatNU release signing when configured
+        id: signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "ANDROID_KEYSTORE_BASE64 is required" >&2; exit 1; }
-          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "ANDROID_KEYSTORE_PASSWORD is required" >&2; exit 1; }
-          test -n "$ANDROID_KEY_ALIAS" || { echo "ANDROID_KEY_ALIAS is required" >&2; exit 1; }
-          test -n "$ANDROID_KEY_PASSWORD" || { echo "ANDROID_KEY_PASSWORD is required" >&2; exit 1; }
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/chatnu-release.jks"
-          chmod 600 "$RUNNER_TEMP/chatnu-release.jks"
-      - name: Build signed Android release APK
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && \
+             [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && \
+             [ -n "$ANDROID_KEY_ALIAS" ] && \
+             [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/chatnu-release.jks"
+            chmod 600 "$RUNNER_TEMP/chatnu-release.jks"
+            echo "production=true" >> "$GITHUB_OUTPUT"
+            echo "Using configured ChatNU production signing key."
+          else
+            echo "production=false" >> "$GITHUB_OUTPUT"
+            echo "Production signing secrets are unavailable; building release mode with Flutter's fallback Android signing."
+          fi
+      - name: Build Android release APK
         env:
-          CHATNU_KEYSTORE_PATH: ${{ runner.temp }}/chatnu-release.jks
-          CHATNU_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          CHATNU_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          CHATNU_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          CHATNU_KEYSTORE_PATH: ${{ steps.signing.outputs.production == 'true' && format('{0}/chatnu-release.jks', runner.temp) || '' }}
+          CHATNU_KEYSTORE_PASSWORD: ${{ steps.signing.outputs.production == 'true' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          CHATNU_KEY_ALIAS: ${{ steps.signing.outputs.production == 'true' && secrets.ANDROID_KEY_ALIAS || '' }}
+          CHATNU_KEY_PASSWORD: ${{ steps.signing.outputs.production == 'true' && secrets.ANDROID_KEY_PASSWORD || '' }}
         run: flutter build apk --release
       - name: Verify APK signature
         run: |
           APKSIGNER="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -n "$APKSIGNER"
           "$APKSIGNER" verify --verbose build/app/outputs/flutter-apk/app-release.apk
+      - name: Record signing mode
+        run: |
+          if [ "${{ steps.signing.outputs.production }}" = "true" ]; then
+            printf '%s\n' 'production-signed' > ChatNU-signing-mode.txt
+          else
+            printf '%s\n' 'fallback-signed-not-in-place-upgrade-compatible' > ChatNU-signing-mode.txt
+          fi
       - name: Stage ChatNU APK
         run: cp build/app/outputs/flutter-apk/app-release.apk ChatNU-1.2.0-release.apk
       - name: Upload ChatNU release APK
         uses: actions/upload-artifact@v4
         with:
           name: ChatNU-Flutter-Android-APK
-          path: flutter/ChatNU-1.2.0-release.apk
+          path: |
+            flutter/ChatNU-1.2.0-release.apk
+            flutter/ChatNU-signing-mode.txt
           if-no-files-found: error
           retention-days: 30

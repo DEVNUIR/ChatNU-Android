@@ -4,7 +4,9 @@ import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:flutter/material.dart';
 
 class ChatWallpaper extends StatefulWidget {
-  const ChatWallpaper({super.key});
+  const ChatWallpaper({super.key, this.animate = true});
+
+  final bool animate;
 
   @override
   State<ChatWallpaper> createState() => _ChatWallpaperState();
@@ -26,12 +28,24 @@ class _ChatWallpaperState extends State<ChatWallpaper>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _controller.stop();
-      _controller.value = 0.35;
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
+    _syncAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatWallpaper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animate != widget.animate) _syncAnimation();
+  }
+
+  void _syncAnimation() {
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (!widget.animate || reducedMotion) {
+      _controller
+        ..stop()
+        ..value = 0.35;
+      return;
     }
+    if (!_controller.isAnimating) _controller.repeat();
   }
 
   @override

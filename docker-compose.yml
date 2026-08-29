@@ -1,46 +1,87 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: chatnu-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: chatnu
-      POSTGRES_USER: chatnu_admin
-      POSTGRES_PASSWORD: devnu_secure_password
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: chatnu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatnu-local-password}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - chatnu_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatnu -d chatnu"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7-alpine
-    container_name: chatnu-redis
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - chatnu_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  turn:
+    image: coturn/coturn:4.17.2
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      DETECT_EXTERNAL_IP: ${TURN_DETECT_EXTERNAL_IP:-yes}
+    command:
+      - -n
+      - --log-file=stdout
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SHARED_SECRET:-change-this-local-turn-secret}
+      - --realm=${TURN_REALM:-chatnu}
+      - --listening-port=${TURN_PORT:-3478}
+      - --min-port=${TURN_MIN_PORT:-49160}
+      - --max-port=${TURN_MAX_PORT:-49200}
+      - --no-cli
+      - --no-multicast-peers
 
   api:
-    build: .
-    container_name: chatnu-api
+    image: chatnu-api:local
+    build:
+      context: ./server
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://chatnu_admin:devnu_secure_password@postgres:5432/chatnu
+      PORT: 3000
+      DATABASE_URL: postgresql://chatnu:${POSTGRES_PASSWORD:-chatnu-local-password}@postgres:5432/chatnu?schema=public
       REDIS_URL: redis://redis:6379
-      DOMAIN: devnu.ir
-    ports:
-      - "3000:3000"
+      JWT_SECRET: ${JWT_SECRET:-change-this-local-jwt-secret-32-chars-minimum}
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      ATTACHMENT_DIR: /data/attachments
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
+      FIREBASE_SERVICE_ACCOUNT_B64: ${FIREBASE_SERVICE_ACCOUNT_B64:-}
+      TURN_HOST: ${TURN_HOST:-}
+      TURN_PORT: ${TURN_PORT:-3478}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:-change-this-local-turn-secret}
+      TURN_REALM: ${TURN_REALM:-chatnu}
     depends_on:
-      - postgres
-      - redis
-
-  livekit:
-    image: livekit/livekit-server:v1.5
-    container_name: chatnu-livekit
-    command: --config /etc/livekit.yaml
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - chatnu_attachments:/data/attachments
     ports:
-      - "7880:7880"
-      - "7881:7881"
-      - "50000-60000:50000-60000/udp"
+      - "${CHATNU_BIND_ADDRESS:-127.0.0.1}:${CHATNU_HOST_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
 volumes:
-  pgdata:
+  chatnu_postgres:
+  chatnu_redis:
+  chatnu_attachments:

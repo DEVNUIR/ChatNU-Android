@@ -1,42 +1,68 @@
-# ChatNU - Project Status
+# ChatNU project status
 
-## Overview
-**ChatNU** is a production-grade native Android messenger designed for `devnu.ir` with end-to-end encryption (E2EE) using Signal protocol principles, full voice/video calling state machine, media sharing (images, videos, voice messages, files, view-once, disappearing messages), live location tracking, and multi-device session management.
+## Branch goal
 
-- **App Name**: ChatNU
-- **Application ID**: `ir.devnu.chatnu`
-- **Primary Domain**: `devnu.ir`
-- **REST Backend**: `https://api.devnu.ir`
-- **Realtime Gateway**: `wss://api.devnu.ir/realtime`
-- **RTC / LiveKit**: `wss://rtc.devnu.ir`
-- **Default Locale**: Persian (fa) / English (en) with full RTL mirroring & Jalali/Gregorian date formatting options.
+`feat/production-ready-chatnu` turns the original mock-heavy Android prototype into a runnable self-hosted messenger while retaining legacy/demo source only for compatibility/reference. The production launcher uses the remote client/server stack.
 
----
+## Implemented
 
-## Current Status & Capabilities
+### Server
 
-### 1. Client Architecture
-- **MOCK Mode (Default)**: Fully self-contained, interactive mock backend allowing immediate demonstration of all 50+ screens and flows without external network dependencies.
-- **REMOTE Mode**: Seamless abstraction layer through `Repository` pattern to connect directly to `api.devnu.ir` when deployed.
-- **Room Encrypted Database**: Modern Room DB + AES local state encryption.
-- **Jetpack Compose UI**: Material Design 3 custom design system with primary accent `#5B7CFF`, OLED Black theme, and responsive Persian/English RTL/LTR support.
+- Node.js 22 + TypeScript + Express API.
+- PostgreSQL 16 + Prisma schema and versioned migrations.
+- Redis realtime fan-out.
+- Argon2id passwords and recovery codes.
+- Short-lived JWT access tokens, rotating refresh tokens and per-device revocation.
+- Registration, login, logout and account recovery.
+- User search, idempotent direct conversations and group creation.
+- Message persistence, pagination, sync, read receipts and idempotent submission.
+- Authorization-header WebSocket realtime delivery.
+- Active device public-key registry and conversation-scoped E2EE key discovery.
+- Device FCM token registration and optional routing-only FCM HTTP v1 push.
+- Private persistent attachment storage with membership-authorized upload/download.
+- Authenticated one-to-one WebRTC signaling with offer/answer/ICE/end/reject.
+- Brief pending-call delivery for reconnecting peers.
+- STUN configuration plus short-lived TURN REST credentials.
+- Self-hosted Coturn service in Docker Compose.
+- API bound to host loopback; PostgreSQL/Redis not exposed on host ports.
+- `scripts/chatnu.sh` generates DB/JWT/TURN secrets and manages the stack.
 
-### 2. Messaging & Media Features
-- [x] Username/Password authentication with argon2id hashing spec & local recovery codes.
-- [x] End-to-end encrypted 1-on-1 and Group chats (Double Ratchet key evolution simulation & verification).
-- [x] View-once images/videos with `FLAG_SECURE` rendering.
-- [x] Disappearing messages with countdown timer state.
-- [x] Audio voice message recorder with live waveform, play/pause, seek, and variable playback speeds.
-- [x] Static and encrypted live location sharing with duration controls (15m, 1h, 8h).
-- [x] Real-time voice/video/group calls with PIP, active speaker UI, camera flip, and mute toggles.
-- [x] Active sessions management, remote device revoking, and key safety numbers verification.
+### Android
 
----
+- Standard Gradle `:app` module, SDK 36, Java 17.
+- Production launcher separated from legacy demo UI.
+- Redesigned auth/home/conversation/settings UX.
+- Retrofit/OkHttp API client and automatic access-token refresh.
+- AES-GCM protected session tokens in Android Keystore; application backup disabled.
+- Device RSA-3072 identity key generated in Android Keystore.
+- `ChatNU-DeviceEnvelope-v2`: fresh AES-256-GCM content key per message, wrapped independently for every active member device with RSA-OAEP/SHA-256.
+- New production messages use real client-side E2EE; legacy reversible crypto remains read compatibility only.
+- System attachment picker for images/video/documents.
+- Attachment AES-GCM encryption before upload, E2EE transfer of attachment key material, authenticated download and private-cache decryption.
+- Realtime receive, conversation pinning/read receipts, direct/group creation and message history.
+- Optional FCM push with routing-only payloads.
+- Real one-to-one WebRTC voice/video calls with mute, camera and speaker controls.
+- Local/remote video rendering.
+- Android foreground service for connecting/active calls.
+- TURN/STUN ICE configuration supplied by the server.
+- Current version: `1.1.0`, `versionCode 3`.
 
-## Infrastructure Requirements for Remote Production Deployment
-1. **Domain Setup**: Point DNS record `api.devnu.ir` to API gateway and `rtc.devnu.ir` to LiveKit media server.
-2. **TLS / SSL Certificates**: Managed via Let's Encrypt / Certbot on Nginx reverse proxy.
-3. **Database**: PostgreSQL 16 with Prisma ORM.
-4. **Cache & Queue**: Redis 7 with BullMQ for offline push wake-up job queues.
-5. **Media Storage**: S3 / MinIO object storage bucket for encrypted attachments.
-6. **TURN / STUN**: coturn instance for WebRTC NAT traversal.
+### Build/release
+
+- CI validates Prisma, audits production npm dependencies, compiles the server and runs a fresh Docker integration smoke test.
+- Smoke coverage includes auth, refresh rotation, realtime, device E2EE key discovery, message idempotency, attachment authorization/download, TURN config and call signaling/pending calls.
+- Android CI builds an installable debug APK.
+- Release workflow supports owner-supplied signing credentials and creates signed APK + AAB, then verifies the APK signature.
+
+## Explicit boundaries / remaining product milestones
+
+- Device-envelope E2EE is real client-side encryption but is **not Signal Protocol, Double Ratchet or externally audited**. It does not claim Signal-grade forward secrecy, post-compromise security or deniability.
+- Group voice/video calling is not implemented. A proper implementation should use an authenticated SFU.
+- FCM requires a real Firebase project/service account and Android Firebase client values; without them the app still works while realtime is connected.
+- Reliable TURN relay requires a public `TURN_HOST` and correctly opened/forwarded TURN + relay ports.
+- Production Play/long-term APK releases require a persistent owner-controlled signing keystore. The repository intentionally does not contain one.
+- Some legacy/demo-only local features such as the old reaction/group-management experiments remain in source but are not part of the production flow.
+
+## Validation rule
+
+The project should be treated as shippable only when the current branch's `server`, `server-smoke` and `android` CI jobs are all green. A green debug APK validates compilation/install packaging but does not substitute for real-device interoperability testing across different networks, Firebase configuration testing, TURN firewall testing or independent cryptographic review.

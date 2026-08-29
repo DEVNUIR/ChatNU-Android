@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:chatnu/core/di/app_providers.dart';
+import 'package:chatnu/core/network/api_models.dart';
 import 'package:chatnu/core/network/chatnu_api_client.dart';
 import 'package:chatnu/core/storage/credential_vault.dart';
 import 'package:chatnu/features/accounts/domain/chatnu_user.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 
 enum ChatNuSessionStatus { booting, authenticated, unauthenticated }
 
@@ -107,7 +107,9 @@ class SessionController extends Notifier<ChatNuSessionState> {
         return 'Emergency pinned TLS is not enabled in the Flutter transport yet.';
       }
       final account = '${endpoint.identityNamespace}|$normalized';
-      final publicKey = await ref.read(deviceE2eeProvider).publicKeyBase64(account);
+      final publicKey = await ref
+          .read(deviceE2eeProvider)
+          .publicKeyBase64(account);
       final response = await ref.read(apiClientProvider).login(
         username: normalized,
         password: password,
@@ -140,7 +142,9 @@ class SessionController extends Notifier<ChatNuSessionState> {
         return 'Emergency pinned TLS is not enabled in the Flutter transport yet.';
       }
       final account = '${endpoint.identityNamespace}|$normalized';
-      final publicKey = await ref.read(deviceE2eeProvider).publicKeyBase64(account);
+      final publicKey = await ref
+          .read(deviceE2eeProvider)
+          .publicKeyBase64(account);
       final response = await ref.read(apiClientProvider).register(
         username: normalized,
         password: password,

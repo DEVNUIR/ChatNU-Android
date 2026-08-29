@@ -20,11 +20,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: ChatNuRoutes.chat,
     routes: <RouteBase>[
-      GoRoute(path: ChatNuRoutes.home, redirect: (_, __) => ChatNuRoutes.chat),
-      GoRoute(path: ChatNuRoutes.chat, builder: (_, __) => const ChatScreen()),
+      GoRoute(path: ChatNuRoutes.home, redirect: (_, _) => ChatNuRoutes.chat),
+      GoRoute(path: ChatNuRoutes.chat, builder: (_, _) => const ChatScreen()),
       GoRoute(
         path: '/conversation/:id',
-        builder: (_, __) => const ChatScreen(),
+        builder: (_, _) => const ChatScreen(),
       ),
       for (final route in <({String path, String title, IconData icon})>[
         (path: ChatNuRoutes.splash, title: 'Splash', icon: Icons.bolt_rounded),
@@ -37,7 +37,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ])
         GoRoute(
           path: route.path,
-          builder: (_, __) => FeaturePlaceholderScreen(
+          builder: (_, _) => FeaturePlaceholderScreen(
             title: route.title,
             icon: route.icon,
           ),

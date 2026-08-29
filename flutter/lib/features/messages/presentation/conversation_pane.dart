@@ -1,3 +1,4 @@
+import 'package:chatnu/core/di/app_providers.dart';
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/realtime/chatnu_realtime_client.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
@@ -37,6 +38,7 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(messengerDemoProvider);
+    final animateWallpaper = ref.watch(appModeProvider) != ChatNuAppMode.demo;
     final conversation = state.conversations
         .where((item) => item.id == widget.conversationId)
         .firstOrNull;
@@ -55,7 +57,7 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        const ChatWallpaper(),
+        ChatWallpaper(animate: animateWallpaper),
         SafeArea(
           child: Column(
             children: <Widget>[

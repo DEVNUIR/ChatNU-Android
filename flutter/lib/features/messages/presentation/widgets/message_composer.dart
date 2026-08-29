@@ -1,10 +1,8 @@
 import 'dart:async';
 
 import 'package:chatnu/core/di/app_providers.dart';
-import 'package:chatnu/core/glass/glass_surface.dart';
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
-import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
 import 'package:chatnu/features/messages/domain/message.dart';
 import 'package:file_picker/file_picker.dart';
@@ -58,83 +56,82 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     final palette = context.chatNu;
     final demo = ref.watch(appModeProvider) == ChatNuAppMode.demo;
     final canSend = widget.controller.text.trim().isNotEmpty;
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(
-        ChatNuSpacing.sm,
-        ChatNuSpacing.xs,
-        ChatNuSpacing.sm,
-        ChatNuSpacing.sm,
-      ),
-      child: GlassSurface(
-        variant: GlassVariant.strong,
-        enableBlur: true,
-        borderRadius: ChatNuRadii.xl,
-        padding: const EdgeInsets.all(6),
+      child: Container(
+        padding: const EdgeInsetsDirectional.fromSTEB(8, 9, 8, 9),
+        decoration: BoxDecoration(
+          color: palette.backgroundElevated,
+          border: Border(top: BorderSide(color: palette.borderSubtle)),
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
-            GlassIconButton(
-              icon: Icons.attach_file_rounded,
+            IconButton(
+              key: const Key('message-attach-button'),
               tooltip: strings.attach,
               onPressed: demo ? null : () => unawaited(_pickAttachment()),
-            ),
-            Expanded(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 144),
-                child: TextField(
-                  key: const Key('message-composer-field'),
-                  controller: widget.controller,
-                  minLines: 1,
-                  maxLines: 6,
-                  keyboardType: TextInputType.multiline,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    hintText: strings.messageHint,
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: ChatNuSpacing.sm,
-                      vertical: 11,
-                    ),
-                  ),
-                ),
-              ),
+              icon: const Icon(Icons.add_rounded, size: 28),
             ),
             const SizedBox(width: 4),
-            Semantics(
-              button: true,
-              enabled: canSend,
-              label: strings.send,
-              child: Tooltip(
-                message: strings.send,
-                child: AnimatedScale(
-                  duration: reduceMotion ? Duration.zero : ChatNuMotion.micro,
-                  scale: canSend ? 1 : 0.94,
-                  child: Material(
-                    color: canSend
-                        ? palette.accentPrimary
-                        : palette.glassMedium,
-                    borderRadius: BorderRadius.circular(ChatNuRadii.md),
-                    child: InkWell(
-                      key: const Key('message-send-button'),
-                      borderRadius: BorderRadius.circular(ChatNuRadii.md),
-                      onTap: canSend ? _send : null,
-                      child: SizedBox.square(
-                        dimension: ChatNuSizing.minTouchTarget,
-                        child: Icon(
-                          Icons.send_rounded,
-                          size: 20,
-                          color: canSend ? Colors.white : palette.textMuted,
-                        ),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: palette.glassWeak,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 132),
+                  child: TextField(
+                    key: const Key('message-composer-field'),
+                    controller: widget.controller,
+                    minLines: 1,
+                    maxLines: 5,
+                    keyboardType: TextInputType.multiline,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      hintText: strings.messageHint,
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
                     ),
                   ),
                 ),
               ),
+            ),
+            const SizedBox(width: 6),
+            AnimatedSwitcher(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 160),
+              child: canSend
+                  ? IconButton.filled(
+                      key: const Key('message-send-button'),
+                      tooltip: strings.send,
+                      style: IconButton.styleFrom(
+                        backgroundColor: palette.textPrimary,
+                        foregroundColor: palette.backgroundElevated,
+                        minimumSize: const Size(46, 46),
+                      ),
+                      onPressed: _send,
+                      icon: const Icon(Icons.arrow_upward_rounded, size: 22),
+                    )
+                  : SizedBox(
+                      key: const ValueKey<String>('composer-idle'),
+                      width: 46,
+                      height: 46,
+                      child: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 19,
+                        color: palette.textMuted,
+                      ),
+                    ),
             ),
           ],
         ),

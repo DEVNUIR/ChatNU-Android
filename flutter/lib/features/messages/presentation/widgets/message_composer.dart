@@ -131,7 +131,10 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                             minimumSize: const Size(46, 46),
                           ),
                           onPressed: _send,
-                          icon: const Icon(Icons.arrow_upward_rounded, size: 22),
+                          icon: const Icon(
+                            Icons.arrow_upward_rounded,
+                            size: 22,
+                          ),
                         )
                       : SizedBox(
                           key: const ValueKey<String>('composer-idle'),
@@ -196,36 +199,32 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                   child: _AttachmentAction(
                     icon: Icons.photo_rounded,
                     label: persian ? 'عکس' : 'Photo',
-                    onTap: () => Navigator.of(context).pop(
-                      _AttachmentChoice.photo,
-                    ),
+                    onTap: () =>
+                        Navigator.of(context).pop(_AttachmentChoice.photo),
                   ),
                 ),
                 Expanded(
                   child: _AttachmentAction(
                     icon: Icons.videocam_rounded,
                     label: persian ? 'ویدیو' : 'Video',
-                    onTap: () => Navigator.of(context).pop(
-                      _AttachmentChoice.video,
-                    ),
+                    onTap: () =>
+                        Navigator.of(context).pop(_AttachmentChoice.video),
                   ),
                 ),
                 Expanded(
                   child: _AttachmentAction(
                     icon: Icons.graphic_eq_rounded,
                     label: persian ? 'صدا' : 'Audio',
-                    onTap: () => Navigator.of(context).pop(
-                      _AttachmentChoice.audio,
-                    ),
+                    onTap: () =>
+                        Navigator.of(context).pop(_AttachmentChoice.audio),
                   ),
                 ),
                 Expanded(
                   child: _AttachmentAction(
                     icon: Icons.insert_drive_file_outlined,
                     label: persian ? 'فایل' : 'File',
-                    onTap: () => Navigator.of(context).pop(
-                      _AttachmentChoice.file,
-                    ),
+                    onTap: () =>
+                        Navigator.of(context).pop(_AttachmentChoice.file),
                   ),
                 ),
               ],

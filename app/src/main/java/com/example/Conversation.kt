@@ -11,6 +11,8 @@ data class Conversation(
     val avatarUrl: String? = null,
     val lastMessageText: String = "",
     val lastMessageTime: String = "",
+    // Keep a real sortable timestamp separate from the localized/display time string.
+    val lastMessageTimestampMillis: Long = 0L,
     val unreadCount: Int = 0,
     val isPinned: Boolean = false,
     val isMuted: Boolean = false,

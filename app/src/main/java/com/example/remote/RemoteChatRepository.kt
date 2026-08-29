@@ -126,6 +126,19 @@ class RemoteChatRepository(
         fileSize: String? = null,
         fileExtension: String? = null
     ) {
+        // The current chat UI's Retry action calls this same send path. Reuse the failed optimistic
+        // client's id when the payload matches so retry transitions the existing bubble back to
+        // SENDING instead of appending a duplicate failed/new pair.
+        val me = authRepository.currentUser.value
+        val retryClientId = me?.let { user ->
+            _messagesMap.value[conversationId].orEmpty().lastOrNull { message ->
+                message.status == MessageStatus.FAILED &&
+                    message.senderId == user.id &&
+                    message.localUri == null &&
+                    message.text == text &&
+                    message.type == type
+            }?.id
+        }
         sendEncryptedPayload(
             conversationId = conversationId,
             plaintext = text,
@@ -137,14 +150,21 @@ class RemoteChatRepository(
             longitude = longitude,
             fileName = fileName,
             fileSize = fileSize,
-            fileExtension = fileExtension
+            fileExtension = fileExtension,
+            clientId = retryClientId
         )
     }
 
     fun sendAttachment(conversationId: String, uri: Uri) {
         val me = authRepository.currentUser.value ?: return
         val info = resolveAttachmentInfo(uri)
-        val clientId = UUID.randomUUID().toString()
+        val uriString = uri.toString()
+        val retryMessage = _messagesMap.value[conversationId].orEmpty().lastOrNull { message ->
+            message.status == MessageStatus.FAILED &&
+                message.senderId == me.id &&
+                message.localUri == uriString
+        }
+        val clientId = retryMessage?.id ?: UUID.randomUUID().toString()
         val type = typeForMime(info.mimeType)
         val optimistic = Message(
             id = clientId,
@@ -160,9 +180,10 @@ class RemoteChatRepository(
             fileSize = info.size.takeIf { it >= 0 }?.let(::formatBytes),
             fileExtension = info.name.substringAfterLast('.', "").takeIf { it.isNotBlank() },
             mimeType = info.mimeType,
-            localUri = uri.toString()
+            localUri = uriString
         )
-        appendMessage(conversationId, optimistic)
+        if (retryMessage != null) replaceMessage(conversationId, clientId, optimistic)
+        else appendMessage(conversationId, optimistic)
 
         scope.launch {
             runCatching {
@@ -203,7 +224,7 @@ class RemoteChatRepository(
                     mimeType = info.mimeType,
                     attachmentKeyBase64 = encrypted.keyBase64,
                     attachmentNonceBase64 = encrypted.nonceBase64,
-                    localUri = uri.toString()
+                    localUri = uriString
                 )
             }.onSuccess { serverMessage ->
                 replaceMessage(conversationId, clientId, serverMessage)
@@ -238,12 +259,13 @@ class RemoteChatRepository(
         longitude: Double? = null,
         fileName: String? = null,
         fileSize: String? = null,
-        fileExtension: String? = null
+        fileExtension: String? = null,
+        clientId: String? = null
     ) {
         val me = authRepository.currentUser.value ?: return
-        val clientId = UUID.randomUUID().toString()
+        val resolvedClientId = clientId ?: UUID.randomUUID().toString()
         val optimistic = Message(
-            id = clientId,
+            id = resolvedClientId,
             conversationId = conversationId,
             senderId = me.id,
             senderName = me.displayName,
@@ -260,13 +282,14 @@ class RemoteChatRepository(
             fileSize = fileSize,
             fileExtension = fileExtension
         )
-        appendMessage(conversationId, optimistic)
+        if (clientId != null) replaceMessage(conversationId, resolvedClientId, optimistic)
+        else appendMessage(conversationId, optimistic)
 
         scope.launch {
             runCatching {
                 sendEncryptedPayloadAwait(
                     conversationId = conversationId,
-                    clientId = clientId,
+                    clientId = resolvedClientId,
                     plaintext = plaintext,
                     displayText = displayText,
                     type = type,
@@ -279,10 +302,10 @@ class RemoteChatRepository(
                     fileExtension = fileExtension
                 )
             }.onSuccess { serverMessage ->
-                replaceMessage(conversationId, clientId, serverMessage)
+                replaceMessage(conversationId, resolvedClientId, serverMessage)
                 runCatching { refreshConversations() }
             }.onFailure {
-                updateMessageStatus(conversationId, clientId, MessageStatus.FAILED)
+                updateMessageStatus(conversationId, resolvedClientId, MessageStatus.FAILED)
             }
         }
     }
@@ -375,7 +398,21 @@ class RemoteChatRepository(
     }
 
     fun markRead(conversationId: String) {
-        scope.launch { runCatching { apiClient.api.markRead(conversationId) } }
+        val previousUnread = _conversations.value.firstOrNull { it.id == conversationId }?.unreadCount ?: 0
+        if (previousUnread <= 0) return
+        _conversations.value = _conversations.value.map {
+            if (it.id == conversationId) it.copy(unreadCount = 0) else it
+        }
+        scope.launch {
+            runCatching { apiClient.api.markRead(conversationId) }
+                .onFailure {
+                    _conversations.value = _conversations.value.map { conversation ->
+                        if (conversation.id == conversationId && conversation.unreadCount == 0) {
+                            conversation.copy(unreadCount = previousUnread)
+                        } else conversation
+                    }
+                }
+        }
     }
 
     suspend fun rtcConfig(): RtcConfigResponse = apiClient.api.rtcConfig()
@@ -569,6 +606,7 @@ class RemoteChatRepository(
             avatarUrl = avatarUrl,
             lastMessageText = preview,
             lastMessageTime = lastMessage?.createdAt?.toDisplayTime().orEmpty(),
+            lastMessageTimestampMillis = lastMessage?.createdAt?.toEpochMillis() ?: 0L,
             unreadCount = unreadCount,
             isPinned = isPinned,
             isMuted = isMuted,
@@ -586,7 +624,7 @@ class RemoteChatRepository(
             senderName = senderName,
             text = decrypted.displayText,
             type = type.fromServerType(),
-            status = MessageStatus.READ,
+            status = MessageStatus.SENT,
             timestamp = createdAt.toDisplayTime(),
             timestampMillis = createdAt.toEpochMillis(),
             fileName = decrypted.fileName,

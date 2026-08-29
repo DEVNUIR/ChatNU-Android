@@ -1,6 +1,7 @@
 package com.example.remote
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -8,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,7 +36,7 @@ fun ServerAwareAuthScreen(
     var serverError by remember { mutableStateOf<String?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        ProductionAuthScreen(
+        ChatNuAuthScreen2026(
             onLogin = onLogin,
             onRegister = onRegister,
             onAuthSuccess = onAuthSuccess
@@ -51,7 +53,7 @@ fun ServerAwareAuthScreen(
                 .statusBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            Icon(Icons.Default.Dns, contentDescription = null)
+            Icon(Icons.Default.Dns, contentDescription = "Change server")
             Text("  ${ServerEndpoint.hostLabel()}")
         }
     }
@@ -61,11 +63,9 @@ fun ServerAwareAuthScreen(
             onDismissRequest = { showServerDialog = false },
             title = { Text("Choose ChatNU server") },
             text = {
-                androidx.compose.foundation.layout.Column {
+                Column {
                     Text(
-                        "Paste your normal HTTPS server address. During an Internet blackout, " +
-                            "you can instead paste the full emergency enrollment link printed by ./scripts/chatnu.sh. " +
-                            "ChatNU pins that server's local CA instead of disabling TLS verification."
+                        "Paste your HTTPS server address. During an Internet blackout, you can paste the full emergency enrollment link produced by the ChatNU server tooling. ChatNU pins that server's local CA instead of disabling TLS verification."
                     )
                     OutlinedTextField(
                         value = draftServer,
@@ -79,15 +79,15 @@ fun ServerAwareAuthScreen(
                     )
                     if (ServerEndpoint.isEmergencyTls()) {
                         Text(
-                            text = "Emergency CA pin is active for this server.",
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                            "Emergency CA pin is active for this server.",
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
                     serverError?.let {
                         Text(
-                            text = it,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                            it,
+                            color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
@@ -104,9 +104,7 @@ fun ServerAwareAuthScreen(
                             }
                             .onFailure { serverError = it.message ?: "Invalid server address." }
                     }
-                ) {
-                    Text("Use server")
-                }
+                ) { Text("Use server") }
             },
             dismissButton = {
                 TextButton(onClick = { showServerDialog = false }) { Text("Cancel") }

@@ -9,9 +9,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -19,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
 import com.example.crypto.DeviceE2ee
 import com.example.model.Conversation
 import com.example.model.Message
@@ -26,6 +36,8 @@ import com.example.model.MessageType
 import com.example.remote.ApiClient
 import com.example.remote.CallForegroundService
 import com.example.remote.CallPhase
+import com.example.remote.ChatNuConversationScreen2026
+import com.example.remote.ChatNuHomeScreen2026
 import com.example.remote.ChatNuMessagingService
 import com.example.remote.EnhancedProductionSettingsScreen
 import com.example.remote.PushRegistration
@@ -33,12 +45,13 @@ import com.example.remote.RemoteAuthRepository
 import com.example.remote.RemoteChatRepository
 import com.example.remote.ServerAwareAuthScreen
 import com.example.remote.ServerEndpoint
-import com.example.remote.TelegramConversationScreenV2
-import com.example.remote.TelegramHomeScreen
 import com.example.remote.TokenStore
 import com.example.remote.WebRtcCallManager
+import com.example.ui.chatnu2026.ChatNuMotion
+import com.example.ui.chatnu2026.rememberChatNuAccessibilityPreferences
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.ThemeManager
+import com.example.ui.theme.isAppInDarkTheme
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -71,14 +84,26 @@ class ProductionMainActivity : ComponentActivity() {
         callManager = WebRtcCallManager(applicationContext, chatRepository, authRepository)
 
         setContent {
-            MyApplicationTheme {
+            val darkTheme = isAppInDarkTheme()
+            SideEffect {
+                // Edge-to-edge defaults otherwise follow the phone theme, which can conflict with
+                // ChatNU's explicit Light/Dark selection.
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
+
+            MyApplicationTheme(darkTheme = darkTheme) {
                 val scope = rememberCoroutineScope()
+                val accessibility = rememberChatNuAccessibilityPreferences()
                 val isLoggedIn by authRepository.isLoggedIn.collectAsState()
                 val currentUser by authRepository.currentUser.collectAsState()
                 val conversations by chatRepository.conversations.collectAsState()
                 val messagesMap by chatRepository.messagesMap.collectAsState()
                 val realtimeStatus by chatRepository.realtimeStatus.collectAsState()
                 val callState by callManager.state.collectAsState()
+                val drafts = remember { mutableStateMapOf<String, String>() }
 
                 var screen by remember {
                     mutableStateOf(if (isLoggedIn) ProductionScreen.HOME else ProductionScreen.AUTH)
@@ -210,6 +235,7 @@ class ProductionMainActivity : ComponentActivity() {
                         }
                         activeConversation = null
                         conversationError = null
+                        drafts.clear()
                         screen = ProductionScreen.AUTH
                     }
                 }
@@ -264,98 +290,128 @@ class ProductionMainActivity : ComponentActivity() {
                     }
                 }
 
-                when (screen) {
-                    ProductionScreen.AUTH -> ServerAwareAuthScreen(
-                        initialServerUrl = ServerEndpoint.apiUrl(),
-                        onChangeServer = { raw ->
-                            chatRepository.closeRealtime()
-                            authRepository.forceLogout()
-                            ServerEndpoint.configure(applicationContext, raw)
-                        },
-                        onLogin = authRepository::login,
-                        onRegister = authRepository::register,
-                        onAuthSuccess = {
-                            screen = ProductionScreen.HOME
-                            refreshHome()
-                        }
-                    )
-
-                    ProductionScreen.HOME -> TelegramHomeScreen(
-                        user = currentUser,
-                        conversations = conversations,
-                        realtimeStatus = realtimeStatus,
-                        isRefreshing = isRefreshing,
-                        errorMessage = homeError,
-                        onRefresh = ::refreshHome,
-                        onSelectConversation = ::loadConversation,
-                        onTogglePinConversation = chatRepository::togglePinConversation,
-                        onOpenSettings = { screen = ProductionScreen.SETTINGS },
-                        onOpenDirect = { username ->
-                            runCatching {
-                                val conversation = chatRepository.openDirect(username)
-                                activeConversation = conversation
-                                conversationError = null
-                                screen = ProductionScreen.CONVERSATION
-                            }
-                        },
-                        onCreateGroup = { title, usernames ->
-                            runCatching {
-                                val conversation = chatRepository.createGroup(title, usernames)
-                                activeConversation = conversation
-                                conversationError = null
-                                screen = ProductionScreen.CONVERSATION
-                            }
-                        }
-                    )
-
-                    ProductionScreen.CONVERSATION -> {
-                        val conversation = activeConversation
-                        if (conversation == null) {
-                            screen = ProductionScreen.HOME
+                AnimatedContent(
+                    targetState = screen,
+                    transitionSpec = {
+                        if (accessibility.reduceMotion) {
+                            fadeIn(tween(ChatNuMotion.instantMs)) togetherWith
+                                fadeOut(tween(ChatNuMotion.instantMs))
                         } else {
-                            TelegramConversationScreenV2(
-                                conversation = conversation,
-                                messages = messagesMap[conversation.id].orEmpty(),
-                                currentUserId = currentUser?.id,
-                                isLoading = conversationLoading,
-                                errorMessage = conversationError,
-                                callState = callState,
-                                callManager = callManager,
-                                onBack = {
-                                    if (callState.phase == CallPhase.IDLE) {
-                                        screen = ProductionScreen.HOME
-                                        conversationError = null
-                                    }
-                                },
-                                onRetry = { loadConversation(conversation) },
-                                onSendText = { text ->
-                                    chatRepository.sendMessage(conversation.id, text, MessageType.TEXT)
-                                },
-                                onSendTypedMessage = { text, type ->
-                                    chatRepository.sendMessage(conversation.id, text, type)
-                                },
-                                onSendAttachment = { uri ->
-                                    chatRepository.sendAttachment(conversation.id, uri)
-                                },
-                                onResolveAttachment = { message ->
-                                    chatRepository.downloadAttachment(message)
-                                },
-                                onOpenAttachment = ::openEncryptedAttachment
-                            )
+                            val forward = targetState.ordinal >= initialState.ordinal
+                            val enter = slideInHorizontally(
+                                animationSpec = tween(ChatNuMotion.emphasizedMs),
+                                initialOffsetX = { width -> if (forward) width / 5 else -width / 5 }
+                            ) + fadeIn(tween(ChatNuMotion.standardMs))
+                            val exit = slideOutHorizontally(
+                                animationSpec = tween(ChatNuMotion.standardMs),
+                                targetOffsetX = { width -> if (forward) -width / 8 else width / 8 }
+                            ) + fadeOut(tween(ChatNuMotion.quickMs))
+                            enter togetherWith exit
                         }
-                    }
-
-                    ProductionScreen.SETTINGS -> EnhancedProductionSettingsScreen(
-                        user = currentUser,
-                        realtimeStatus = realtimeStatus,
-                        onBack = { screen = ProductionScreen.HOME },
-                        onLogout = {
-                            scope.launch {
+                    },
+                    label = "production-screen"
+                ) { targetScreen ->
+                    when (targetScreen) {
+                        ProductionScreen.AUTH -> ServerAwareAuthScreen(
+                            initialServerUrl = ServerEndpoint.apiUrl(),
+                            onChangeServer = { raw ->
                                 chatRepository.closeRealtime()
-                                authRepository.logout()
+                                authRepository.forceLogout()
+                                ServerEndpoint.configure(applicationContext, raw)
+                            },
+                            onLogin = authRepository::login,
+                            onRegister = authRepository::register,
+                            onAuthSuccess = {
+                                screen = ProductionScreen.HOME
+                                refreshHome()
+                            }
+                        )
+
+                        ProductionScreen.HOME -> ChatNuHomeScreen2026(
+                            user = currentUser,
+                            conversations = conversations,
+                            realtimeStatus = realtimeStatus,
+                            isRefreshing = isRefreshing,
+                            errorMessage = homeError,
+                            drafts = drafts,
+                            onRefresh = ::refreshHome,
+                            onSelectConversation = ::loadConversation,
+                            onTogglePinConversation = chatRepository::togglePinConversation,
+                            onMarkReadConversation = chatRepository::markRead,
+                            onOpenSettings = { screen = ProductionScreen.SETTINGS },
+                            onOpenDirect = { username ->
+                                runCatching {
+                                    val conversation = chatRepository.openDirect(username)
+                                    activeConversation = conversation
+                                    conversationError = null
+                                    screen = ProductionScreen.CONVERSATION
+                                }
+                            },
+                            onCreateGroup = { title, usernames ->
+                                runCatching {
+                                    val conversation = chatRepository.createGroup(title, usernames)
+                                    activeConversation = conversation
+                                    conversationError = null
+                                    screen = ProductionScreen.CONVERSATION
+                                }
+                            },
+                            onSearchUsers = chatRepository::searchUsers
+                        )
+
+                        ProductionScreen.CONVERSATION -> {
+                            val conversation = activeConversation
+                            if (conversation == null) {
+                                screen = ProductionScreen.HOME
+                            } else {
+                                ChatNuConversationScreen2026(
+                                    conversation = conversation,
+                                    messages = messagesMap[conversation.id].orEmpty(),
+                                    currentUserId = currentUser?.id,
+                                    isLoading = conversationLoading,
+                                    errorMessage = conversationError,
+                                    callState = callState,
+                                    callManager = callManager,
+                                    initialDraft = drafts[conversation.id].orEmpty(),
+                                    onDraftChanged = { value ->
+                                        if (value.isBlank()) drafts.remove(conversation.id)
+                                        else drafts[conversation.id] = value
+                                    },
+                                    onBack = {
+                                        if (callState.phase == CallPhase.IDLE) {
+                                            screen = ProductionScreen.HOME
+                                            conversationError = null
+                                        }
+                                    },
+                                    onRetry = { loadConversation(conversation) },
+                                    onSendText = { text ->
+                                        chatRepository.sendMessage(conversation.id, text, MessageType.TEXT)
+                                    },
+                                    onSendTypedMessage = { text, type ->
+                                        chatRepository.sendMessage(conversation.id, text, type)
+                                    },
+                                    onSendAttachment = { uri ->
+                                        chatRepository.sendAttachment(conversation.id, uri)
+                                    },
+                                    onResolveAttachment = { message ->
+                                        chatRepository.downloadAttachment(message)
+                                    },
+                                    onOpenAttachment = ::openEncryptedAttachment
+                                )
                             }
                         }
-                    )
+
+                        ProductionScreen.SETTINGS -> EnhancedProductionSettingsScreen(
+                            user = currentUser,
+                            realtimeStatus = realtimeStatus,
+                            onBack = { screen = ProductionScreen.HOME },
+                            onLogout = {
+                                scope.launch {
+                                    chatRepository.closeRealtime()
+                                    authRepository.logout()
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

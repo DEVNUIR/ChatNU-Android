@@ -10,6 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  Finder keyedTextField(String key) => find.byWidgetPredicate(
+    (widget) => widget is TextField && widget.key == Key(key),
+  );
+
   test('appearance controller persists theme selection', () async {
     final store = MemorySecretStore();
     final container = ProviderContainer(
@@ -36,32 +40,26 @@ void main() {
     await tester.pump();
 
     expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.byKey(const Key('auth-username-field')), findsOneWidget);
-    expect(find.byKey(const Key('auth-password-field')), findsOneWidget);
+    expect(keyedTextField('auth-username-field'), findsOneWidget);
+    expect(keyedTextField('auth-password-field'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('auth-create-account')));
     await tester.pumpAndSettle();
 
     expect(find.text('Create your profile'), findsOneWidget);
-    expect(find.byKey(const Key('auth-display-name-field')), findsOneWidget);
-    expect(find.byKey(const Key('auth-password-field')), findsNothing);
+    expect(keyedTextField('auth-display-name-field'), findsOneWidget);
+    expect(keyedTextField('auth-password-field'), findsNothing);
 
-    await tester.enterText(
-      find.byKey(const Key('auth-display-name-field')),
-      'Amir',
-    );
-    await tester.enterText(
-      find.byKey(const Key('auth-username-field')),
-      'amir',
-    );
+    await tester.enterText(keyedTextField('auth-display-name-field'), 'Amir');
+    await tester.enterText(keyedTextField('auth-username-field'), 'amir');
     await tester.tap(find.byKey(const Key('auth-submit-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Secure your account'), findsOneWidget);
-    expect(find.byKey(const Key('auth-password-field')), findsOneWidget);
+    expect(keyedTextField('auth-password-field'), findsOneWidget);
 
     await tester.enterText(
-      find.byKey(const Key('auth-password-field')),
+      keyedTextField('auth-password-field'),
       'example-password',
     );
     await tester.tap(find.byKey(const Key('auth-submit-button')));

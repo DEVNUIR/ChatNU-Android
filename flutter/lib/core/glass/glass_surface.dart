@@ -1,9 +1,8 @@
-import 'dart:ui';
-
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 enum GlassVariant { weak, medium, strong }
 
@@ -11,7 +10,7 @@ enum GlassEffectLevel { full, balanced, reduced }
 
 class GlassEffectController extends Notifier<GlassEffectLevel> {
   @override
-  GlassEffectLevel build() => GlassEffectLevel.balanced;
+  GlassEffectLevel build() => GlassEffectLevel.full;
 
   void setLevel(GlassEffectLevel level) => state = level;
 }
@@ -47,17 +46,12 @@ class GlassSurface extends ConsumerWidget {
       GlassVariant.medium => palette.glassMedium,
       GlassVariant.strong => palette.glassStrong,
     };
-    final blur = switch (variant) {
-      GlassVariant.weak => ChatNuBlur.weak,
-      GlassVariant.medium => ChatNuBlur.medium,
-      GlassVariant.strong => ChatNuBlur.strong,
-    };
     final qualityFactor = switch (effectLevel) {
       GlassEffectLevel.full => 1.0,
-      GlassEffectLevel.balanced => 0.65,
+      GlassEffectLevel.balanced => 0.62,
       GlassEffectLevel.reduced => 0.0,
     };
-    final shouldBlur = enableBlur && qualityFactor > 0;
+    final shouldRenderLiquidGlass = enableBlur && qualityFactor > 0;
     final radius = BorderRadius.circular(borderRadius);
     final content = Container(
       padding: padding,
@@ -68,10 +62,12 @@ class GlassSurface extends ConsumerWidget {
           end: Alignment.bottomRight,
           colors: <Color>[
             Color.alphaBlend(
-              palette.borderHighlight.withValues(alpha: 0.06),
-              base,
+              palette.borderHighlight.withValues(
+                alpha: 0.055 + (0.035 * qualityFactor),
+              ),
+              base.withValues(alpha: 0.88),
             ),
-            base,
+            base.withValues(alpha: 0.78 + (0.12 * qualityFactor)),
           ],
         ),
         border: Border.all(
@@ -99,18 +95,34 @@ class GlassSurface extends ConsumerWidget {
       child: child,
     );
 
+    if (!shouldRenderLiquidGlass) {
+      return RepaintBoundary(
+        child: ClipRRect(borderRadius: radius, child: content),
+      );
+    }
+
+    final refraction = switch (variant) {
+      GlassVariant.weak => LiquidGlassRefraction(
+        distortion: 0.045 * qualityFactor,
+        distortionWidth: 16 * qualityFactor,
+      ),
+      GlassVariant.medium => LiquidGlassRefraction(
+        distortion: 0.075 * qualityFactor,
+        distortionWidth: 22 * qualityFactor,
+      ),
+      GlassVariant.strong => LiquidGlassRefraction(
+        distortion: 0.105 * qualityFactor,
+        distortionWidth: 28 * qualityFactor,
+      ),
+    };
+
     return RepaintBoundary(
-      child: ClipRRect(
-        borderRadius: radius,
-        child: shouldBlur
-            ? BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: blur * qualityFactor,
-                  sigmaY: blur * qualityFactor,
-                ),
-                child: content,
-              )
-            : content,
+      child: LiquidGlassLens(
+        style: LiquidGlassStyle(
+          shape: LiquidGlassShape.squircle(cornerRadius: borderRadius),
+          refraction: refraction,
+        ),
+        child: content,
       ),
     );
   }

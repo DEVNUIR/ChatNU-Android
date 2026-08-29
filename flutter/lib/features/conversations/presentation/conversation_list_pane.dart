@@ -35,11 +35,13 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
     final palette = context.chatNu;
     final state = ref.watch(messengerDemoProvider);
     final query = _searchController.text.trim().toLowerCase();
-    final conversations = state.conversations.where((conversation) {
-      return query.isEmpty ||
-          conversation.title.toLowerCase().contains(query) ||
-          conversation.lastMessagePreview.toLowerCase().contains(query);
-    }).toList(growable: false);
+    final conversations = state.conversations
+        .where((conversation) {
+          return query.isEmpty ||
+              conversation.title.toLowerCase().contains(query) ||
+              conversation.lastMessagePreview.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
     final recent = state.conversations
         .where((item) => item.kind == ConversationKind.direct)
         .take(6)
@@ -78,14 +80,17 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                             Expanded(
                               child: Text(
                                 strings.appName,
-                                style: Theme.of(context).textTheme.headlineMedium
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
                                     ?.copyWith(fontSize: 27),
                               ),
                             ),
                             IconButton(
                               key: const Key('conversation-search-button'),
                               tooltip: strings.searchConversations,
-                              onPressed: () => setState(() => _searching = true),
+                              onPressed: () =>
+                                  setState(() => _searching = true),
                               icon: const Icon(Icons.search_rounded, size: 28),
                             ),
                           ],
@@ -98,7 +103,12 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                     height: 108,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 8),
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        20,
+                        16,
+                        20,
+                        8,
+                      ),
                       itemCount: recent.length + 1,
                       separatorBuilder: (_, _) => const SizedBox(width: 14),
                       itemBuilder: (context, index) {
@@ -130,9 +140,9 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                       Expanded(
                         child: Text(
                           strings.chats,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontSize: 21,
-                          ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleLarge?.copyWith(fontSize: 21),
                         ),
                       ),
                       IconButton(
@@ -247,10 +257,7 @@ class _SearchHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        IconButton(
-          onPressed: onClose,
-          icon: const Icon(Icons.close_rounded),
-        ),
+        IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
       ],
     );
   }
@@ -335,7 +342,10 @@ class _RecentPerson extends StatelessWidget {
 }
 
 class _ConversationEmptyState extends StatelessWidget {
-  const _ConversationEmptyState({required this.filtered, required this.onStart});
+  const _ConversationEmptyState({
+    required this.filtered,
+    required this.onStart,
+  });
 
   final bool filtered;
   final VoidCallback onStart;
@@ -473,14 +483,15 @@ class _ConversationTile extends StatelessWidget {
                               conversation.lastMessagePreview,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: conversation.unreadCount > 0
-                                    ? palette.textPrimary
-                                    : palette.textSecondary,
-                                fontWeight: conversation.unreadCount > 0
-                                    ? FontWeight.w500
-                                    : FontWeight.w400,
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: conversation.unreadCount > 0
+                                        ? palette.textPrimary
+                                        : palette.textSecondary,
+                                    fontWeight: conversation.unreadCount > 0
+                                        ? FontWeight.w500
+                                        : FontWeight.w400,
+                                  ),
                             ),
                           ),
                           if (conversation.unreadCount > 0)
@@ -489,8 +500,12 @@ class _ConversationTile extends StatelessWidget {
                                 minWidth: 20,
                                 minHeight: 20,
                               ),
-                              margin: const EdgeInsetsDirectional.only(start: 9),
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              margin: const EdgeInsetsDirectional.only(
+                                start: 9,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: palette.accentPrimary,
                                 borderRadius: BorderRadius.circular(99),
@@ -498,10 +513,11 @@ class _ConversationTile extends StatelessWidget {
                               alignment: Alignment.center,
                               child: Text(
                                 '${conversation.unreadCount}',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                               ),
                             ),
                         ],
@@ -519,7 +535,11 @@ class _ConversationTile extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.label, required this.imageUrl, required this.size});
+  const _Avatar({
+    required this.label,
+    required this.imageUrl,
+    required this.size,
+  });
 
   final String label;
   final String? imageUrl;

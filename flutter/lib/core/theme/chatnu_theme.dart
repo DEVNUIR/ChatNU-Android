@@ -158,20 +158,21 @@ abstract final class ChatNuTheme {
   static ThemeData get light => _build(Brightness.light, ChatNuPalette.light);
 
   static ThemeData _build(Brightness brightness, ChatNuPalette palette) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: palette.accentPrimary,
-      brightness: brightness,
-      surface: palette.backgroundElevated,
-      error: palette.destructive,
-    ).copyWith(
-      primary: palette.accentPrimary,
-      onPrimary: const Color(0xFF111111),
-      secondary: palette.accentSecondary,
-      tertiary: palette.accentCyan,
-      onSurface: palette.textPrimary,
-      onSurfaceVariant: palette.textSecondary,
-      outline: palette.borderSubtle,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: palette.accentPrimary,
+          brightness: brightness,
+          surface: palette.backgroundElevated,
+          error: palette.destructive,
+        ).copyWith(
+          primary: palette.accentPrimary,
+          onPrimary: const Color(0xFF111111),
+          secondary: palette.accentSecondary,
+          tertiary: palette.accentCyan,
+          onSurface: palette.textPrimary,
+          onSurfaceVariant: palette.textSecondary,
+          outline: palette.borderSubtle,
+        );
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -237,7 +238,9 @@ abstract final class ChatNuTheme {
         filled: true,
         fillColor: palette.glassWeak,
         hintStyle: textTheme.bodyMedium?.copyWith(color: palette.textMuted),
-        labelStyle: textTheme.bodyMedium?.copyWith(color: palette.textSecondary),
+        labelStyle: textTheme.bodyMedium?.copyWith(
+          color: palette.textSecondary,
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 16,

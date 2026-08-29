@@ -47,7 +47,9 @@ class MessageBubble extends ConsumerWidget {
         onLongPress: () => _showActions(context, ref),
         onSecondaryTapDown: (_) => _showActions(context, ref),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: ChatNuSizing.messageMaxWidth),
+          constraints: const BoxConstraints(
+            maxWidth: ChatNuSizing.messageMaxWidth,
+          ),
           margin: const EdgeInsetsDirectional.only(bottom: 6),
           padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 12, 7),
           decoration: BoxDecoration(color: bubbleColor, borderRadius: radius),
@@ -65,7 +67,8 @@ class MessageBubble extends ConsumerWidget {
                     ),
                   ),
                 ),
-              if (message.type == ChatNuMessageType.text || !message.hasAttachment)
+              if (message.type == ChatNuMessageType.text ||
+                  !message.hasAttachment)
                 Directionality(
                   textDirection: directionForText(message.body),
                   child: Text(
@@ -148,7 +151,9 @@ class MessageBubble extends ConsumerWidget {
                 icon: Icons.copy_outlined,
                 label: strings.copy,
                 onTap: () {
-                  unawaited(Clipboard.setData(ClipboardData(text: message.body)));
+                  unawaited(
+                    Clipboard.setData(ClipboardData(text: message.body)),
+                  );
                   Navigator.of(sheetContext).pop();
                 },
               ),
@@ -235,9 +240,9 @@ class _AttachmentContent extends ConsumerWidget {
                   message.fileName ?? message.body,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: foreground,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(color: foreground),
                 ),
                 if (message.sizeBytes != null)
                   Text(

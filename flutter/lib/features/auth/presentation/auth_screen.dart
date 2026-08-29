@@ -75,7 +75,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   child: SingleChildScrollView(
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsetsDirectional.fromSTEB(24, 16, 24, 24),
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      24,
+                      16,
+                      24,
+                      24,
+                    ),
                     child: AutofillGroup(
                       child: AnimatedSwitcher(
                         duration: MediaQuery.disableAnimationsOf(context)
@@ -175,7 +180,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         if (_step == 0) ...<Widget>[
           _HeroTitle(
             eyebrow: strings.isPersian ? 'مرحله ۱ از ۳' : 'Step 1 of 3',
-            title: strings.isPersian ? 'خودتان را معرفی کنید' : 'Create your profile',
+            title: strings.isPersian
+                ? 'خودتان را معرفی کنید'
+                : 'Create your profile',
             subtitle: strings.isPersian
                 ? 'یک نام نمایشی و نام کاربری ساده انتخاب کنید. بعداً می‌توانید پروفایل را کامل‌تر کنید.'
                 : 'Choose the name people will see and a simple username they can find you by.',
@@ -209,7 +216,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ] else if (_step == 1) ...<Widget>[
           _HeroTitle(
             eyebrow: strings.isPersian ? 'مرحله ۲ از ۳' : 'Step 2 of 3',
-            title: strings.isPersian ? 'حساب را امن کنید' : 'Secure your account',
+            title: strings.isPersian
+                ? 'حساب را امن کنید'
+                : 'Secure your account',
             subtitle: strings.isPersian
                 ? 'گذرواژهٔ حساب را بسازید. کلید هویت E2EE دستگاه جداگانه و محلی ساخته می‌شود.'
                 : 'Create your account password. Your device E2EE identity key is generated separately and stays local.',
@@ -228,7 +237,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           const SizedBox(height: 18),
           _SecurityCallout(
             icon: Icons.lock_outline_rounded,
-            title: strings.isPersian ? 'رمزگذاری سرتاسری' : 'End-to-end identity',
+            title: strings.isPersian
+                ? 'رمزگذاری سرتاسری'
+                : 'End-to-end identity',
             body: strings.isPersian
                 ? 'کلید خصوصی هویت روی این دستگاه باقی می‌ماند و به سرور فرستاده نمی‌شود.'
                 : 'The private identity key stays on this device and is never uploaded to the server.',
@@ -279,7 +290,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         if (_step == 0) ...<Widget>[
           _HeroTitle(
             eyebrow: strings.isPersian ? 'بازیابی امن' : 'Secure recovery',
-            title: strings.isPersian ? 'حساب را پیدا کنید' : 'Find your account',
+            title: strings.isPersian
+                ? 'حساب را پیدا کنید'
+                : 'Find your account',
             subtitle: strings.isPersian
                 ? 'نام کاربری و کد بازیابی‌ای را که هنگام ثبت‌نام ذخیره کردید وارد کنید.'
                 : 'Enter your username and the recovery code you saved when the account was created.',
@@ -308,7 +321,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ] else ...<Widget>[
           _HeroTitle(
             eyebrow: strings.isPersian ? 'مرحله آخر' : 'Final step',
-            title: strings.isPersian ? 'گذرواژهٔ تازه بسازید' : 'Create a new password',
+            title: strings.isPersian
+                ? 'گذرواژهٔ تازه بسازید'
+                : 'Create a new password',
             subtitle: strings.isPersian
                 ? 'بازیابی گذرواژه را تغییر می‌دهد و نشست‌ها و دستگاه‌های فعلی را لغو می‌کند.'
                 : 'Recovery changes the password and revokes the existing sessions and devices for this account.',
@@ -589,7 +604,10 @@ class _AuthTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text('ChatNU', style: Theme.of(context).textTheme.titleLarge),
+            child: Text(
+              'ChatNU',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
           ),
         ],
       ),
@@ -625,7 +643,9 @@ class _HeroTitle extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           title,
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(fontSize: 36),
+          style: Theme.of(
+            context,
+          ).textTheme.displaySmall?.copyWith(fontSize: 36),
         ),
         const SizedBox(height: 12),
         Text(subtitle, style: Theme.of(context).textTheme.bodyLarge),
@@ -692,9 +712,7 @@ class _StepProgress extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             height: 4,
-            margin: EdgeInsetsDirectional.only(
-              end: index == count - 1 ? 0 : 6,
-            ),
+            margin: EdgeInsetsDirectional.only(end: index == count - 1 ? 0 : 6),
             decoration: BoxDecoration(
               color: active ? palette.textPrimary : palette.borderSubtle,
               borderRadius: BorderRadius.circular(99),
@@ -722,11 +740,7 @@ class _ServerRow extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: <Widget>[
-            Icon(
-              Icons.lock_outline_rounded,
-              size: 18,
-              color: palette.success,
-            ),
+            Icon(Icons.lock_outline_rounded, size: 18, color: palette.success),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -770,10 +784,7 @@ class _ReviewRow extends StatelessWidget {
           children: <Widget>[
             SizedBox(
               width: 96,
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
             ),
             Expanded(
               child: Text(
@@ -976,9 +987,9 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                     strings.isPersian
                         ? 'کد بازیابی را ذخیره کنید'
                         : 'Save your recovery code',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontSize: 36,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.displaySmall?.copyWith(fontSize: 36),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -1006,7 +1017,9 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                         IconButton(
                           tooltip: strings.copy,
                           onPressed: () => unawaited(
-                            Clipboard.setData(ClipboardData(text: recoveryCode)),
+                            Clipboard.setData(
+                              ClipboardData(text: recoveryCode),
+                            ),
                           ),
                           icon: const Icon(Icons.copy_rounded),
                         ),

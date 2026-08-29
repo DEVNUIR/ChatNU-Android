@@ -57,7 +57,10 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
       child: SafeArea(
         child: Column(
           children: <Widget>[
-            ConversationHeader(conversation: conversation, onBack: widget.onBack),
+            ConversationHeader(
+              conversation: conversation,
+              onBack: widget.onBack,
+            ),
             _ConnectionNotice(status: state.realtimeStatus),
             if (state.error != null)
               _InlineError(
@@ -91,7 +94,8 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
                         return RepaintBoundary(
                           child: Column(
                             children: <Widget>[
-                              if (showDate) _DateSeparator(date: message.sentAt),
+                              if (showDate)
+                                _DateSeparator(date: message.sentAt),
                               MessageBubble(
                                 message: message,
                                 mine: message.senderId == state.currentUser.id,
@@ -185,10 +189,17 @@ class _InlineError extends StatelessWidget {
         color: palette.destructive.withValues(alpha: 0.08),
         child: Row(
           children: <Widget>[
-            Icon(Icons.error_outline_rounded, size: 17, color: palette.destructive),
+            Icon(
+              Icons.error_outline_rounded,
+              size: 17,
+              color: palette.destructive,
+            ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(message, style: Theme.of(context).textTheme.bodySmall),
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
             IconButton(
               tooltip: strings.dismiss,
@@ -243,9 +254,16 @@ class _MessageHistoryEmpty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.lock_outline_rounded, size: 28, color: palette.textMuted),
+            Icon(
+              Icons.lock_outline_rounded,
+              size: 28,
+              color: palette.textMuted,
+            ),
             const SizedBox(height: 10),
-            Text(strings.encrypted, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              strings.encrypted,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 3),
             Text(
               strings.secureMessaging,

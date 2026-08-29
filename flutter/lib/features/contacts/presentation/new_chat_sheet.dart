@@ -180,7 +180,10 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
               height: 76,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
                 itemCount: _selected.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
@@ -228,9 +231,9 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
                 alignment: AlignmentDirectional.centerStart,
                 child: Text(
                   state.error!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: palette.destructive,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: palette.destructive),
                 ),
               ),
             ),
@@ -475,7 +478,11 @@ class _SelectedPerson extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 9,
                   backgroundColor: Colors.black,
-                  child: Icon(Icons.close_rounded, size: 12, color: Colors.white),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 12,
+                    color: Colors.white,
+                  ),
                 ),
               ),
           ],

@@ -19,13 +19,17 @@ class StoredSession {
   final String cryptoAccount;
   final ChatNuUser user;
 
-  StoredSession copyWith({String? accessToken, String? refreshToken}) {
+  StoredSession copyWith({
+    String? accessToken,
+    String? refreshToken,
+    ChatNuUser? user,
+  }) {
     return StoredSession(
       accessToken: accessToken ?? this.accessToken,
       refreshToken: refreshToken ?? this.refreshToken,
       deviceId: deviceId,
       cryptoAccount: cryptoAccount,
-      user: user,
+      user: user ?? this.user,
     );
   }
 
@@ -151,6 +155,12 @@ class CredentialVault {
     await persist(
       current.copyWith(accessToken: accessToken, refreshToken: refreshToken),
     );
+  }
+
+  Future<void> updateUser(ChatNuUser user) async {
+    final current = _session;
+    if (current == null) return;
+    await persist(current.copyWith(user: user));
   }
 
   Future<void> clear() async {

@@ -118,7 +118,7 @@ class FeaturePlaceholderScreen extends StatelessWidget {
       PlaceholderKind.splash => strings.splash,
       PlaceholderKind.onboarding => strings.onboarding,
       PlaceholderKind.login => strings.login,
-      PlaceholderKind.profile => 'Profile',
+      PlaceholderKind.profile => strings.profile,
     };
     return Scaffold(
       backgroundColor: palette.backgroundPrimary,

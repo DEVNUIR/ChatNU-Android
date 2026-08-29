@@ -98,7 +98,6 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       currentUser: _me,
       destination: MessengerDestination.chats,
       conversations: conversations,
-      selectedConversationId: conversations.first.id,
       messagesByConversation: <String, List<ChatNuMessage>>{
         'direct-leila': <ChatNuMessage>[
           ChatNuMessage(
@@ -204,7 +203,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       state.messagesByConversation,
     );
     messages[conversationId] = <ChatNuMessage>[
-      ...messages[conversationId].orEmpty,
+      ...(messages[conversationId] ?? <ChatNuMessage>[]),
       message,
     ];
     final conversations = state.conversations
@@ -222,10 +221,6 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       conversations: conversations,
     );
   }
-}
-
-extension<T> on List<T>? {
-  List<T> get orEmpty => this ?? const <T>[];
 }
 
 final messengerDemoProvider =

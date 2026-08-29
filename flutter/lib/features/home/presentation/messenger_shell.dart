@@ -19,7 +19,11 @@ class MessengerShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(messengerDemoProvider);
     final windowClass = ChatNuBreakpoints.of(context);
-    final selectedId = initialConversationId ?? state.selectedConversationId;
+    final selectedId = initialConversationId ??
+        state.selectedConversationId ??
+        (windowClass == ChatNuWindowClass.phone
+            ? null
+            : state.conversations.firstOrNull?.id);
 
     if (windowClass == ChatNuWindowClass.phone) {
       return _PhoneShell(state: state, selectedId: selectedId);
@@ -290,4 +294,8 @@ class _NoConversationSelected extends StatelessWidget {
 
 void _setDestination(WidgetRef ref, MessengerDestination destination) {
   ref.read(messengerDemoProvider.notifier).setDestination(destination);
+}
+
+extension<T> on List<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

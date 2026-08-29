@@ -1,19 +1,27 @@
 # ChatNU Flutter migration
 
-This directory is the staged Flutter replacement for the Android presentation layer. The existing Android application and server remain untouched while Flutter reaches feature parity.
+This directory is the staged Flutter replacement for the Android presentation layer. The existing Kotlin/Compose application and server remain intact and authoritative while Flutter reaches feature parity.
 
-## Phase 1 scope
+## Current migration scope
 
-- shared Flutter application shell
-- Riverpod state boundary
-- go_router route graph
-- dark/light ChatNU theme tokens
-- balanced/full/reduced Liquid Glass quality architecture
-- responsive phone/tablet/desktop chat shell
-- polished mock conversation, Markdown, code, model selector and composer
-- English/Persian + LTR/RTL foundations
+Phase 1 established the reusable Flutter foundation: Riverpod, go_router, theme tokens, responsive breakpoints, restrained Liquid Glass surfaces, dark/light themes and English/Persian locale support.
 
-Backend, authentication, persistence, E2EE and realtime are intentionally **not** connected in Phase 1. Their existing Android contracts remain the source of truth for later migration phases.
+Phase 2 corrects the product layer so Flutter represents the real ChatNU messenger rather than an AI-chat prototype. The active Flutter shell now contains:
+
+- Chats / Contacts / Settings messenger navigation
+- responsive phone, tablet and desktop layouts
+- direct and group conversation concepts
+- avatars, unread counts, pinned/muted state and conversation filters
+- messenger message bubbles with mixed Persian/English text direction handling
+- truthful delivery-state rendering that does not fabricate delivered/read receipts
+- a multiline messenger composer
+- attachment and one-to-one call affordances that are explicitly local UI only until their production services are ported
+- English/Persian localization seeds
+- an explicit backend-capability boundary preventing unsupported features from appearing as real
+
+Backend authentication, REST, E2EE, realtime, encrypted attachment transfer, FCM and WebRTC are intentionally **not connected to Flutter yet**. The Android implementation and backend contracts remain the source of truth for those phases.
+
+See `MIGRATION_GUARDRAILS.md` before changing production Android/server code.
 
 ## Local bootstrap
 
@@ -25,4 +33,4 @@ cd flutter
 flutter run
 ```
 
-The bootstrap script generates only missing Android platform boilerplate in a temporary directory and copies it into this Flutter workspace, so it does not overwrite the hand-authored project files.
+The bootstrap script generates only missing Android platform boilerplate in a temporary directory and copies it into this Flutter workspace. It does not overwrite the hand-authored Flutter project or the existing Kotlin application.

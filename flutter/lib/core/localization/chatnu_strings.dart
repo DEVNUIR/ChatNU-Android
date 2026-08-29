@@ -13,6 +13,7 @@ class ChatNuStrings {
   String get chats => isPersian ? 'گفت‌وگوها' : 'Chats';
   String get contacts => isPersian ? 'مخاطبان' : 'Contacts';
   String get settings => isPersian ? 'تنظیمات' : 'Settings';
+  String get profile => isPersian ? 'نمایه' : 'Profile';
   String get login => isPersian ? 'ورود' : 'Login';
   String get onboarding => isPersian ? 'شروع' : 'Onboarding';
   String get splash => isPersian ? 'راه‌اندازی' : 'Splash';

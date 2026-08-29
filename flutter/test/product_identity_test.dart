@@ -38,8 +38,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('گفت‌وگوها'), findsOneWidget);
-    expect(find.text('مخاطبان'), findsOneWidget);
-    expect(find.text('تنظیمات'), findsOneWidget);
+    expect(find.byKey(const Key('conversation-list')), findsOneWidget);
+    expect(find.byKey(const Key('new-chat-bottom-button')), findsOneWidget);
     expect(find.text('Nova 2'), findsNothing);
     expect(find.text('Models'), findsNothing);
 

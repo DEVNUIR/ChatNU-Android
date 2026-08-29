@@ -133,7 +133,7 @@ class _Orb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final size = math.max(320.0, width * sizeFactor);
+    final size = math.max(320.0, width * sizeFactor).toDouble();
     return Align(
       alignment: alignment,
       child: IgnorePointer(

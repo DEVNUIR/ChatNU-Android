@@ -78,15 +78,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         ? Duration.zero
                         : const Duration(milliseconds: 220),
                     transitionBuilder: (child, animation) {
-                      final slide = Tween<Offset>(
-                        begin: const Offset(0.06, 0),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        ),
-                      );
+                      final slide =
+                          Tween<Offset>(
+                            begin: const Offset(0.06, 0),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            ),
+                          );
                       return FadeTransition(
                         opacity: animation,
                         child: SlideTransition(position: slide, child: child),
@@ -176,7 +177,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
           const SizedBox(height: 34),
           Text(
-            strings.isPersian ? 'گفتگو، ساده و امن.' : 'Chat, simply and securely.',
+            strings.isPersian
+                ? 'گفتگو، ساده و امن.'
+                : 'Chat, simply and securely.',
             style: Theme.of(context).textTheme.displaySmall?.copyWith(
               fontSize: 42,
               height: 1.05,
@@ -260,7 +263,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       ),
       footer: TextButton(
         onPressed: _busy ? null : () => _switchMode(AuthMode.recover),
-        child: Text(strings.isPersian ? 'گذرواژه را فراموش کردید؟' : 'Forgot password?'),
+        child: Text(
+          strings.isPersian ? 'گذرواژه را فراموش کردید؟' : 'Forgot password?',
+        ),
       ),
     );
   }
@@ -277,120 +282,132 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       onPrimary: _primaryAction,
       body: switch (_step) {
         0 => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _HeroTitle(
-                title: strings.isPersian ? 'اسمتان چیست؟' : 'What should people call you?',
-                subtitle: strings.isPersian
-                    ? 'این نام در بالای گفتگوها و گروه‌ها دیده می‌شود.'
-                    : 'This is the name people will see in chats and groups.',
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _HeroTitle(
+              title: strings.isPersian
+                  ? 'اسمتان چیست؟'
+                  : 'What should people call you?',
+              subtitle: strings.isPersian
+                  ? 'این نام در بالای گفتگوها و گروه‌ها دیده می‌شود.'
+                  : 'This is the name people will see in chats and groups.',
+            ),
+            const SizedBox(height: 42),
+            _FieldLabel(strings.isPersian ? 'نام نمایشی' : 'Display name'),
+            const SizedBox(height: 8),
+            TextField(
+              key: const Key('auth-display-name-field'),
+              controller: _displayName,
+              autofocus: true,
+              enabled: !_busy,
+              textCapitalization: TextCapitalization.words,
+              autofillHints: const <String>[AutofillHints.name],
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                hintText: strings.isPersian ? 'مثلاً امیر' : 'e.g. Amir',
               ),
-              const SizedBox(height: 42),
-              _FieldLabel(strings.isPersian ? 'نام نمایشی' : 'Display name'),
-              const SizedBox(height: 8),
-              TextField(
-                key: const Key('auth-display-name-field'),
-                controller: _displayName,
-                autofocus: true,
-                enabled: !_busy,
-                textCapitalization: TextCapitalization.words,
-                autofillHints: const <String>[AutofillHints.name],
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  hintText: strings.isPersian ? 'مثلاً امیر' : 'e.g. Amir',
-                ),
-                onSubmitted: (_) => _primaryAction(),
-              ),
-            ],
-          ),
+              onSubmitted: (_) => _primaryAction(),
+            ),
+          ],
+        ),
         1 => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _HeroTitle(
-                title: strings.isPersian ? 'یک نام کاربری انتخاب کنید' : 'Pick a username',
-                subtitle: strings.isPersian
-                    ? 'دوستانتان با این نام شما را پیدا می‌کنند.'
-                    : 'People use this to find you on ChatNU.',
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _HeroTitle(
+              title: strings.isPersian
+                  ? 'یک نام کاربری انتخاب کنید'
+                  : 'Pick a username',
+              subtitle: strings.isPersian
+                  ? 'دوستانتان با این نام شما را پیدا می‌کنند.'
+                  : 'People use this to find you on ChatNU.',
+            ),
+            const SizedBox(height: 42),
+            _FieldLabel(strings.isPersian ? 'نام کاربری' : 'Username'),
+            const SizedBox(height: 8),
+            TextField(
+              key: const Key('auth-username-field'),
+              controller: _username,
+              autofocus: true,
+              enabled: !_busy,
+              autocorrect: false,
+              textCapitalization: TextCapitalization.none,
+              autofillHints: const <String>[AutofillHints.username],
+              decoration: const InputDecoration(
+                hintText: 'username',
+                prefixText: '@',
               ),
-              const SizedBox(height: 42),
-              _FieldLabel(strings.isPersian ? 'نام کاربری' : 'Username'),
-              const SizedBox(height: 8),
-              TextField(
-                key: const Key('auth-username-field'),
-                controller: _username,
-                autofocus: true,
-                enabled: !_busy,
-                autocorrect: false,
-                textCapitalization: TextCapitalization.none,
-                autofillHints: const <String>[AutofillHints.username],
-                decoration: const InputDecoration(
-                  hintText: 'username',
-                  prefixText: '@',
-                ),
-                onSubmitted: (_) => _primaryAction(),
-              ),
-            ],
-          ),
+              onSubmitted: (_) => _primaryAction(),
+            ),
+          ],
+        ),
         2 => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _HeroTitle(
-                title: strings.isPersian ? 'حسابتان را امن کنید' : 'Secure your account',
-                subtitle: strings.isPersian
-                    ? 'یک گذرواژه قوی بسازید. کلید خصوصی هویت دستگاه جداگانه روی همین دستگاه ساخته می‌شود.'
-                    : 'Create a strong password. Your device identity key is generated separately and stays on this device.',
-              ),
-              const SizedBox(height: 42),
-              _FieldLabel(strings.isPersian ? 'گذرواژه' : 'Password'),
-              const SizedBox(height: 8),
-              _PasswordField(
-                key: const Key('auth-password-field'),
-                controller: _password,
-                obscure: _obscurePassword,
-                enabled: !_busy,
-                onToggleVisibility: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-                onSubmitted: (_) => _primaryAction(),
-              ),
-              const SizedBox(height: 22),
-              _SecurityNote(
-                title: strings.isPersian ? 'رمزگذاری سرتاسری دستگاهی' : 'Device end-to-end encryption',
-                body: strings.isPersian
-                    ? 'کلید خصوصی هویت شما به سرور ارسال نمی‌شود.'
-                    : 'Your private identity key is never uploaded to the server.',
-              ),
-            ],
-          ),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _HeroTitle(
+              title: strings.isPersian
+                  ? 'حسابتان را امن کنید'
+                  : 'Secure your account',
+              subtitle: strings.isPersian
+                  ? 'یک گذرواژه قوی بسازید. کلید خصوصی هویت دستگاه جداگانه روی همین دستگاه ساخته می‌شود.'
+                  : 'Create a strong password. Your device identity key is generated separately and stays on this device.',
+            ),
+            const SizedBox(height: 42),
+            _FieldLabel(strings.isPersian ? 'گذرواژه' : 'Password'),
+            const SizedBox(height: 8),
+            _PasswordField(
+              key: const Key('auth-password-field'),
+              controller: _password,
+              obscure: _obscurePassword,
+              enabled: !_busy,
+              onToggleVisibility: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
+              onSubmitted: (_) => _primaryAction(),
+            ),
+            const SizedBox(height: 22),
+            _SecurityNote(
+              title: strings.isPersian
+                  ? 'رمزگذاری سرتاسری دستگاهی'
+                  : 'Device end-to-end encryption',
+              body: strings.isPersian
+                  ? 'کلید خصوصی هویت شما به سرور ارسال نمی‌شود.'
+                  : 'Your private identity key is never uploaded to the server.',
+            ),
+          ],
+        ),
         _ => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _HeroTitle(
-                title: strings.isPersian ? 'همه‌چیز آماده است' : 'You’re ready',
-                subtitle: strings.isPersian
-                    ? 'قبل از ساخت حساب، اطلاعاتتان را یک‌بار بررسی کنید.'
-                    : 'Check the details once before we create your account.',
-              ),
-              const SizedBox(height: 30),
-              _ProfileReview(
-                displayName: _displayName.text.trim(),
-                username: _username.text.trim(),
-              ),
-              const SizedBox(height: 20),
-              _ServerRow(onTap: _showServerSheet),
-              const SizedBox(height: 18),
-              _SecurityNote(
-                title: strings.isPersian ? 'کد بازیابی را ذخیره کنید' : 'Save the recovery code',
-                body: strings.isPersian
-                    ? 'بعد از ثبت‌نام، کد بازیابی یک‌بار نمایش داده می‌شود.'
-                    : 'After signup, ChatNU shows your recovery code once before entering the app.',
-              ),
-            ],
-          ),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _HeroTitle(
+              title: strings.isPersian ? 'همه‌چیز آماده است' : 'You’re ready',
+              subtitle: strings.isPersian
+                  ? 'قبل از ساخت حساب، اطلاعاتتان را یک‌بار بررسی کنید.'
+                  : 'Check the details once before we create your account.',
+            ),
+            const SizedBox(height: 30),
+            _ProfileReview(
+              displayName: _displayName.text.trim(),
+              username: _username.text.trim(),
+            ),
+            const SizedBox(height: 20),
+            _ServerRow(onTap: _showServerSheet),
+            const SizedBox(height: 18),
+            _SecurityNote(
+              title: strings.isPersian
+                  ? 'کد بازیابی را ذخیره کنید'
+                  : 'Save the recovery code',
+              body: strings.isPersian
+                  ? 'بعد از ثبت‌نام، کد بازیابی یک‌بار نمایش داده می‌شود.'
+                  : 'After signup, ChatNU shows your recovery code once before entering the app.',
+            ),
+          ],
+        ),
       },
       footer: TextButton(
         onPressed: _busy ? null : () => _switchMode(AuthMode.login),
         child: Text(
-          strings.isPersian ? 'حساب دارید؟ ورود' : 'Already have an account? Log in',
+          strings.isPersian
+              ? 'حساب دارید؟ ورود'
+              : 'Already have an account? Log in',
         ),
       ),
     );
@@ -410,7 +427,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 _HeroTitle(
-                  title: strings.isPersian ? 'حسابتان را پیدا کنید' : 'Find your account',
+                  title: strings.isPersian
+                      ? 'حسابتان را پیدا کنید'
+                      : 'Find your account',
                   subtitle: strings.isPersian
                       ? 'نام کاربری و کد بازیابی‌ای که هنگام ثبت‌نام ذخیره کردید وارد کنید.'
                       : 'Enter your username and the recovery code you saved during signup.',
@@ -442,13 +461,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 _HeroTitle(
-                  title: strings.isPersian ? 'گذرواژه تازه بسازید' : 'Create a new password',
+                  title: strings.isPersian
+                      ? 'گذرواژه تازه بسازید'
+                      : 'Create a new password',
                   subtitle: strings.isPersian
                       ? 'بازیابی گذرواژه را تغییر می‌دهد و نشست‌ها و دستگاه‌های فعلی را لغو می‌کند.'
                       : 'Recovery changes the password and revokes existing sessions and devices.',
                 ),
                 const SizedBox(height: 38),
-                _FieldLabel(strings.isPersian ? 'گذرواژه جدید' : 'New password'),
+                _FieldLabel(
+                  strings.isPersian ? 'گذرواژه جدید' : 'New password',
+                ),
                 const SizedBox(height: 8),
                 _PasswordField(
                   key: const Key('auth-password-field'),
@@ -508,7 +531,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     if (_mode == AuthMode.recover) {
       if (_step == 0) {
-        if (_username.text.trim().isEmpty || _recoveryCode.text.trim().isEmpty) {
+        if (_username.text.trim().isEmpty ||
+            _recoveryCode.text.trim().isEmpty) {
           setState(() => _error = 'Username and recovery code are required.');
           return;
         }
@@ -640,7 +664,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               controller: _server,
               keyboardType: TextInputType.url,
               autocorrect: false,
-              decoration: const InputDecoration(hintText: 'https://api.devnu.ir/'),
+              decoration: const InputDecoration(
+                hintText: 'https://api.devnu.ir/',
+              ),
             ),
             const SizedBox(height: 14),
             FilledButton(
@@ -680,7 +706,10 @@ class _AuthTopBar extends ConsumerWidget {
                 ? IconButton(
                     key: const Key('auth-back'),
                     onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 19,
+                    ),
                   )
                 : const Align(
                     alignment: AlignmentDirectional.centerStart,
@@ -748,9 +777,9 @@ class _FieldLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     label,
-    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-      fontWeight: FontWeight.w600,
-    ),
+    style: Theme.of(
+      context,
+    ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
   );
 }
 
@@ -846,9 +875,9 @@ class _ProfileReview extends StatelessWidget {
             foregroundColor: Colors.black,
             child: Text(
               initial,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.black,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(color: Colors.black),
             ),
           ),
           const SizedBox(width: 14),
@@ -856,9 +885,15 @@ class _ProfileReview extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(displayName, style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  displayName,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 3),
-                Text('@$username', style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                  '@$username',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ],
             ),
           ),
@@ -888,7 +923,11 @@ class _SecurityNote extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
-          child: const Icon(Icons.lock_outline_rounded, size: 18, color: Colors.black),
+          child: const Icon(
+            Icons.lock_outline_rounded,
+            size: 18,
+            color: Colors.black,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1074,7 +1113,9 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                   ),
                   const SizedBox(height: 26),
                   Text(
-                    strings.isPersian ? 'کد بازیابی را ذخیره کنید' : 'Save your recovery code',
+                    strings.isPersian
+                        ? 'کد بازیابی را ذخیره کنید'
+                        : 'Save your recovery code',
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontSize: 36,
                       height: 1.08,
@@ -1106,7 +1147,9 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                         IconButton(
                           tooltip: strings.copy,
                           onPressed: () => unawaited(
-                            Clipboard.setData(ClipboardData(text: recoveryCode)),
+                            Clipboard.setData(
+                              ClipboardData(text: recoveryCode),
+                            ),
                           ),
                           icon: const Icon(Icons.copy_rounded),
                         ),
@@ -1118,7 +1161,9 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                     key: const Key('recovery-code-acknowledge'),
                     style: _blackButtonStyle(context),
                     onPressed: onContinue,
-                    child: Text(strings.isPersian ? 'ذخیره کردم' : 'I saved it'),
+                    child: Text(
+                      strings.isPersian ? 'ذخیره کردم' : 'I saved it',
+                    ),
                   ),
                 ],
               ),

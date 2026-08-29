@@ -1,14 +1,20 @@
+import 'dart:async';
+
+import 'package:chatnu/core/di/app_providers.dart';
 import 'package:chatnu/core/glass/glass_surface.dart';
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/product/chatnu_capabilities.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/core/utils/bidi.dart';
+import 'package:chatnu/features/calls/application/call_controller.dart';
 import 'package:chatnu/features/conversations/domain/conversation.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
 import 'package:chatnu/features/messages/domain/message.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mime/mime.dart';
 
 class ConversationPane extends ConsumerStatefulWidget {
   const ConversationPane({
@@ -40,7 +46,7 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
         .where((item) => item.id == widget.conversationId)
         .firstOrNull;
     if (conversation == null) {
-      return const SizedBox.shrink();
+      return const Center(child: CircularProgressIndicator());
     }
     final messages =
         state.messagesByConversation[conversation.id] ??
@@ -56,26 +62,41 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
               conversation: conversation,
               onBack: widget.onBack,
             ),
-            Expanded(
-              child: ListView.builder(
-                key: const Key('message-list'),
-                reverse: true,
-                padding: const EdgeInsets.fromLTRB(
-                  ChatNuSpacing.md,
-                  ChatNuSpacing.md,
-                  ChatNuSpacing.md,
-                  ChatNuSpacing.xl,
-                ),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  final message = messages[messages.length - 1 - index];
-                  return _MessageBubble(
-                    message: message,
-                    mine: message.senderId == state.currentUser.id,
-                    showSender: conversation.kind == ConversationKind.group,
-                  );
-                },
+            if (state.error != null)
+              MaterialBanner(
+                content: Text(state.error!),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: ref
+                        .read(messengerDemoProvider.notifier)
+                        .clearError,
+                    child: const Text('Dismiss'),
+                  ),
+                ],
               ),
+            Expanded(
+              child: messages.isEmpty && state.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      key: const Key('message-list'),
+                      reverse: true,
+                      padding: const EdgeInsets.fromLTRB(
+                        ChatNuSpacing.md,
+                        ChatNuSpacing.md,
+                        ChatNuSpacing.md,
+                        ChatNuSpacing.xl,
+                      ),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[messages.length - 1 - index];
+                        return _MessageBubble(
+                          message: message,
+                          mine: message.senderId == state.currentUser.id,
+                          showSender:
+                              conversation.kind == ConversationKind.group,
+                        );
+                      },
+                    ),
             ),
             _Composer(
               controller: _composerController,
@@ -88,17 +109,19 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
   }
 }
 
-class _ConversationHeader extends StatelessWidget {
+class _ConversationHeader extends ConsumerWidget {
   const _ConversationHeader({required this.conversation, this.onBack});
 
   final ChatNuConversation conversation;
   final VoidCallback? onBack;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
     final isDirect = conversation.kind == ConversationKind.direct;
+    final currentUser = ref.watch(messengerDemoProvider).currentUser;
+    final demo = ref.watch(appModeProvider) == ChatNuAppMode.demo;
     return Padding(
       padding: const EdgeInsets.all(ChatNuSpacing.sm),
       child: GlassSurface(
@@ -122,7 +145,9 @@ class _ConversationHeader extends StatelessWidget {
               backgroundColor: palette.glassStrong,
               child: isDirect
                   ? Text(
-                      conversation.title.substring(0, 1).toUpperCase(),
+                      conversation.title.isEmpty
+                          ? '?'
+                          : conversation.title.substring(0, 1).toUpperCase(),
                       style: Theme.of(context).textTheme.titleMedium,
                     )
                   : const Icon(Icons.group_outlined),
@@ -152,12 +177,28 @@ class _ConversationHeader extends StatelessWidget {
               GlassIconButton(
                 icon: Icons.call_outlined,
                 tooltip: strings.voiceCall,
-                onPressed: () => _showLocalOnly(context, strings.callMock),
+                onPressed: demo
+                    ? null
+                    : () => unawaited(
+                          ref.read(callControllerProvider.notifier).startCall(
+                                conversation: conversation,
+                                currentUserId: currentUser.id,
+                                video: false,
+                              ),
+                        ),
               ),
               GlassIconButton(
                 icon: Icons.videocam_outlined,
                 tooltip: strings.videoCall,
-                onPressed: () => _showLocalOnly(context, strings.callMock),
+                onPressed: demo
+                    ? null
+                    : () => unawaited(
+                          ref.read(callControllerProvider.notifier).startCall(
+                                conversation: conversation,
+                                currentUserId: currentUser.id,
+                                video: true,
+                              ),
+                        ),
               ),
             ],
           ],
@@ -167,7 +208,7 @@ class _ConversationHeader extends StatelessWidget {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
+class _MessageBubble extends ConsumerWidget {
   const _MessageBubble({
     required this.message,
     required this.mine,
@@ -179,7 +220,7 @@ class _MessageBubble extends StatelessWidget {
   final bool showSender;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.chatNu;
     final time = MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(message.sentAt),
@@ -220,13 +261,16 @@ class _MessageBubble extends StatelessWidget {
                   ),
                 ),
               ),
-            Directionality(
-              textDirection: directionForText(message.body),
-              child: Text(
-                message.body,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
+            if (message.type == ChatNuMessageType.text || !message.hasAttachment)
+              Directionality(
+                textDirection: directionForText(message.body),
+                child: Text(
+                  message.body,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              )
+            else
+              _AttachmentContent(message: message),
             const SizedBox(height: 4),
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -236,12 +280,99 @@ class _MessageBubble extends StatelessWidget {
                   const SizedBox(width: 5),
                   _DeliveryIcon(state: message.deliveryState),
                 ],
+                if (mine &&
+                    message.deliveryState == MessageDeliveryState.failed)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Retry',
+                    onPressed: () => ref
+                        .read(messengerDemoProvider.notifier)
+                        .retryMessage(message),
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                  ),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _AttachmentContent extends ConsumerWidget {
+  const _AttachmentContent({required this.message});
+
+  final ChatNuMessage message;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(_attachmentIcon(message.type)),
+        const SizedBox(width: ChatNuSpacing.xs),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                message.fileName ?? message.body,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (message.sizeBytes != null)
+                Text(
+                  _formatBytes(message.sizeBytes!),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
+        ),
+        if (message.hasAttachment)
+          IconButton(
+            tooltip: 'Download and decrypt',
+            onPressed: () => unawaited(_download(context, ref)),
+            icon: const Icon(Icons.download_rounded),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _download(BuildContext context, WidgetRef ref) async {
+    final bytes = await ref
+        .read(messengerDemoProvider.notifier)
+        .downloadAttachment(message);
+    if (bytes == null || !context.mounted) return;
+    final result = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save decrypted attachment',
+      fileName: message.fileName ?? 'attachment',
+      bytes: bytes,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result == null
+              ? 'Save cancelled.'
+              : 'Attachment decrypted and saved.',
+        ),
+      ),
+    );
+  }
+
+  static IconData _attachmentIcon(ChatNuMessageType type) => switch (type) {
+    ChatNuMessageType.image || ChatNuMessageType.viewOnceImage =>
+      Icons.image_outlined,
+    ChatNuMessageType.video || ChatNuMessageType.viewOnceVideo =>
+      Icons.video_file_outlined,
+    ChatNuMessageType.voice => Icons.audio_file_outlined,
+    _ => Icons.insert_drive_file_outlined,
+  };
+
+  static String _formatBytes(int value) {
+    if (value < 1024) return '$value B';
+    if (value < 1024 * 1024) return '${(value / 1024).toStringAsFixed(1)} KiB';
+    return '${(value / (1024 * 1024)).toStringAsFixed(1)} MiB';
   }
 }
 
@@ -291,6 +422,7 @@ class _Composer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final strings = ChatNuStrings.of(context);
+    final demo = ref.watch(appModeProvider) == ChatNuAppMode.demo;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         ChatNuSpacing.sm,
@@ -309,7 +441,9 @@ class _Composer extends ConsumerWidget {
             GlassIconButton(
               icon: Icons.attach_file_rounded,
               tooltip: strings.attach,
-              onPressed: () => _showLocalOnly(context, strings.attachmentMock),
+              onPressed: demo
+                  ? null
+                  : () => unawaited(_pickAttachment(context, ref)),
             ),
             Expanded(
               child: TextField(
@@ -347,10 +481,39 @@ class _Composer extends ConsumerWidget {
     ref.read(messengerDemoProvider.notifier).sendText(conversationId, value);
     controller.clear();
   }
-}
 
-void _showLocalOnly(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _pickAttachment(BuildContext context, WidgetRef ref) async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    final bytes = file.bytes;
+    if (bytes == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to read the selected file.')),
+      );
+      return;
+    }
+    final mimeType = lookupMimeType(file.name, headerBytes: bytes) ??
+        'application/octet-stream';
+    final type = mimeType.startsWith('image/')
+        ? ChatNuMessageType.image
+        : mimeType.startsWith('video/')
+        ? ChatNuMessageType.video
+        : mimeType.startsWith('audio/')
+        ? ChatNuMessageType.voice
+        : ChatNuMessageType.file;
+    await ref.read(messengerDemoProvider.notifier).sendAttachment(
+      conversationId: conversationId,
+      bytes: bytes,
+      fileName: file.name,
+      mimeType: mimeType,
+      type: type,
+    );
+  }
 }
 
 extension<T> on Iterable<T> {

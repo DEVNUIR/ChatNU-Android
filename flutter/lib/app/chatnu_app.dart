@@ -1,4 +1,5 @@
 import 'package:chatnu/app/routing/app_router.dart';
+import 'package:chatnu/core/localization/locale_controller.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/features/calls/presentation/call_overlay.dart';
 import 'package:chatnu/features/settings/application/appearance_controller.dart';
@@ -15,12 +16,14 @@ class ChatNuApp extends ConsumerWidget {
     final themeMode = ref.watch(
       appearanceProvider.select((value) => value.themeMode),
     );
+    final locale = ref.watch(localeProvider.select((value) => value.locale));
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'ChatNU',
       theme: ChatNuTheme.light,
       darkTheme: ChatNuTheme.dark,
       themeMode: themeMode,
+      locale: locale,
       routerConfig: router,
       supportedLocales: const <Locale>[Locale('en'), Locale('fa')],
       localizationsDelegates: const <LocalizationsDelegate<dynamic>>[

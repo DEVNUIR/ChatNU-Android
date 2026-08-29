@@ -28,13 +28,13 @@ See `FEATURE_PARITY.md` for the audited capability matrix and unsupported featur
 
 ## Reference-led messenger UI architecture
 
-The UI uses Riverpod, `go_router`, feature-first presentation code, and centralized theme/design tokens. Its visual direction is deliberately closer to a focused modern messenger than a showcase design system: flat white/near-white surfaces, compact radii, restrained black/yellow emphasis, simple native-feeling sheets, and strong spacing rather than decorative effects.
+The UI uses Riverpod, `go_router`, feature-first presentation code, and centralized theme/design tokens. Its visual direction is deliberately closer to a focused modern messenger than a showcase design system: quiet content surfaces, compact radii, restrained black/yellow emphasis, native-feeling sheets, and strong spacing with depth concentrated in navigation and conversation chrome.
 
 - the primary conversation list uses lightweight flat rows with circular avatars, compact metadata and yellow unread badges
 - recent direct conversations form a small horizontal people strip rather than decorative cards
 - phone navigation keeps a central black New Chat action and minimal surrounding navigation
 - outgoing messages use the ChatNU yellow accent while incoming messages remain neutral and quiet
-- message and conversation context surfaces use simple bottom sheets rather than visually heavy glass cards
+- message and conversation context surfaces use simple bottom sheets rather than visually heavy cards
 - registration is a true staged onboarding journey: welcome → display name → username → security → review → recovery-code handoff
 - login and account recovery remain separate focused journeys instead of modes inside one overloaded form
 - conversation rows and message bubbles do not use backdrop blur
@@ -42,7 +42,25 @@ The UI uses Riverpod, `go_router`, feature-first presentation code, and centrali
 - English and Persian layouts use directional APIs and support LTR/RTL text flow
 - reduced-motion preferences are respected by custom transitions and microinteractions
 
+The current polish layer adds selective depth without returning to the earlier glass-everywhere presentation:
+
+- frosted conversation headers and phone/desktop navigation chrome
+- smooth eased fade/slide pane transitions with reduced-motion fallbacks
+- an animated palette-aware chat wallpaper isolated behind a repaint boundary
+- a richer real-user profile/settings hub with account/server context, chat/media information, privacy/security, Getting Started, FAQ and About
+- persistent System/English/فارسی locale preference
+- About explicitly credits `Developed by devnu.ir`
+- a versioned, HTTPS-only `chatnu://server/add` provisioning parser suitable for future QR and app-link enrollment; secrets are forbidden from provisioning payloads
+
 Reusable primitives remain centralized, but a component is used only where it improves product consistency; the interface should not expose the design system for its own sake.
+
+## Rich media and location direction
+
+The server and Flutter message mapper already support typed `IMAGE`, `VIDEO`, `VOICE`, `FILE`, `LOCATION` and `LIVE_LOCATION` messages, and attachment bytes are encrypted before upload. Capture, playback, gallery, map and location-session UX should extend that existing encrypted transport rather than introduce a plaintext or parallel media channel.
+
+Group video calling is a separate protocol concern: current call signaling is one-to-one and targets a single user. A group-call UI must not ship until multiparty signaling/media semantics are defined.
+
+Profile editing and true multi-account switching are also intentionally gated on production semantics. The database can represent avatar/bio, but the current public REST contract does not expose authenticated profile writes; the Flutter credential/session vault currently owns one active account. The client must not simulate those features with local-only state.
 
 ## Product identity
 

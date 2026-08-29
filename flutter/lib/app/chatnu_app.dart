@@ -1,6 +1,7 @@
 import 'package:chatnu/app/routing/app_router.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/features/calls/presentation/call_overlay.dart';
+import 'package:chatnu/features/settings/application/appearance_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +12,9 @@ class ChatNuApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final themeMode = ref.watch(themeModeProvider);
+    final themeMode = ref.watch(
+      appearanceProvider.select((value) => value.themeMode),
+    );
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'ChatNU',
@@ -26,17 +29,12 @@ class ChatNuApp extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(boldText: MediaQuery.boldTextOf(context)),
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              child ?? const SizedBox.shrink(),
-              const CallOverlay(),
-            ],
-          ),
+        return Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            child ?? const SizedBox.shrink(),
+            const CallOverlay(),
+          ],
         );
       },
     );

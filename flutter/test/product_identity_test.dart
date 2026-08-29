@@ -20,9 +20,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: <Override>[
-          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
-        ],
+        overrides: [appModeProvider.overrideWithValue(ChatNuAppMode.demo)],
         child: MaterialApp(
           locale: const Locale('fa'),
           supportedLocales: const <Locale>[Locale('en'), Locale('fa')],

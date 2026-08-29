@@ -348,10 +348,11 @@ class _AttachmentContent extends ConsumerWidget {
         .read(messengerDemoProvider.notifier)
         .downloadAttachment(message);
     if (bytes == null || !context.mounted) return;
-    final result = await FilePicker.platform.saveFile(
+    final result = await FilePicker.saveFile(
       dialogTitle: 'Save decrypted attachment',
       fileName: message.fileName ?? 'attachment',
       bytes: bytes,
+      mimeType: message.mimeType ?? 'application/octet-stream',
     );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -488,20 +489,9 @@ class _Composer extends ConsumerWidget {
   }
 
   Future<void> _pickAttachment(BuildContext context, WidgetRef ref) async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: false,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.single;
-    final bytes = file.bytes;
-    if (bytes == null) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to read the selected file.')),
-      );
-      return;
-    }
+    final file = await FilePicker.pickFile();
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
     final mimeType =
         lookupMimeType(file.name, headerBytes: bytes) ??
         'application/octet-stream';

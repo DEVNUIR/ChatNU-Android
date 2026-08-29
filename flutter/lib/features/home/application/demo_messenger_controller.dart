@@ -708,5 +708,5 @@ extension<T> on Iterable<T> {
 }
 
 extension<T> on List<T>? {
-  List<T> get orEmpty => this ?? const <T>[];
+  List<T> get orEmpty => this ?? <T>[];
 }

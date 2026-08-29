@@ -193,10 +193,7 @@ class ChatNuApiClient {
   }) async {
     await _patchJson(
       'conversations/$conversationId/preferences',
-      <String, dynamic>{
-        if (isPinned != null) 'isPinned': isPinned,
-        if (isMuted != null) 'isMuted': isMuted,
-      },
+      <String, dynamic>{'isPinned': ?isPinned, 'isMuted': ?isMuted},
     );
   }
 
@@ -215,10 +212,7 @@ class ChatNuApiClient {
   }) async {
     final json = await _getJson(
       'conversations/$conversationId/messages',
-      queryParameters: <String, dynamic>{
-        if (before != null) 'before': before,
-        'limit': limit,
-      },
+      queryParameters: <String, dynamic>{'before': ?before, 'limit': limit},
     );
     return _list(
       json['messages'],

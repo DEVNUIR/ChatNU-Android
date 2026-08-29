@@ -129,7 +129,8 @@ class CallController extends Notifier<ChatNuCallState> {
         .where((member) => member.id != currentUserId)
         .firstOrNull;
     if (peer == null) return;
-    final repository = _repository ?? ref.read(messengerRepositoryProvider);
+    final MessengerRepository repository =
+        _repository ?? ref.read(messengerRepositoryProvider);
     _repository = repository;
     try {
       final callId = _newCallId();
@@ -227,8 +228,10 @@ class CallController extends Notifier<ChatNuCallState> {
   }
 
   Future<void> _preparePeer({required bool video}) async {
-    final config = await (_repository ?? ref.read(messengerRepositoryProvider))
-        .rtcConfig();
+    final MessengerRepository repository =
+        _repository ?? ref.read(messengerRepositoryProvider);
+    _repository = repository;
+    final config = await repository.rtcConfig();
     final iceServers = config.iceServers
         .map(
           (server) => <String, dynamic>{
@@ -386,12 +389,12 @@ class CallController extends Notifier<ChatNuCallState> {
     final local = _localStream;
     _localStream = null;
     for (final track in local?.getTracks() ?? <MediaStreamTrack>[]) {
-      track.stop();
+      await track.stop();
     }
     final remote = _remoteStream;
     _remoteStream = null;
     for (final track in remote?.getTracks() ?? <MediaStreamTrack>[]) {
-      track.stop();
+      await track.stop();
     }
   }
 

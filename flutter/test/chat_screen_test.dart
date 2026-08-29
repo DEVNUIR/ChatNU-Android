@@ -18,9 +18,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: <Override>[
-          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
-        ],
+        overrides: [appModeProvider.overrideWithValue(ChatNuAppMode.demo)],
         child: const ChatNuApp(),
       ),
     );
@@ -61,9 +59,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: <Override>[
-          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
-        ],
+        overrides: [appModeProvider.overrideWithValue(ChatNuAppMode.demo)],
         child: const ChatNuApp(),
       ),
     );

@@ -1,0 +1,99 @@
+import 'package:chatnu/core/di/app_providers.dart';
+import 'package:chatnu/core/storage/secret_store.dart';
+import 'package:chatnu/core/theme/chatnu_theme.dart';
+import 'package:chatnu/features/auth/presentation/auth_screen.dart';
+import 'package:chatnu/features/messages/domain/message.dart';
+import 'package:chatnu/features/messages/presentation/widgets/message_bubble.dart';
+import 'package:chatnu/features/settings/application/appearance_controller.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('appearance controller persists theme selection', () async {
+    final store = MemorySecretStore();
+    final container = ProviderContainer(
+      overrides: <Override>[
+        secretStoreProvider.overrideWithValue(store),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await Future<void>.delayed(Duration.zero);
+    await container
+        .read(appearanceProvider.notifier)
+        .setThemeMode(ThemeMode.dark);
+
+    expect(container.read(appearanceProvider).themeMode, ThemeMode.dark);
+    expect(await store.read('chatnu.appearance.theme'), 'dark');
+  });
+
+  testWidgets('authentication surface exposes real account modes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          secretStoreProvider.overrideWithValue(MemorySecretStore()),
+        ],
+        child: MaterialApp(
+          theme: ChatNuTheme.light,
+          home: const AuthScreen(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('ChatNU'), findsOneWidget);
+    expect(find.text('Login'), findsWidgets);
+    expect(find.text('Register'), findsWidgets);
+    expect(find.text('Recover'), findsWidgets);
+    expect(find.byKey(const Key('auth-server-field')), findsOneWidget);
+    expect(find.byKey(const Key('auth-username-field')), findsOneWidget);
+    expect(find.byKey(const Key('auth-password-field')), findsOneWidget);
+  });
+
+  testWidgets('failed outgoing text exposes retry without fake actions', (
+    tester,
+  ) async {
+    const message = ChatNuMessage(
+      id: 'failed-message',
+      clientId: 'stable-client-id',
+      conversationId: 'conversation-1',
+      senderId: 'me',
+      senderName: 'Me',
+      body: 'Retry me',
+      sentAt: DateTime(2026, 8, 29, 12),
+      deliveryState: MessageDeliveryState.failed,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
+        ],
+        child: MaterialApp(
+          theme: ChatNuTheme.light,
+          home: const Scaffold(
+            body: Center(
+              child: MessageBubble(
+                message: message,
+                mine: true,
+                showSender: false,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.longPress(find.text('Retry me'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Copy'), findsOneWidget);
+    expect(find.text('Edit'), findsNothing);
+    expect(find.text('Delete'), findsNothing);
+    expect(find.text('Forward'), findsNothing);
+  });
+}

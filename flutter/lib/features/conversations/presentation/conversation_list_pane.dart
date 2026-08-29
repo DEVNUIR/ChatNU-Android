@@ -142,12 +142,11 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                             child: _ConversationTile(
                               conversation: conversation,
                               selected:
-                                  conversation.id == state.selectedConversationId,
+                                  conversation.id ==
+                                  state.selectedConversationId,
                               onTap: () => widget.onSelected(conversation.id),
-                              onContextMenu: () => _showConversationMenu(
-                                context,
-                                conversation,
-                              ),
+                              onContextMenu: () =>
+                                  _showConversationMenu(context, conversation),
                             ),
                           );
                         },
@@ -178,9 +177,7 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                     ? Icons.push_pin_rounded
                     : Icons.push_pin_outlined,
               ),
-              title: Text(
-                conversation.isPinned ? strings.unpin : strings.pin,
-              ),
+              title: Text(conversation.isPinned ? strings.unpin : strings.pin),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 ref
@@ -194,9 +191,7 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                     ? Icons.notifications_active_outlined
                     : Icons.notifications_off_outlined,
               ),
-              title: Text(
-                conversation.isMuted ? strings.unmute : strings.mute,
-              ),
+              title: Text(conversation.isMuted ? strings.unmute : strings.mute),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 ref
@@ -370,7 +365,9 @@ class _ConversationTile extends StatelessWidget {
                             ),
                           if (conversation.isPinned)
                             Padding(
-                              padding: const EdgeInsetsDirectional.only(start: 5),
+                              padding: const EdgeInsetsDirectional.only(
+                                start: 5,
+                              ),
                               child: Tooltip(
                                 message: strings.pinned,
                                 child: Icon(
@@ -382,7 +379,9 @@ class _ConversationTile extends StatelessWidget {
                             ),
                           if (conversation.unreadCount > 0)
                             Padding(
-                              padding: const EdgeInsetsDirectional.only(start: 7),
+                              padding: const EdgeInsetsDirectional.only(
+                                start: 7,
+                              ),
                               child: GlassBadge(
                                 label: '${conversation.unreadCount}',
                                 semanticLabel:

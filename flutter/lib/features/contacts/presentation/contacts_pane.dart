@@ -36,7 +36,9 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: ChatNuSizing.contentMaxWidth),
+          constraints: const BoxConstraints(
+            maxWidth: ChatNuSizing.contentMaxWidth,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -196,10 +198,7 @@ class _ContactTile extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
-              GlassAvatar(
-                label: user.displayName,
-                imageUrl: user.avatarUrl,
-              ),
+              GlassAvatar(label: user.displayName, imageUrl: user.avatarUrl),
               const SizedBox(width: ChatNuSpacing.sm),
               Expanded(
                 child: Column(
@@ -216,10 +215,7 @@ class _ContactTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chat_bubble_outline_rounded,
-                color: palette.textMuted,
-              ),
+              Icon(Icons.chat_bubble_outline_rounded, color: palette.textMuted),
             ],
           ),
         ),

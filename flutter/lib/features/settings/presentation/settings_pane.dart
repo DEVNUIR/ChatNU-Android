@@ -29,7 +29,9 @@ class SettingsPane extends ConsumerWidget {
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: ChatNuSizing.contentMaxWidth),
+          constraints: const BoxConstraints(
+            maxWidth: ChatNuSizing.contentMaxWidth,
+          ),
           child: ListView(
             padding: const EdgeInsetsDirectional.fromSTEB(
               ChatNuSpacing.md,
@@ -57,11 +59,13 @@ class SettingsPane extends ConsumerWidget {
                   ListTile(
                     leading: GlassAvatar(
                       label:
-                          session.user?.displayName ?? state.currentUser.displayName,
+                          session.user?.displayName ??
+                          state.currentUser.displayName,
                       imageUrl: session.user?.avatarUrl,
                     ),
                     title: Text(
-                      session.user?.displayName ?? state.currentUser.displayName,
+                      session.user?.displayName ??
+                          state.currentUser.displayName,
                     ),
                     subtitle: Text(
                       '@${session.user?.username ?? state.currentUser.username}',
@@ -84,7 +88,9 @@ class SettingsPane extends ConsumerWidget {
                 children: <Widget>[
                   ListTile(
                     leading: Icon(_connectionIcon(state.realtimeStatus)),
-                    title: Text(_connectionLabel(strings, state.realtimeStatus)),
+                    title: Text(
+                      _connectionLabel(strings, state.realtimeStatus),
+                    ),
                     subtitle: Text(endpoint.hostLabel),
                     trailing: IconButton(
                       tooltip: strings.refresh,

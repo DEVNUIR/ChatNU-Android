@@ -336,20 +336,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   String _title(bool fa) => switch (_mode) {
     AuthMode.login => fa ? 'خوش برگشتید' : 'Welcome back',
-    AuthMode.register => fa ? 'حساب ChatNU بسازید' : 'Create your ChatNU account',
+    AuthMode.register =>
+      fa ? 'حساب ChatNU بسازید' : 'Create your ChatNU account',
     AuthMode.recover => fa ? 'بازیابی حساب' : 'Recover your account',
   };
 
   String _subtitle(bool fa) => switch (_mode) {
-    AuthMode.login => fa
-        ? 'برای ادامه به گفت‌وگوهای رمزگذاری‌شده وارد شوید.'
-        : 'Sign in to continue to your encrypted conversations.',
-    AuthMode.register => fa
-        ? 'پیش از ثبت‌نام، کلید هویت دستگاه به‌صورت محلی ساخته می‌شود.'
-        : 'A device identity key is created locally before registration.',
-    AuthMode.recover => fa
-        ? 'بازیابی گذرواژه را تغییر می‌دهد و دستگاه‌های موجود را لغو می‌کند.'
-        : 'Recovery changes the password and revokes existing devices.',
+    AuthMode.login =>
+      fa
+          ? 'برای ادامه به گفت‌وگوهای رمزگذاری‌شده وارد شوید.'
+          : 'Sign in to continue to your encrypted conversations.',
+    AuthMode.register =>
+      fa
+          ? 'پیش از ثبت‌نام، کلید هویت دستگاه به‌صورت محلی ساخته می‌شود.'
+          : 'A device identity key is created locally before registration.',
+    AuthMode.recover =>
+      fa
+          ? 'بازیابی گذرواژه را تغییر می‌دهد و دستگاه‌های موجود را لغو می‌کند.'
+          : 'Recovery changes the password and revokes existing devices.',
   };
 
   String _submitLabel(bool fa) => switch (_mode) {

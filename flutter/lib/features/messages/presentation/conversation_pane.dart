@@ -55,17 +55,12 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
     return SafeArea(
       child: Column(
         children: <Widget>[
-          ConversationHeader(
-            conversation: conversation,
-            onBack: widget.onBack,
-          ),
+          ConversationHeader(conversation: conversation, onBack: widget.onBack),
           _RealtimeNotice(status: state.realtimeStatus),
           if (state.error != null)
             _InlineError(
               message: state.error!,
-              onDismiss: ref
-                  .read(messengerDemoProvider.notifier)
-                  .clearError,
+              onDismiss: ref.read(messengerDemoProvider.notifier).clearError,
             ),
           Expanded(
             child: messages.isEmpty
@@ -94,8 +89,7 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
                       return RepaintBoundary(
                         child: Column(
                           children: <Widget>[
-                            if (showDate)
-                              _DateSeparator(date: message.sentAt),
+                            if (showDate) _DateSeparator(date: message.sentAt),
                             MessageBubble(
                               message: message,
                               mine: message.senderId == state.currentUser.id,
@@ -166,11 +160,7 @@ class _RealtimeNotice extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 1.4),
               )
             else
-              Icon(
-                Icons.cloud_off_outlined,
-                size: 15,
-                color: palette.warning,
-              ),
+              Icon(Icons.cloud_off_outlined, size: 15, color: palette.warning),
             const SizedBox(width: 7),
             Text(
               connecting
@@ -228,9 +218,9 @@ class _InlineError extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: palette.textPrimary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: palette.textPrimary),
               ),
             ),
             IconButton(

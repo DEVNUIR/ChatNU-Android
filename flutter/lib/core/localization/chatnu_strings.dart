@@ -38,7 +38,8 @@ class ChatNuStrings {
       : 'Type at least two characters to search the selected ChatNU server.';
   String get noUsersFound => isPersian ? 'کاربری پیدا نشد.' : 'No users found.';
   String get groupName => isPersian ? 'نام گروه' : 'Group name';
-  String get selectedMembers => isPersian ? 'اعضای انتخاب‌شده' : 'Selected members';
+  String get selectedMembers =>
+      isPersian ? 'اعضای انتخاب‌شده' : 'Selected members';
   String get create => isPersian ? 'ایجاد' : 'Create';
   String get cancel => isPersian ? 'لغو' : 'Cancel';
   String get done => isPersian ? 'انجام شد' : 'Done';

@@ -95,9 +95,12 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                     Text(
                       state.peerName ?? 'ChatNU contact',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: hasRemoteVideo ? Colors.white : palette.textPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: hasRemoteVideo
+                                ? Colors.white
+                                : palette.textPrimary,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -248,18 +251,16 @@ class _IncomingCallControls extends StatelessWidget {
           tooltip: 'Accept',
           icon: Icons.call_rounded,
           background: palette.success,
-          onPressed: () => unawaited(
-            ref.read(callControllerProvider.notifier).accept(),
-          ),
+          onPressed: () =>
+              unawaited(ref.read(callControllerProvider.notifier).accept()),
         ),
         const SizedBox(width: ChatNuSpacing.lg),
         _CallControlButton(
           tooltip: 'Reject',
           icon: Icons.call_end_rounded,
           background: palette.destructive,
-          onPressed: () => unawaited(
-            ref.read(callControllerProvider.notifier).reject(),
-          ),
+          onPressed: () =>
+              unawaited(ref.read(callControllerProvider.notifier).reject()),
         ),
       ],
     );
@@ -333,7 +334,8 @@ class _CallControlButton extends StatelessWidget {
       child: Tooltip(
         message: tooltip,
         child: Material(
-          color: background ??
+          color:
+              background ??
               (selected ? palette.glassStrong : palette.glassMedium),
           shape: const CircleBorder(),
           child: InkWell(

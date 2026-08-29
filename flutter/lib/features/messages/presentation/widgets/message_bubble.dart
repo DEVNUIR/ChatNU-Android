@@ -53,7 +53,9 @@ class MessageBubble extends ConsumerWidget {
         onLongPress: () => _showActions(context, ref),
         onSecondaryTapDown: (_) => _showActions(context, ref),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: ChatNuSizing.messageMaxWidth),
+          constraints: const BoxConstraints(
+            maxWidth: ChatNuSizing.messageMaxWidth,
+          ),
           margin: const EdgeInsetsDirectional.only(bottom: 6),
           padding: const EdgeInsetsDirectional.fromSTEB(
             ChatNuSpacing.sm,

@@ -117,11 +117,8 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   @override
-  Widget build(BuildContext context) => GlassPanel(
-    variant: GlassVariant.weak,
-    padding: padding,
-    child: child,
-  );
+  Widget build(BuildContext context) =>
+      GlassPanel(variant: GlassVariant.weak, padding: padding, child: child);
 }
 
 class GlassAppBar extends StatelessWidget {
@@ -165,10 +162,7 @@ class GlassAppBar extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  title,
-                  if (subtitle != null) subtitle!,
-                ],
+                children: <Widget>[title, if (subtitle != null) subtitle!],
               ),
             ),
             ...actions,
@@ -317,9 +311,9 @@ class _GlassButtonState extends State<GlassButton> {
                   ],
                   Text(
                     widget.label,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: foreground,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(color: foreground),
                   ),
                 ],
               ),
@@ -409,7 +403,9 @@ class _GlassSearchFieldState extends State<GlassSearchField> {
           suffixIcon: widget.controller.text.isEmpty
               ? null
               : IconButton(
-                  tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+                  tooltip: MaterialLocalizations.of(
+                    context,
+                  ).deleteButtonTooltip,
                   onPressed: () {
                     widget.controller.clear();
                     widget.onChanged?.call('');
@@ -564,45 +560,52 @@ class GlassSegmentedControl<T> extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: items.entries.map((entry) {
-            final selected = entry.key == value;
-            return Padding(
-              padding: const EdgeInsetsDirectional.only(end: 2),
-              child: Semantics(
-                button: true,
-                selected: selected,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(ChatNuRadii.pill),
-                  onTap: () => onChanged(entry.key),
-                  child: AnimatedContainer(
-                    duration: ChatNuMotion.micro,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: ChatNuSpacing.sm,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected ? palette.glassStrong : Colors.transparent,
+          children: items.entries
+              .map((entry) {
+                final selected = entry.key == value;
+                return Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 2),
+                  child: Semantics(
+                    button: true,
+                    selected: selected,
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(ChatNuRadii.pill),
-                      border: Border.all(
-                        color: selected
-                            ? palette.borderHighlight
-                            : Colors.transparent,
-                      ),
-                    ),
-                    child: Text(
-                      entry.value,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: selected
-                            ? palette.textPrimary
-                            : palette.textSecondary,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      onTap: () => onChanged(entry.key),
+                      child: AnimatedContainer(
+                        duration: ChatNuMotion.micro,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ChatNuSpacing.sm,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? palette.glassStrong
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(ChatNuRadii.pill),
+                          border: Border.all(
+                            color: selected
+                                ? palette.borderHighlight
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Text(
+                          entry.value,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: selected
+                                    ? palette.textPrimary
+                                    : palette.textSecondary,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            );
-          }).toList(growable: false),
+                );
+              })
+              .toList(growable: false),
         ),
       ),
     );

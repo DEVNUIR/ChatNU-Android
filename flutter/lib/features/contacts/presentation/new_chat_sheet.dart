@@ -71,14 +71,11 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
                         icon: const Icon(Icons.arrow_back_rounded),
                       ),
                     Expanded(
-                      child: Text(
-                        switch (_mode) {
-                          _CreationMode.direct => strings.newChat,
-                          _CreationMode.groupMembers => strings.newGroup,
-                          _CreationMode.groupDetails => strings.groupName,
-                        },
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
+                      child: Text(switch (_mode) {
+                        _CreationMode.direct => strings.newChat,
+                        _CreationMode.groupMembers => strings.newGroup,
+                        _CreationMode.groupDetails => strings.groupName,
+                      }, style: Theme.of(context).textTheme.headlineSmall),
                     ),
                     IconButton(
                       tooltip: strings.cancel,
@@ -209,8 +206,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
                     label: strings.create,
                     icon: Icons.group_add_rounded,
                     prominent: true,
-                    onPressed:
-                        _groupName.text.trim().isEmpty || _submitting
+                    onPressed: _groupName.text.trim().isEmpty || _submitting
                         ? null
                         : () => unawaited(_createGroup()),
                   ),

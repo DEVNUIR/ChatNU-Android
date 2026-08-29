@@ -154,14 +154,16 @@ class _NavigationRail extends ConsumerWidget {
             icon: Icons.people_outline_rounded,
             label: strings.contacts,
             selected: destination == MessengerDestination.contacts,
-            onPressed: () => _setDestination(ref, MessengerDestination.contacts),
+            onPressed: () =>
+                _setDestination(ref, MessengerDestination.contacts),
           ),
           const Spacer(),
           _RailButton(
             icon: Icons.settings_outlined,
             label: strings.settings,
             selected: destination == MessengerDestination.settings,
-            onPressed: () => _setDestination(ref, MessengerDestination.settings),
+            onPressed: () =>
+                _setDestination(ref, MessengerDestination.settings),
           ),
         ],
       ),

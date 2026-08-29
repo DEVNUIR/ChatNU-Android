@@ -107,6 +107,7 @@ class MessengerRepository {
     required String fileName,
     required String mimeType,
     required ChatNuMessageType type,
+    Map<String, dynamic> privateMetadata = const <String, dynamic>{},
   }) async {
     if (plaintextBytes.length > maxAttachmentPlaintextBytes) {
       throw StateError('Attachment is larger than 24 MiB.');
@@ -124,12 +125,36 @@ class MessengerRepository {
       'size': plaintextBytes.length,
       'fileKey': encrypted.keyBase64,
       'fileNonce': encrypted.nonceBase64,
+      ...privateMetadata,
     });
     return _sendEncryptedPayload(
       conversationId: conversationId,
       clientId: clientId,
       type: type,
       plaintext: payload,
+    );
+  }
+
+  Future<ChatNuMessage> sendLocation({
+    required String conversationId,
+    required String clientId,
+    required double latitude,
+    required double longitude,
+    String? label,
+  }) {
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      throw ArgumentError('Invalid location coordinates.');
+    }
+    return _sendEncryptedPayload(
+      conversationId: conversationId,
+      clientId: clientId,
+      type: ChatNuMessageType.location,
+      plaintext: jsonEncode(<String, dynamic>{
+        'kind': 'location',
+        'lat': latitude,
+        'lng': longitude,
+        if (label?.trim().isNotEmpty == true) 'label': label!.trim(),
+      }),
     );
   }
 

@@ -1,5 +1,6 @@
 package com.example.ui.theme
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,8 +21,16 @@ enum class ThemePreset(
     val glassStart: Color,
     val glassEnd: Color
 ) {
+    CHATNU_NEON(
+        title = "ChatNU Neon",
+        primary = Color(0xFF1268FF),
+        primaryLight = Color(0xFF22D3EE),
+        primaryDark = Color(0xFF0754D8),
+        glassStart = Color(0xFF1268FF),
+        glassEnd = Color(0xFF22D3EE)
+    ),
     IOS_BLUE(
-        title = "iOS Classic Blue",
+        title = "Classic Blue",
         primary = Color(0xFF007AFF),
         primaryLight = Color(0xFF60A5FA),
         primaryDark = Color(0xFF1D4ED8),
@@ -63,8 +72,40 @@ enum class ThemePreset(
 }
 
 object ThemeManager {
-    var currentPreset by mutableStateOf(ThemePreset.IOS_BLUE)
-    var themeMode by mutableStateOf(ThemeMode.DARK)
+    private const val PREFS = "chatnu_theme"
+    private const val KEY_MODE = "mode"
+    private const val KEY_PRESET = "preset"
+
+    private var context: Context? = null
+
+    var currentPreset by mutableStateOf(ThemePreset.CHATNU_NEON)
+    var themeMode by mutableStateOf(ThemeMode.SYSTEM)
+
+    fun initialize(appContext: Context) {
+        context = appContext.applicationContext
+        val prefs = context!!.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        themeMode = runCatching {
+            ThemeMode.valueOf(prefs.getString(KEY_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name)
+        }.getOrDefault(ThemeMode.SYSTEM)
+        currentPreset = runCatching {
+            ThemePreset.valueOf(
+                prefs.getString(KEY_PRESET, ThemePreset.CHATNU_NEON.name)
+                    ?: ThemePreset.CHATNU_NEON.name
+            )
+        }.getOrDefault(ThemePreset.CHATNU_NEON)
+    }
+
+    fun setMode(mode: ThemeMode) {
+        themeMode = mode
+        context?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            ?.edit()?.putString(KEY_MODE, mode.name)?.apply()
+    }
+
+    fun setPreset(preset: ThemePreset) {
+        currentPreset = preset
+        context?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            ?.edit()?.putString(KEY_PRESET, preset.name)?.apply()
+    }
 }
 
 @Composable

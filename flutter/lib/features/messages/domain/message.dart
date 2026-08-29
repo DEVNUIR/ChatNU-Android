@@ -37,6 +37,10 @@ class ChatNuMessage {
     this.sizeBytes,
     this.attachmentKeyBase64,
     this.attachmentNonceBase64,
+    this.locationLatitude,
+    this.locationLongitude,
+    this.mediaDurationMs,
+    this.isVideoNote = false,
   });
 
   final String id;
@@ -54,8 +58,17 @@ class ChatNuMessage {
   final int? sizeBytes;
   final String? attachmentKeyBase64;
   final String? attachmentNonceBase64;
+  final double? locationLatitude;
+  final double? locationLongitude;
+  final int? mediaDurationMs;
+  final bool isVideoNote;
 
   bool get hasAttachment => attachmentId != null;
+  bool get hasLocation =>
+      locationLatitude != null && locationLongitude != null;
+  bool get isPlayableAudio =>
+      type == ChatNuMessageType.voice ||
+      (mimeType?.toLowerCase().startsWith('audio/') ?? false);
 
   ChatNuMessage copyWith({
     String? id,
@@ -70,6 +83,10 @@ class ChatNuMessage {
     int? sizeBytes,
     String? attachmentKeyBase64,
     String? attachmentNonceBase64,
+    double? locationLatitude,
+    double? locationLongitude,
+    int? mediaDurationMs,
+    bool? isVideoNote,
   }) {
     return ChatNuMessage(
       id: id ?? this.id,
@@ -88,6 +105,10 @@ class ChatNuMessage {
       attachmentKeyBase64: attachmentKeyBase64 ?? this.attachmentKeyBase64,
       attachmentNonceBase64:
           attachmentNonceBase64 ?? this.attachmentNonceBase64,
+      locationLatitude: locationLatitude ?? this.locationLatitude,
+      locationLongitude: locationLongitude ?? this.locationLongitude,
+      mediaDurationMs: mediaDurationMs ?? this.mediaDurationMs,
+      isVideoNote: isVideoNote ?? this.isVideoNote,
     );
   }
 }

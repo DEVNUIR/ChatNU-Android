@@ -138,14 +138,18 @@ class SettingsPane extends ConsumerWidget {
                 children: <Widget>[
                   _SettingsTile(
                     icon: Icons.wallpaper_rounded,
-                    title: strings.isPersian ? 'پس‌زمینهٔ گفتگو' : 'Chat background',
+                    title: strings.isPersian
+                        ? 'پس‌زمینهٔ گفتگو'
+                        : 'Chat background',
                     subtitle: strings.isPersian
                         ? 'پس‌زمینهٔ محیطی متحرک با احترام به Reduce Motion'
                         : 'Ambient animated wallpaper that respects Reduce Motion',
                   ),
                   _SettingsTile(
                     icon: Icons.photo_library_outlined,
-                    title: strings.isPersian ? 'رسانه و فایل‌ها' : 'Media & files',
+                    title: strings.isPersian
+                        ? 'رسانه و فایل‌ها'
+                        : 'Media & files',
                     subtitle: strings.isPersian
                         ? 'تصویر، ویدیو، صدا و فایل با رمزگذاری قبل از آپلود'
                         : 'Images, video, audio and files encrypted before upload',
@@ -284,7 +288,9 @@ class SettingsPane extends ConsumerWidget {
                 children: <Widget>[
                   _SettingsTile(
                     icon: Icons.auto_awesome_rounded,
-                    title: strings.isPersian ? 'راهنمای شروع' : 'Getting started',
+                    title: strings.isPersian
+                        ? 'راهنمای شروع'
+                        : 'Getting started',
                     subtitle: strings.isPersian
                         ? 'هویت، سرور، افراد، رسانه و تماس'
                         : 'Identity, server, people, media and calls',
@@ -300,7 +306,9 @@ class SettingsPane extends ConsumerWidget {
                   ),
                   _SettingsTile(
                     icon: Icons.info_outline_rounded,
-                    title: strings.isPersian ? 'دربارهٔ ChatNU' : 'About ChatNU',
+                    title: strings.isPersian
+                        ? 'دربارهٔ ChatNU'
+                        : 'About ChatNU',
                     subtitle: 'Developed by devnu.ir',
                     onTap: () => unawaited(showAboutSheet(context)),
                   ),
@@ -405,9 +413,9 @@ class _ProfileHero extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '@$username',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: palette.textMuted,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: palette.textMuted),
                   ),
                   if (bio?.trim().isNotEmpty == true) ...<Widget>[
                     const SizedBox(height: 5),
@@ -421,7 +429,11 @@ class _ProfileHero extends StatelessWidget {
                   const SizedBox(height: 7),
                   Row(
                     children: <Widget>[
-                      Icon(Icons.dns_outlined, size: 13, color: palette.textMuted),
+                      Icon(
+                        Icons.dns_outlined,
+                        size: 13,
+                        color: palette.textMuted,
+                      ),
                       const SizedBox(width: 5),
                       Flexible(
                         child: Text(
@@ -444,8 +456,14 @@ class _ProfileHero extends StatelessWidget {
   }
 
   static String _initials(String value) {
-    final words = value.trim().split(RegExp(r'\s+')).where((item) => item.isNotEmpty);
-    final chars = words.take(2).map((item) => item.characters.first.toUpperCase()).join();
+    final words = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((item) => item.isNotEmpty);
+    final chars = words
+        .take(2)
+        .map((item) => item.characters.first.toUpperCase())
+        .join();
     return chars.isEmpty ? '?' : chars;
   }
 }
@@ -513,7 +531,9 @@ class _SettingsTile extends StatelessWidget {
       ),
       title: Text(title),
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: trailing ?? (onTap == null ? null : const Icon(Icons.chevron_right_rounded)),
+      trailing:
+          trailing ??
+          (onTap == null ? null : const Icon(Icons.chevron_right_rounded)),
       onTap: onTap,
     );
   }

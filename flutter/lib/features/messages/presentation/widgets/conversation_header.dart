@@ -78,9 +78,7 @@ class ConversationHeader extends ConsumerWidget {
                     Row(
                       children: <Widget>[
                         Icon(
-                          isDirect
-                              ? Icons.lock_rounded
-                              : Icons.group_outlined,
+                          isDirect ? Icons.lock_rounded : Icons.group_outlined,
                           size: 11,
                           color: palette.textMuted,
                         ),
@@ -100,7 +98,8 @@ class ConversationHeader extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (isDirect && ChatNuCapabilities.current.oneToOneCalls) ...<Widget>[
+              if (isDirect &&
+                  ChatNuCapabilities.current.oneToOneCalls) ...<Widget>[
                 _HeaderAction(
                   tooltip: strings.videoCall,
                   onPressed: demo

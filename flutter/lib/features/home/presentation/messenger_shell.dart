@@ -158,11 +158,11 @@ class _PhoneShell extends ConsumerWidget {
               key: const ValueKey('phone-chats'),
               onSelected: controller.selectConversation,
             ),
-            MessengerDestination.contacts || MessengerDestination.settings =>
-              KeyedSubtree(
-                key: ValueKey('phone-${state.destination.name}'),
-                child: _DestinationContent(state.destination),
-              ),
+            MessengerDestination.contacts ||
+            MessengerDestination.settings => KeyedSubtree(
+              key: ValueKey('phone-${state.destination.name}'),
+              child: _DestinationContent(state.destination),
+            ),
           };
 
     return Scaffold(

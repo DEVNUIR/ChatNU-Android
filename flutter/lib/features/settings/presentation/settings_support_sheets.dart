@@ -17,17 +17,17 @@ Future<void> showChatNuProfileSheet(
     Text(
       user.displayName,
       textAlign: TextAlign.center,
-      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-      ),
+      style: Theme.of(
+        context,
+      ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
     ),
     const SizedBox(height: 4),
     Text(
       '@${user.username}',
       textAlign: TextAlign.center,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: context.chatNu.textMuted,
-      ),
+      style: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(color: context.chatNu.textMuted),
     ),
     if (user.bio?.trim().isNotEmpty == true) ...<Widget>[
       const SizedBox(height: 12),
@@ -179,9 +179,9 @@ Future<void> showAboutSheet(BuildContext context) => _showSheet(
     Text(
       'ChatNU',
       textAlign: TextAlign.center,
-      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-        fontWeight: FontWeight.w800,
-      ),
+      style: Theme.of(
+        context,
+      ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
     ),
     const SizedBox(height: 8),
     Text(
@@ -458,9 +458,9 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             value,
             textAlign: TextAlign.end,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
       ],

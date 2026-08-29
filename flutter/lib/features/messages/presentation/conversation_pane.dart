@@ -67,7 +67,9 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
               if (state.error != null)
                 _InlineError(
                   message: state.error!,
-                  onDismiss: ref.read(messengerDemoProvider.notifier).clearError,
+                  onDismiss: ref
+                      .read(messengerDemoProvider.notifier)
+                      .clearError,
                 ),
               Expanded(
                 child: messages.isEmpty
@@ -85,7 +87,8 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
                         ),
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
-                          final chronologicalIndex = messages.length - 1 - index;
+                          final chronologicalIndex =
+                              messages.length - 1 - index;
                           final message = messages[chronologicalIndex];
                           final previous = chronologicalIndex == 0
                               ? null
@@ -100,9 +103,11 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
                                   _DateSeparator(date: message.sentAt),
                                 MessageBubble(
                                   message: message,
-                                  mine: message.senderId == state.currentUser.id,
+                                  mine:
+                                      message.senderId == state.currentUser.id,
                                   showSender:
-                                      conversation.kind == ConversationKind.group,
+                                      conversation.kind ==
+                                      ConversationKind.group,
                                 ),
                               ],
                             ),

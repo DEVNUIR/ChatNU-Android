@@ -21,53 +21,54 @@ enum class ThemePreset(
     val glassStart: Color,
     val glassEnd: Color
 ) {
+    // Keep enum identifiers stable for persisted preferences while modernizing their product names.
     CHATNU_NEON(
-        title = "ChatNU Neon",
-        primary = Color(0xFF1268FF),
-        primaryLight = Color(0xFF22D3EE),
-        primaryDark = Color(0xFF0754D8),
-        glassStart = Color(0xFF1268FF),
-        glassEnd = Color(0xFF22D3EE)
+        title = "ChatNU Indigo",
+        primary = Color(0xFF5B63E8),
+        primaryLight = Color(0xFF7C83F3),
+        primaryDark = Color(0xFF4850CF),
+        glassStart = Color(0xFF5B63E8),
+        glassEnd = Color(0xFF7B61D9)
     ),
     IOS_BLUE(
-        title = "Classic Blue",
-        primary = Color(0xFF007AFF),
-        primaryLight = Color(0xFF60A5FA),
-        primaryDark = Color(0xFF1D4ED8),
-        glassStart = Color(0xFF007AFF),
-        glassEnd = Color(0xFF3B82F6)
+        title = "Ocean Blue",
+        primary = Color(0xFF2979E8),
+        primaryLight = Color(0xFF65A4F4),
+        primaryDark = Color(0xFF1F5FBD),
+        glassStart = Color(0xFF2979E8),
+        glassEnd = Color(0xFF4B8CE6)
     ),
     INDIGO_VIOLET(
-        title = "Cyber Violet",
-        primary = Color(0xFF6366F1),
-        primaryLight = Color(0xFF818CF8),
-        primaryDark = Color(0xFF4F46E5),
-        glassStart = Color(0xFF6366F1),
-        glassEnd = Color(0xFF8B5CF6)
+        title = "Soft Violet",
+        primary = Color(0xFF7565C7),
+        primaryLight = Color(0xFF9387D8),
+        primaryDark = Color(0xFF5F50AA),
+        glassStart = Color(0xFF7565C7),
+        glassEnd = Color(0xFF8A6EC4)
     ),
     EMERALD_GREEN(
-        title = "Emerald Mint",
-        primary = Color(0xFF10B981),
-        primaryLight = Color(0xFF34D399),
-        primaryDark = Color(0xFF059669),
-        glassStart = Color(0xFF10B981),
-        glassEnd = Color(0xFF059669)
+        title = "Emerald",
+        primary = Color(0xFF2D9A72),
+        primaryLight = Color(0xFF56B893),
+        primaryDark = Color(0xFF217858),
+        glassStart = Color(0xFF2D9A72),
+        glassEnd = Color(0xFF3E8F72)
     ),
     SUNSET_ROSE(
-        title = "Sunset Rose",
-        primary = Color(0xFFFF2D55),
-        primaryLight = Color(0xFFFB7185),
-        primaryDark = Color(0xFFE11D48),
-        glassStart = Color(0xFFFF2D55),
-        glassEnd = Color(0xFFF43F5E)
+        title = "Rose",
+        primary = Color(0xFFD95472),
+        primaryLight = Color(0xFFE68198),
+        primaryDark = Color(0xFFB63E5B),
+        glassStart = Color(0xFFD95472),
+        glassEnd = Color(0xFFC95D7B)
     ),
     ELECTRIC_CYAN(
-        title = "Electric Cyan",
-        primary = Color(0xFF06B6D4),
-        primaryLight = Color(0xFF38BDF8),
-        primaryDark = Color(0xFF0891B2),
-        glassStart = Color(0xFF06B6D4),
-        glassEnd = Color(0xFF0284C7)
+        title = "Coastal Cyan",
+        primary = Color(0xFF278FA6),
+        primaryLight = Color(0xFF58ACBD),
+        primaryDark = Color(0xFF1E7184),
+        glassStart = Color(0xFF278FA6),
+        glassEnd = Color(0xFF39899A)
     )
 }
 

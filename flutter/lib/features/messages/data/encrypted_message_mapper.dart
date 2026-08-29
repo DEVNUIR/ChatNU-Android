@@ -34,6 +34,10 @@ class EncryptedMessageMapper {
       sizeBytes: payload.sizeBytes,
       attachmentKeyBase64: payload.fileKey,
       attachmentNonceBase64: payload.fileNonce,
+      locationLatitude: payload.latitude,
+      locationLongitude: payload.longitude,
+      mediaDurationMs: payload.durationMs,
+      isVideoNote: payload.videoNote,
     );
   }
 
@@ -122,19 +126,35 @@ class EncryptedMessageMapper {
   static DecryptedPayload parsePlaintext(String plain) {
     try {
       final decoded = jsonDecode(plain);
-      if (decoded is! Map || decoded['kind']?.toString() != 'attachment') {
-        return DecryptedPayload(displayText: plain);
-      }
+      if (decoded is! Map) return DecryptedPayload(displayText: plain);
       final json = decoded.map((key, value) => MapEntry(key.toString(), value));
-      return DecryptedPayload(
-        displayText: json['name']?.toString() ?? 'Attachment',
-        attachmentId: json['attachmentId']?.toString(),
-        fileName: json['name']?.toString() ?? 'Attachment',
-        mimeType: json['mime']?.toString() ?? 'application/octet-stream',
-        sizeBytes: _int(json['size']),
-        fileKey: json['fileKey']?.toString(),
-        fileNonce: json['fileNonce']?.toString(),
-      );
+      final kind = json['kind']?.toString();
+      if (kind == 'attachment') {
+        return DecryptedPayload(
+          displayText: json['name']?.toString() ?? 'Attachment',
+          attachmentId: json['attachmentId']?.toString(),
+          fileName: json['name']?.toString() ?? 'Attachment',
+          mimeType: json['mime']?.toString() ?? 'application/octet-stream',
+          sizeBytes: _int(json['size']),
+          fileKey: json['fileKey']?.toString(),
+          fileNonce: json['fileNonce']?.toString(),
+          durationMs: _int(json['durationMs']),
+          videoNote: json['videoNote'] == true,
+        );
+      }
+      if (kind == 'location') {
+        final latitude = _double(json['lat']);
+        final longitude = _double(json['lng']);
+        if (latitude == null || longitude == null) {
+          return const DecryptedPayload(displayText: 'Shared location');
+        }
+        return DecryptedPayload(
+          displayText: json['label']?.toString() ?? 'Shared location',
+          latitude: latitude,
+          longitude: longitude,
+        );
+      }
+      return DecryptedPayload(displayText: plain);
     } on FormatException {
       return DecryptedPayload(displayText: plain);
     }
@@ -148,6 +168,11 @@ class EncryptedMessageMapper {
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '');
   }
+
+  static double? _double(Object? value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
+  }
 }
 
 class DecryptedPayload {
@@ -159,6 +184,10 @@ class DecryptedPayload {
     this.sizeBytes,
     this.fileKey,
     this.fileNonce,
+    this.latitude,
+    this.longitude,
+    this.durationMs,
+    this.videoNote = false,
   });
 
   final String displayText;
@@ -168,4 +197,8 @@ class DecryptedPayload {
   final int? sizeBytes;
   final String? fileKey;
   final String? fileNonce;
+  final double? latitude;
+  final double? longitude;
+  final int? durationMs;
+  final bool videoNote;
 }

@@ -62,7 +62,7 @@ class SettingsPane extends ConsumerWidget {
                 username: user.username,
                 avatarUrl: user.avatarUrl,
                 bio: user.bio,
-                serverLabel: endpoint.uri.host,
+                serverLabel: endpoint.restUri.host,
                 onTap: () => unawaited(
                   showChatNuProfileSheet(
                     context,
@@ -399,7 +399,7 @@ class _ProfileHero extends StatelessWidget {
                   Text(
                     displayName,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w750,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),

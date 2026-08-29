@@ -99,9 +99,6 @@ interface ChatNuApi {
 
     @GET("calls/pending")
     suspend fun pendingCalls(): PendingCallsResponse
-
-    @GET("server-info")
-    suspend fun serverInfo(): ServerInfoResponse
 }
 
 class ApiClient(private val tokenStore: TokenStore) {

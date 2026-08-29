@@ -5,8 +5,10 @@ import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/accounts/domain/chatnu_user.dart';
+import 'package:chatnu/features/contacts/application/contact_book_controller.dart';
 import 'package:chatnu/features/contacts/presentation/new_chat_sheet.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
+import 'package:enefty_icons/enefty_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,8 +33,12 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(messengerDemoProvider);
+    final contactBook = ref.watch(contactBookProvider);
     final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
+    final searching = _search.text.trim().length >= 2;
+    final visible = searching ? state.contactResults : contactBook.contacts;
+
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -48,7 +54,9 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 subtitle: Text(
-                  strings.secureMessaging,
+                  strings.isPersian
+                      ? 'مخاطبان ذخیره‌شده روی این حساب و جستجوی امن سرور'
+                      : 'Saved on this account + secure server directory',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 actions: <Widget>[
@@ -73,10 +81,38 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
                   onChanged: _searchChanged,
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ChatNuSpacing.lg,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      EneftyIcons.people_outline,
+                      size: 18,
+                      color: palette.textMuted,
+                    ),
+                    const SizedBox(width: ChatNuSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        searching
+                            ? (strings.isPersian
+                                  ? 'نتایج دایرکتوری سرور'
+                                  : 'Server directory results')
+                            : (strings.isPersian
+                                  ? 'مخاطبان ذخیره‌شده روی این دستگاه'
+                                  : 'Saved contacts on this device'),
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               if (state.error != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: ChatNuSpacing.lg,
+                    vertical: ChatNuSpacing.xs,
                   ),
                   child: Text(
                     state.error!,
@@ -86,8 +122,10 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
                   ),
                 ),
               Expanded(
-                child: state.contactResults.isEmpty
-                    ? _ContactsEmptyState(query: _search.text)
+                child: contactBook.loading && !searching
+                    ? const Center(child: CircularProgressIndicator())
+                    : visible.isEmpty
+                    ? _ContactsEmptyState(query: _search.text, saved: !searching)
                     : ListView.builder(
                         padding: const EdgeInsetsDirectional.fromSTEB(
                           ChatNuSpacing.md,
@@ -97,13 +135,26 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
                         ),
                         keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior.onDrag,
-                        itemCount: state.contactResults.length,
+                        itemCount: visible.length,
                         itemBuilder: (context, index) {
-                          final user = state.contactResults[index];
+                          final user = visible[index];
+                          final saved = contactBook.contains(user.id);
                           return RepaintBoundary(
                             child: _ContactTile(
                               user: user,
+                              saved: saved,
                               onTap: () => unawaited(_openDirect(user)),
+                              onToggleSaved: () => saved
+                                  ? unawaited(
+                                      ref
+                                          .read(contactBookProvider.notifier)
+                                          .remove(user.id),
+                                    )
+                                  : unawaited(
+                                      ref
+                                          .read(contactBookProvider.notifier)
+                                          .add(user),
+                                    ),
                             ),
                           );
                         },
@@ -131,9 +182,10 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
 }
 
 class _ContactsEmptyState extends StatelessWidget {
-  const _ContactsEmptyState({required this.query});
+  const _ContactsEmptyState({required this.query, required this.saved});
 
   final String query;
+  final bool saved;
 
   @override
   Widget build(BuildContext context) {
@@ -155,16 +207,16 @@ class _ContactsEmptyState extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: Icon(
-                query.trim().length < 2
-                    ? Icons.person_search_outlined
-                    : Icons.search_off_rounded,
+                saved ? EneftyIcons.people_outline : Icons.search_off_rounded,
                 color: palette.accentPrimary,
               ),
             ),
             const SizedBox(height: ChatNuSpacing.md),
             Text(
-              query.trim().length < 2
-                  ? strings.typeTwoCharacters
+              saved
+                  ? (strings.isPersian
+                        ? 'هنوز مخاطبی ذخیره نشده. حداقل دو حرف جستجو کنید و یک کاربر را ذخیره کنید.'
+                        : 'No saved contacts yet. Search at least two characters and save a user.')
                   : strings.noUsersFound,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
@@ -177,14 +229,22 @@ class _ContactsEmptyState extends StatelessWidget {
 }
 
 class _ContactTile extends StatelessWidget {
-  const _ContactTile({required this.user, required this.onTap});
+  const _ContactTile({
+    required this.user,
+    required this.saved,
+    required this.onTap,
+    required this.onToggleSaved,
+  });
 
   final ChatNuUser user;
+  final bool saved;
   final VoidCallback onTap;
+  final VoidCallback onToggleSaved;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
+    final strings = ChatNuStrings.of(context);
     return Semantics(
       button: true,
       label: '${user.displayName}, @${user.username}',
@@ -213,6 +273,16 @@ class _ContactTile extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
+                ),
+              ),
+              IconButton(
+                tooltip: saved
+                    ? (strings.isPersian ? 'حذف از مخاطبان' : 'Remove contact')
+                    : (strings.isPersian ? 'ذخیره مخاطب' : 'Save contact'),
+                onPressed: onToggleSaved,
+                icon: Icon(
+                  saved ? Icons.person_remove_outlined : Icons.person_add_outlined,
+                  color: saved ? palette.accentPrimary : palette.textMuted,
                 ),
               ),
               Icon(Icons.chat_bubble_outline_rounded, color: palette.textMuted),

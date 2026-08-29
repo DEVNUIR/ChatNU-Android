@@ -175,10 +175,13 @@ fun ChatNuGlassSurface(
     val base = chatNuGlassColor(dark, accessibility.increaseContrast)
     val hazeState = LocalChatNuHazeState.current
     val blurEnabled = hazeState != null && !accessibility.increaseContrast
+    // Haze's style lambda is not composable, so capture theme values before entering it.
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val primaryColor = MaterialTheme.colorScheme.primary
     val borderBrush = Brush.linearGradient(
         listOf(
             Color.White.copy(alpha = if (dark) 0.20f else 0.76f),
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
+            primaryColor.copy(alpha = 0.20f),
             Color.White.copy(alpha = if (dark) 0.05f else 0.24f)
         )
     )
@@ -188,13 +191,13 @@ fun ChatNuGlassSurface(
             .shadow(elevation = elevation, shape = shape, clip = false)
             .clip(shape)
             .hazeChild(hazeState!!) {
-                backgroundColor = MaterialTheme.colorScheme.surface
+                backgroundColor = surfaceColor
                 tints = listOf(
                     HazeTint.Color(
                         if (dark) Color(0xFF111722).copy(alpha = 0.30f)
                         else Color.White.copy(alpha = 0.36f)
                     ),
-                    HazeTint.Color(MaterialTheme.colorScheme.primary.copy(alpha = 0.035f))
+                    HazeTint.Color(primaryColor.copy(alpha = 0.035f))
                 )
                 blurRadius = ChatNuGlass.blurRadius
                 noiseFactor = ChatNuGlass.noiseFactor

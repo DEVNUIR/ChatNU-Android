@@ -197,7 +197,9 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       senderName: state.currentUser.displayName,
       body: text,
       sentAt: now,
-      deliveryState: MessageDeliveryState.sending,
+      // Phase 2 has no backend connection. A local message is therefore queued
+      // rather than pretending that a network send is in progress or accepted.
+      deliveryState: MessageDeliveryState.queuedOffline,
     );
     final messages = Map<String, List<ChatNuMessage>>.from(
       state.messagesByConversation,

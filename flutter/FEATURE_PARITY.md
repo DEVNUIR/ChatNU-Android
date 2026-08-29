@@ -63,3 +63,11 @@ Backdrop blur is reserved for persistent navigation chrome, modal/sheet surfaces
 conversation headers, the composer, and call controls. Conversation rows and message
 bubbles use opaque/translucent paint only, remain lightweight inside scrolling lists,
 and are isolated with repaint boundaries where useful.
+
+## Release verification contract
+
+A refactor milestone is not considered releasable until the repository Flutter workflow
+passes all of these gates against the same commit: generated Android-host identity
+verification, canonical Dart formatting, `flutter analyze --fatal-infos`, `flutter test`,
+`flutter build apk --release`, APK signature verification, and explicit recording of
+whether the artifact used production signing secrets or fallback Android signing.

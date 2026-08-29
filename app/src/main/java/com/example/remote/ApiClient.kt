@@ -5,6 +5,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -112,7 +113,7 @@ class ApiClient(private val tokenStore: TokenStore) {
      * /auth/login and /realtime. That makes one APK work with any user-selected instance.
      */
     private val serverRoutingInterceptor = Interceptor { chain ->
-        val target = okhttp3.HttpUrl.get(ServerEndpoint.apiUrl())
+        val target = ServerEndpoint.apiUrl().toHttpUrl()
         val original = chain.request()
         val rewrittenUrl = original.url.newBuilder()
             .scheme(target.scheme)

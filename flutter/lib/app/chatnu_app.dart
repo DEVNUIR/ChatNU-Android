@@ -26,9 +26,9 @@ class ChatNuApp extends ConsumerWidget {
       ],
       builder: (context, child) {
         return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            boldText: MediaQuery.boldTextOf(context),
-          ),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(boldText: MediaQuery.boldTextOf(context)),
           child: child ?? const SizedBox.shrink(),
         );
       },

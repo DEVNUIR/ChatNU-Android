@@ -179,7 +179,10 @@ class _AssistantMessage extends StatelessWidget {
                 spacing: ChatNuSpacing.xs,
                 children: <Widget>[
                   _MessageAction(icon: Icons.copy_rounded, label: 'Copy'),
-                  _MessageAction(icon: Icons.refresh_rounded, label: 'Regenerate'),
+                  _MessageAction(
+                    icon: Icons.refresh_rounded,
+                    label: 'Regenerate',
+                  ),
                   _MessageAction(icon: Icons.more_horiz_rounded, label: 'More'),
                 ],
               ),
@@ -339,7 +342,9 @@ List<InlineSpan> _highlight(String code, BuildContext context) {
   var cursor = 0;
   for (final match in pattern.allMatches(code)) {
     if (match.start > cursor) {
-      spans.add(TextSpan(text: code.substring(cursor, match.start), style: base));
+      spans.add(
+        TextSpan(text: code.substring(cursor, match.start), style: base),
+      );
     }
     final token = match.group(0)!;
     final color = token.startsWith('//')
@@ -347,7 +352,12 @@ List<InlineSpan> _highlight(String code, BuildContext context) {
         : token.startsWith('"') || token.startsWith("'")
         ? palette.success
         : palette.accentPrimary;
-    spans.add(TextSpan(text: token, style: base.copyWith(color: color)));
+    spans.add(
+      TextSpan(
+        text: token,
+        style: base.copyWith(color: color),
+      ),
+    );
     cursor = match.end;
   }
   if (cursor < code.length) {

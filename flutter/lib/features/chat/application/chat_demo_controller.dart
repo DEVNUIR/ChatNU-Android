@@ -2,10 +2,7 @@ import 'package:chatnu/features/chat/domain/chat_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ChatDemoState {
-  const ChatDemoState({
-    required this.messages,
-    required this.selectedModel,
-  });
+  const ChatDemoState({required this.messages, required this.selectedModel});
 
   final List<ChatMessage> messages;
   final AiModelOption selectedModel;
@@ -42,7 +39,8 @@ class ChatDemoController extends Notifier<ChatDemoState> {
     final text = rawText.trim();
     if (text.isEmpty) return;
     final now = DateTime.now();
-    final timestamp = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final timestamp =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     final message = ChatMessage(
       id: 'local-${now.microsecondsSinceEpoch}',
       role: ChatMessageRole.user,

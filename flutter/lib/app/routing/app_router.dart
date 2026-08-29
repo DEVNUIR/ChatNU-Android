@@ -22,25 +22,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: <RouteBase>[
       GoRoute(path: ChatNuRoutes.home, redirect: (_, _) => ChatNuRoutes.chat),
       GoRoute(path: ChatNuRoutes.chat, builder: (_, _) => const ChatScreen()),
-      GoRoute(
-        path: '/conversation/:id',
-        builder: (_, _) => const ChatScreen(),
-      ),
+      GoRoute(path: '/conversation/:id', builder: (_, _) => const ChatScreen()),
       for (final route in <({String path, String title, IconData icon})>[
         (path: ChatNuRoutes.splash, title: 'Splash', icon: Icons.bolt_rounded),
-        (path: ChatNuRoutes.onboarding, title: 'Onboarding', icon: Icons.explore_rounded),
-        (path: ChatNuRoutes.login, title: 'Login', icon: Icons.lock_outline_rounded),
-        (path: ChatNuRoutes.history, title: 'History', icon: Icons.history_rounded),
+        (
+          path: ChatNuRoutes.onboarding,
+          title: 'Onboarding',
+          icon: Icons.explore_rounded,
+        ),
+        (
+          path: ChatNuRoutes.login,
+          title: 'Login',
+          icon: Icons.lock_outline_rounded,
+        ),
+        (
+          path: ChatNuRoutes.history,
+          title: 'History',
+          icon: Icons.history_rounded,
+        ),
         (path: ChatNuRoutes.models, title: 'Models', icon: Icons.hub_outlined),
-        (path: ChatNuRoutes.profile, title: 'Profile', icon: Icons.person_outline_rounded),
-        (path: ChatNuRoutes.settings, title: 'Settings', icon: Icons.tune_rounded),
+        (
+          path: ChatNuRoutes.profile,
+          title: 'Profile',
+          icon: Icons.person_outline_rounded,
+        ),
+        (
+          path: ChatNuRoutes.settings,
+          title: 'Settings',
+          icon: Icons.tune_rounded,
+        ),
       ])
         GoRoute(
           path: route.path,
-          builder: (_, _) => FeaturePlaceholderScreen(
-            title: route.title,
-            icon: route.icon,
-          ),
+          builder: (_, _) =>
+              FeaturePlaceholderScreen(title: route.title, icon: route.icon),
         ),
     ],
   );

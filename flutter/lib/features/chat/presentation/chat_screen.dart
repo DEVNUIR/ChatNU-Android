@@ -78,18 +78,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       backgroundColor: palette.backgroundPrimary,
       body: CallbackShortcuts(
         bindings: <ShortcutActivator, VoidCallback>{
-          const SingleActivator(
-            LogicalKeyboardKey.keyN,
-            control: true,
-          ): _newChat,
-          const SingleActivator(
-            LogicalKeyboardKey.keyK,
-            control: true,
-          ): _showSearchHint,
-          SingleActivator(
-            LogicalKeyboardKey.comma,
-            control: true,
-          ): () => context.go(ChatNuRoutes.settings),
+          const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+              _newChat,
+          const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+              _showSearchHint,
+          SingleActivator(LogicalKeyboardKey.comma, control: true): () =>
+              context.go(ChatNuRoutes.settings),
         },
         child: Focus(
           autofocus: true,
@@ -124,9 +118,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.fromLTRB(
-                              showSidebar
-                                  ? ChatNuSpacing.sm
-                                  : ChatNuSpacing.md,
+                              showSidebar ? ChatNuSpacing.sm : ChatNuSpacing.md,
                               ChatNuSpacing.sm,
                               ChatNuSpacing.md,
                               ChatNuSpacing.sm,
@@ -151,7 +143,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       Positioned.fill(
                                         child: ChatMessageList(
                                           messages: chatState.messages,
-                                          modelName: chatState.selectedModel.name,
+                                          modelName:
+                                              chatState.selectedModel.name,
                                           controller: _scrollController,
                                         ),
                                       ),

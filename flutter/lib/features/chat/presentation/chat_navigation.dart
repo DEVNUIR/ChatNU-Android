@@ -60,9 +60,9 @@ class ChatTopBar extends StatelessWidget {
                   'Local UI prototype · no network',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: palette.textMuted,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: palette.textMuted),
                 ),
               ],
             ),
@@ -111,11 +111,22 @@ class _ModelButtonState extends State<_ModelButton> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(Icons.auto_awesome_rounded, size: 16, color: palette.accentPrimary),
+              Icon(
+                Icons.auto_awesome_rounded,
+                size: 16,
+                color: palette.accentPrimary,
+              ),
               const SizedBox(width: 7),
-              Text(widget.model.name, style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                widget.model.name,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
               const SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: palette.textMuted),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: palette.textMuted,
+              ),
             ],
           ),
         ),
@@ -154,13 +165,18 @@ class ChatSidebar extends StatelessWidget {
         child: Column(
           children: <Widget>[
             Row(
-              mainAxisAlignment: collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+              mainAxisAlignment: collapsed
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
               children: <Widget>[
                 const ChatNuMark(size: 38),
                 if (!collapsed) ...<Widget>[
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text('ChatNU', style: Theme.of(context).textTheme.titleLarge),
+                    child: Text(
+                      'ChatNU',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                   ),
                 ],
               ],
@@ -182,7 +198,10 @@ class ChatSidebar extends StatelessWidget {
             const SizedBox(height: ChatNuSpacing.md),
             if (!collapsed)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 child: Align(
                   alignment: AlignmentDirectional.centerStart,
                   child: Text(
@@ -197,9 +216,18 @@ class ChatSidebar extends StatelessWidget {
                 ),
               ),
             if (!collapsed) ...<Widget>[
-              const _RecentConversation(title: 'Flutter architecture', subtitle: '2m'),
-              const _RecentConversation(title: 'Landing page review', subtitle: '1h'),
-              const _RecentConversation(title: 'یادگیری انگلیسی', subtitle: '3h'),
+              const _RecentConversation(
+                title: 'Flutter architecture',
+                subtitle: '2m',
+              ),
+              const _RecentConversation(
+                title: 'Landing page review',
+                subtitle: '1h',
+              ),
+              const _RecentConversation(
+                title: 'یادگیری انگلیسی',
+                subtitle: '3h',
+              ),
             ],
             const Spacer(),
             _SidebarItem(
@@ -223,7 +251,9 @@ class ChatSidebar extends StatelessWidget {
             const SizedBox(height: ChatNuSpacing.xs),
             Divider(color: palette.borderSubtle),
             _SidebarItem(
-              icon: collapsed ? Icons.keyboard_double_arrow_right_rounded : Icons.keyboard_double_arrow_left_rounded,
+              icon: collapsed
+                  ? Icons.keyboard_double_arrow_right_rounded
+                  : Icons.keyboard_double_arrow_left_rounded,
               label: 'Collapse',
               collapsed: collapsed,
               onTap: onToggle,
@@ -288,17 +318,24 @@ class _SidebarItemState extends State<_SidebarItem> {
               ),
             ),
             child: Row(
-              mainAxisAlignment: widget.collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+              mainAxisAlignment: widget.collapsed
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
               children: <Widget>[
                 Icon(
                   widget.icon,
                   size: 20,
-                  color: widget.emphasized ? palette.accentPrimary : palette.textSecondary,
+                  color: widget.emphasized
+                      ? palette.accentPrimary
+                      : palette.textSecondary,
                 ),
                 if (!widget.collapsed) ...<Widget>[
                   const SizedBox(width: 11),
                   Expanded(
-                    child: Text(widget.label, style: Theme.of(context).textTheme.labelLarge),
+                    child: Text(
+                      widget.label,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
                   ),
                 ],
               ],
@@ -382,7 +419,9 @@ class _ModelPickerPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(chatDemoControllerProvider.select((value) => value.selectedModel));
+    final selected = ref.watch(
+      chatDemoControllerProvider.select((value) => value.selectedModel),
+    );
     return Material(
       color: Colors.transparent,
       child: GlassSurface(
@@ -406,7 +445,9 @@ class _ModelPickerPanel extends ConsumerWidget {
                 model: model,
                 selected: selected.id == model.id,
                 onTap: () {
-                  ref.read(chatDemoControllerProvider.notifier).selectModel(model);
+                  ref
+                      .read(chatDemoControllerProvider.notifier)
+                      .selectModel(model);
                   Navigator.of(context).pop();
                 },
               ),
@@ -418,7 +459,11 @@ class _ModelPickerPanel extends ConsumerWidget {
 }
 
 class _ModelRow extends StatelessWidget {
-  const _ModelRow({required this.model, required this.selected, required this.onTap});
+  const _ModelRow({
+    required this.model,
+    required this.selected,
+    required this.onTap,
+  });
 
   final AiModelOption model;
   final bool selected;
@@ -433,10 +478,14 @@ class _ModelRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: ChatNuSpacing.xs),
         padding: const EdgeInsets.all(ChatNuSpacing.sm),
         decoration: BoxDecoration(
-          color: selected ? palette.accentPrimary.withValues(alpha: 0.12) : palette.glassWeak,
+          color: selected
+              ? palette.accentPrimary.withValues(alpha: 0.12)
+              : palette.glassWeak,
           borderRadius: BorderRadius.circular(ChatNuRadii.md),
           border: Border.all(
-            color: selected ? palette.accentPrimary.withValues(alpha: 0.48) : palette.borderSubtle,
+            color: selected
+                ? palette.accentPrimary.withValues(alpha: 0.48)
+                : palette.borderSubtle,
           ),
         ),
         child: Row(
@@ -448,14 +497,21 @@ class _ModelRow extends StatelessWidget {
                 color: palette.glassMedium,
                 borderRadius: BorderRadius.circular(ChatNuRadii.sm),
               ),
-              child: Icon(Icons.auto_awesome_rounded, size: 18, color: palette.accentPrimary),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                size: 18,
+                color: palette.accentPrimary,
+              ),
             ),
             const SizedBox(width: ChatNuSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(model.name, style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    model.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     '${model.capability} · ${model.speedLabel}${model.contextLabel == null ? '' : ' · ${model.contextLabel}'}',
@@ -465,7 +521,11 @@ class _ModelRow extends StatelessWidget {
               ),
             ),
             if (selected)
-              Icon(Icons.check_circle_rounded, color: palette.accentPrimary, size: 21),
+              Icon(
+                Icons.check_circle_rounded,
+                color: palette.accentPrimary,
+                size: 21,
+              ),
           ],
         ),
       ),
@@ -500,7 +560,10 @@ void showMobileNavigation(
                   children: <Widget>[
                     const ChatNuMark(),
                     const SizedBox(width: 10),
-                    Text('ChatNU', style: Theme.of(context).textTheme.titleLarge),
+                    Text(
+                      'ChatNU',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                     const Spacer(),
                     GlassIconButton(
                       icon: Icons.close_rounded,
@@ -518,12 +581,29 @@ void showMobileNavigation(
                     onNewChat();
                   },
                 ),
-                for (final item in <({IconData icon, String label, String path})>[
-                  (icon: Icons.history_rounded, label: 'History', path: ChatNuRoutes.history),
-                  (icon: Icons.hub_outlined, label: 'Models', path: ChatNuRoutes.models),
-                  (icon: Icons.tune_rounded, label: 'Settings', path: ChatNuRoutes.settings),
-                  (icon: Icons.person_outline_rounded, label: 'Profile', path: ChatNuRoutes.profile),
-                ])
+                for (final item
+                    in <({IconData icon, String label, String path})>[
+                      (
+                        icon: Icons.history_rounded,
+                        label: 'History',
+                        path: ChatNuRoutes.history,
+                      ),
+                      (
+                        icon: Icons.hub_outlined,
+                        label: 'Models',
+                        path: ChatNuRoutes.models,
+                      ),
+                      (
+                        icon: Icons.tune_rounded,
+                        label: 'Settings',
+                        path: ChatNuRoutes.settings,
+                      ),
+                      (
+                        icon: Icons.person_outline_rounded,
+                        label: 'Profile',
+                        path: ChatNuRoutes.profile,
+                      ),
+                    ])
                   _MobileNavAction(
                     icon: item.icon,
                     label: item.label,
@@ -542,7 +622,11 @@ void showMobileNavigation(
 }
 
 class _MobileNavAction extends StatelessWidget {
-  const _MobileNavAction({required this.icon, required this.label, required this.onTap});
+  const _MobileNavAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;

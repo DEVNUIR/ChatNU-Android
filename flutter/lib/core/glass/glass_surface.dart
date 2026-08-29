@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum GlassVariant { weak, medium, strong }
+
 enum GlassEffectLevel { full, balanced, reduced }
 
 class GlassEffectController extends Notifier<GlassEffectLevel> {

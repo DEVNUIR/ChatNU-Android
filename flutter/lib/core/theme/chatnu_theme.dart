@@ -115,7 +115,10 @@ class ChatNuPalette extends ThemeExtension<ChatNuPalette> {
     Color blend(Color a, Color b) => Color.lerp(a, b, t)!;
     return ChatNuPalette(
       backgroundPrimary: blend(backgroundPrimary, other.backgroundPrimary),
-      backgroundSecondary: blend(backgroundSecondary, other.backgroundSecondary),
+      backgroundSecondary: blend(
+        backgroundSecondary,
+        other.backgroundSecondary,
+      ),
       glassWeak: blend(glassWeak, other.glassWeak),
       glassMedium: blend(glassMedium, other.glassMedium),
       glassStrong: blend(glassStrong, other.glassStrong),

@@ -95,9 +95,9 @@ class _ChatComposerState extends ConsumerState<ChatComposer> {
                 style: Theme.of(context).textTheme.bodyLarge,
                 decoration: InputDecoration(
                   hintText: 'Message ChatNU',
-                  hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: palette.textMuted,
-                  ),
+                  hintStyle: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(color: palette.textMuted),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,

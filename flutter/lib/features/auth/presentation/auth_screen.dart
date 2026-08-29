@@ -1,5 +1,7 @@
 import 'package:chatnu/core/di/app_providers.dart';
+import 'package:chatnu/core/glass/glass_components.dart';
 import 'package:chatnu/core/glass/glass_surface.dart';
+import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/auth/application/session_controller.dart';
@@ -40,6 +42,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
+    final strings = ChatNuStrings.of(context);
     final endpoint = ref.watch(serverEndpointProvider);
     final session = ref.watch(sessionProvider);
     if (_server.text == 'https://api.devnu.ir/' &&
@@ -47,14 +50,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _server.text = endpoint.enrollmentValue;
     }
 
-    return Scaffold(
-      backgroundColor: palette.backgroundPrimary,
+    return GlassScaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(ChatNuSpacing.lg),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
+              constraints: const BoxConstraints(maxWidth: 520),
               child: GlassSurface(
                 variant: GlassVariant.strong,
                 enableBlur: true,
@@ -64,45 +67,55 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      const Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: ChatNuMark(size: 48),
+                      Row(
+                        children: <Widget>[
+                          const ChatNuMark(size: 50),
+                          const SizedBox(width: ChatNuSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  strings.appName,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                                Text(
+                                  strings.secureMessaging,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: ChatNuSpacing.md),
+                      const SizedBox(height: ChatNuSpacing.lg),
                       Text(
-                        _title,
+                        _title(strings.isPersian),
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
                       const SizedBox(height: ChatNuSpacing.xs),
                       Text(
-                        _subtitle,
+                        _subtitle(strings.isPersian),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: ChatNuSpacing.lg),
-                      SegmentedButton<AuthMode>(
-                        segments: const <ButtonSegment<AuthMode>>[
-                          ButtonSegment(
-                            value: AuthMode.login,
-                            label: Text('Login'),
-                          ),
-                          ButtonSegment(
-                            value: AuthMode.register,
-                            label: Text('Register'),
-                          ),
-                          ButtonSegment(
-                            value: AuthMode.recover,
-                            label: Text('Recover'),
-                          ),
-                        ],
-                        selected: <AuthMode>{_mode},
-                        onSelectionChanged: _busy
-                            ? null
-                            : (selection) {
+                      GlassSegmentedControl<AuthMode>(
+                        value: _mode,
+                        onChanged: _busy
+                            ? (_) {}
+                            : (value) {
                                 setState(() {
-                                  _mode = selection.first;
+                                  _mode = value;
                                   _error = null;
                                 });
                               },
+                        items: <AuthMode, String>{
+                          AuthMode.login: strings.login,
+                          AuthMode.register: strings.register,
+                          AuthMode.recover: strings.isPersian
+                              ? 'بازیابی'
+                              : 'Recover',
+                        },
                       ),
                       const SizedBox(height: ChatNuSpacing.md),
                       TextField(
@@ -110,10 +123,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         controller: _server,
                         keyboardType: TextInputType.url,
                         autocorrect: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Server',
+                        enabled: !_busy,
+                        decoration: InputDecoration(
+                          labelText: strings.server,
                           hintText: 'https://api.devnu.ir/',
-                          prefixIcon: Icon(Icons.dns_outlined),
+                          prefixIcon: const Icon(Icons.dns_outlined),
                         ),
                       ),
                       const SizedBox(height: ChatNuSpacing.sm),
@@ -121,11 +135,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         key: const Key('auth-username-field'),
                         controller: _username,
                         autocorrect: false,
+                        enabled: !_busy,
                         textCapitalization: TextCapitalization.none,
                         autofillHints: const <String>[AutofillHints.username],
-                        decoration: const InputDecoration(
-                          labelText: 'Username',
-                          prefixIcon: Icon(Icons.alternate_email_rounded),
+                        decoration: InputDecoration(
+                          labelText: strings.isPersian
+                              ? 'نام کاربری'
+                              : 'Username',
+                          prefixIcon: const Icon(Icons.alternate_email_rounded),
                         ),
                       ),
                       if (_mode == AuthMode.register) ...<Widget>[
@@ -133,10 +150,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         TextField(
                           key: const Key('auth-display-name-field'),
                           controller: _displayName,
+                          enabled: !_busy,
                           autofillHints: const <String>[AutofillHints.name],
-                          decoration: const InputDecoration(
-                            labelText: 'Display name',
-                            prefixIcon: Icon(Icons.badge_outlined),
+                          decoration: InputDecoration(
+                            labelText: strings.isPersian
+                                ? 'نام نمایشی'
+                                : 'Display name',
+                            prefixIcon: const Icon(Icons.badge_outlined),
                           ),
                         ),
                       ],
@@ -145,10 +165,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         TextField(
                           key: const Key('auth-recovery-code-field'),
                           controller: _recoveryCode,
+                          enabled: !_busy,
                           autocorrect: false,
-                          decoration: const InputDecoration(
-                            labelText: 'Recovery code',
-                            prefixIcon: Icon(Icons.key_outlined),
+                          decoration: InputDecoration(
+                            labelText: strings.isPersian
+                                ? 'کد بازیابی'
+                                : 'Recovery code',
+                            prefixIcon: const Icon(Icons.key_outlined),
                           ),
                         ),
                       ],
@@ -156,6 +179,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       TextField(
                         key: const Key('auth-password-field'),
                         controller: _password,
+                        enabled: !_busy,
                         obscureText: _obscurePassword,
                         enableSuggestions: false,
                         autocorrect: false,
@@ -164,19 +188,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               ? AutofillHints.password
                               : AutofillHints.newPassword,
                         ],
-                        onSubmitted: (_) => _busy ? null : _submit(),
+                        onSubmitted: (_) {
+                          if (!_busy) _submit();
+                        },
                         decoration: InputDecoration(
                           labelText: _mode == AuthMode.recover
-                              ? 'New password'
-                              : 'Password',
+                              ? (strings.isPersian
+                                    ? 'گذرواژهٔ جدید'
+                                    : 'New password')
+                              : (strings.isPersian ? 'گذرواژه' : 'Password'),
                           prefixIcon: const Icon(Icons.lock_outline_rounded),
                           suffixIcon: IconButton(
                             tooltip: _obscurePassword
-                                ? 'Show password'
-                                : 'Hide password',
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
+                                ? (strings.isPersian
+                                      ? 'نمایش گذرواژه'
+                                      : 'Show password')
+                                : (strings.isPersian
+                                      ? 'پنهان کردن گذرواژه'
+                                      : 'Hide password'),
+                            onPressed: _busy
+                                ? null
+                                : () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
                             icon: Icon(
                               _obscurePassword
                                   ? Icons.visibility_outlined
@@ -187,41 +221,75 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       ),
                       if (_error != null) ...<Widget>[
                         const SizedBox(height: ChatNuSpacing.sm),
-                        Text(
-                          _error!,
-                          key: const Key('auth-error'),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: palette.destructive),
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            _error!,
+                            key: const Key('auth-error'),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: palette.destructive),
+                          ),
                         ),
                       ],
                       const SizedBox(height: ChatNuSpacing.md),
-                      FilledButton.icon(
+                      GlassButton(
                         key: const Key('auth-submit-button'),
+                        label: _submitLabel(strings.isPersian),
+                        icon: _submitIcon,
+                        prominent: true,
                         onPressed: _busy ? null : _submit,
-                        icon: _busy
-                            ? const SizedBox.square(
-                                dimension: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Icon(_submitIcon),
-                        label: Text(_submitLabel),
                       ),
+                      if (_busy) ...<Widget>[
+                        const SizedBox(height: ChatNuSpacing.sm),
+                        const LinearProgressIndicator(minHeight: 2),
+                      ],
                       if (session.recoveryCode != null) ...<Widget>[
                         const SizedBox(height: ChatNuSpacing.md),
-                        SelectableText(
-                          'Save this recovery code now: ${session.recoveryCode}',
-                          key: const Key('recovery-code-result'),
-                          style: Theme.of(context).textTheme.bodyMedium,
+                        Container(
+                          padding: const EdgeInsets.all(ChatNuSpacing.sm),
+                          decoration: BoxDecoration(
+                            color: palette.warning.withValues(alpha: 0.09),
+                            borderRadius: BorderRadius.circular(ChatNuRadii.md),
+                            border: Border.all(
+                              color: palette.warning.withValues(alpha: 0.22),
+                            ),
+                          ),
+                          child: SelectableText(
+                            strings.isPersian
+                                ? 'این کد بازیابی را اکنون ذخیره کنید: ${session.recoveryCode}'
+                                : 'Save this recovery code now: ${session.recoveryCode}',
+                            key: const Key('recovery-code-result'),
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ),
                       ],
-                      const SizedBox(height: ChatNuSpacing.sm),
-                      Text(
-                        endpoint.usesEmergencyTls
-                            ? 'Emergency CA enrollment is saved, but Flutter refuses to bypass system TLS validation until native pinned-transport parity is enabled.'
-                            : 'Passwords and private E2EE keys are never sent anywhere except through the selected ChatNU authentication protocol; private identity keys stay on this device.',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      const SizedBox(height: ChatNuSpacing.md),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Icon(
+                            endpoint.usesEmergencyTls
+                                ? Icons.warning_amber_rounded
+                                : Icons.lock_outline_rounded,
+                            size: 18,
+                            color: endpoint.usesEmergencyTls
+                                ? palette.warning
+                                : palette.success,
+                          ),
+                          const SizedBox(width: ChatNuSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              endpoint.usesEmergencyTls
+                                  ? (strings.isPersian
+                                        ? 'ثبت CA اضطراری ذخیره شده است، اما Flutter تا رسیدن بررسی pin بومی به برابری با Android، این انتقال را رد می‌کند.'
+                                        : 'Emergency CA enrollment is saved, but Flutter refuses this transport until native CA-pin verification reaches Android parity.')
+                                  : (strings.isPersian
+                                        ? 'کلید خصوصی هویت E2EE روی همین دستگاه باقی می‌ماند. نشانی سرور بالا مرز اعتماد اتصال شماست.'
+                                        : 'The private E2EE identity key stays on this device. The server address above is the trust boundary for your connection.'),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -266,24 +334,28 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
-  String get _title => switch (_mode) {
-    AuthMode.login => 'Welcome back',
-    AuthMode.register => 'Create your ChatNU account',
-    AuthMode.recover => 'Recover your account',
+  String _title(bool fa) => switch (_mode) {
+    AuthMode.login => fa ? 'خوش برگشتید' : 'Welcome back',
+    AuthMode.register => fa ? 'حساب ChatNU بسازید' : 'Create your ChatNU account',
+    AuthMode.recover => fa ? 'بازیابی حساب' : 'Recover your account',
   };
 
-  String get _subtitle => switch (_mode) {
-    AuthMode.login => 'Sign in to continue to your encrypted conversations.',
-    AuthMode.register =>
-      'A device identity key is created locally before registration.',
-    AuthMode.recover =>
-      'Recovery changes the password and revokes existing devices.',
+  String _subtitle(bool fa) => switch (_mode) {
+    AuthMode.login => fa
+        ? 'برای ادامه به گفت‌وگوهای رمزگذاری‌شده وارد شوید.'
+        : 'Sign in to continue to your encrypted conversations.',
+    AuthMode.register => fa
+        ? 'پیش از ثبت‌نام، کلید هویت دستگاه به‌صورت محلی ساخته می‌شود.'
+        : 'A device identity key is created locally before registration.',
+    AuthMode.recover => fa
+        ? 'بازیابی گذرواژه را تغییر می‌دهد و دستگاه‌های موجود را لغو می‌کند.'
+        : 'Recovery changes the password and revokes existing devices.',
   };
 
-  String get _submitLabel => switch (_mode) {
-    AuthMode.login => 'Login',
-    AuthMode.register => 'Register',
-    AuthMode.recover => 'Recover account',
+  String _submitLabel(bool fa) => switch (_mode) {
+    AuthMode.login => fa ? 'ورود' : 'Login',
+    AuthMode.register => fa ? 'ثبت‌نام' : 'Register',
+    AuthMode.recover => fa ? 'بازیابی حساب' : 'Recover account',
   };
 
   IconData get _submitIcon => switch (_mode) {

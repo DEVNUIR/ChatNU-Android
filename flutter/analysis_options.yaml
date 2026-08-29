@@ -13,5 +13,6 @@ linter:
     directives_ordering: true
     prefer_final_fields: true
     prefer_final_locals: true
-    sort_constructors_first: true
+    prefer_initializing_formals: false
+    sort_constructors_first: false
     unawaited_futures: true

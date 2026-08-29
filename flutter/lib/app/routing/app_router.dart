@@ -1,5 +1,10 @@
+import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
-import 'package:chatnu/features/chat/presentation/chat_screen.dart';
+import 'package:chatnu/features/auth/application/session_controller.dart';
+import 'package:chatnu/features/auth/presentation/auth_screen.dart';
+import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
+import 'package:chatnu/features/home/presentation/messenger_shell.dart';
+import 'package:chatnu/shared/widgets/chatnu_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,91 +14,123 @@ abstract final class ChatNuRoutes {
   static const onboarding = '/onboarding';
   static const login = '/login';
   static const home = '/home';
-  static const chat = '/chat';
-  static const history = '/history';
-  static const models = '/models';
+  static const chats = '/chats';
+  static const contacts = '/contacts';
   static const profile = '/profile';
   static const settings = '/settings';
+
+  // Compile-only aliases for retained Phase 1 prototype sources. The active
+  // router does not expose AI history/model destinations.
+  static const history = chats;
+  static const models = contacts;
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final session = ref.watch(sessionProvider);
   return GoRouter(
-    initialLocation: ChatNuRoutes.chat,
+    initialLocation: ChatNuRoutes.splash,
+    redirect: (_, state) {
+      final location = state.matchedLocation;
+      if (session.status == ChatNuSessionStatus.booting) {
+        return location == ChatNuRoutes.splash ? null : ChatNuRoutes.splash;
+      }
+      if (!session.isAuthenticated) {
+        return location == ChatNuRoutes.login ? null : ChatNuRoutes.login;
+      }
+      if (location == ChatNuRoutes.splash ||
+          location == ChatNuRoutes.login ||
+          location == ChatNuRoutes.onboarding ||
+          location == ChatNuRoutes.home) {
+        return ChatNuRoutes.chats;
+      }
+      return null;
+    },
     routes: <RouteBase>[
-      GoRoute(path: ChatNuRoutes.home, redirect: (_, _) => ChatNuRoutes.chat),
-      GoRoute(path: ChatNuRoutes.chat, builder: (_, _) => const ChatScreen()),
-      GoRoute(path: '/conversation/:id', builder: (_, _) => const ChatScreen()),
-      for (final route in <({String path, String title, IconData icon})>[
-        (path: ChatNuRoutes.splash, title: 'Splash', icon: Icons.bolt_rounded),
-        (
-          path: ChatNuRoutes.onboarding,
-          title: 'Onboarding',
-          icon: Icons.explore_rounded,
-        ),
-        (
-          path: ChatNuRoutes.login,
-          title: 'Login',
-          icon: Icons.lock_outline_rounded,
-        ),
-        (
-          path: ChatNuRoutes.history,
-          title: 'History',
-          icon: Icons.history_rounded,
-        ),
-        (path: ChatNuRoutes.models, title: 'Models', icon: Icons.hub_outlined),
-        (
-          path: ChatNuRoutes.profile,
-          title: 'Profile',
-          icon: Icons.person_outline_rounded,
-        ),
-        (
-          path: ChatNuRoutes.settings,
-          title: 'Settings',
-          icon: Icons.tune_rounded,
-        ),
-      ])
-        GoRoute(
-          path: route.path,
-          builder: (_, _) =>
-              FeaturePlaceholderScreen(title: route.title, icon: route.icon),
-        ),
+      GoRoute(
+        path: ChatNuRoutes.splash,
+        builder: (_, _) => const _SplashScreen(),
+      ),
+      GoRoute(path: ChatNuRoutes.login, builder: (_, _) => const AuthScreen()),
+      GoRoute(
+        path: ChatNuRoutes.onboarding,
+        redirect: (_, _) => ChatNuRoutes.login,
+      ),
+      GoRoute(path: ChatNuRoutes.home, redirect: (_, _) => ChatNuRoutes.chats),
+      GoRoute(
+        path: ChatNuRoutes.chats,
+        builder: (_, _) => const MessengerShell(),
+      ),
+      GoRoute(
+        path: '/conversation/:id',
+        builder: (_, state) =>
+            MessengerShell(initialConversationId: state.pathParameters['id']),
+      ),
+      GoRoute(
+        path: ChatNuRoutes.contacts,
+        builder: (_, _) =>
+            const _DestinationRoute(destination: MessengerDestination.contacts),
+      ),
+      GoRoute(
+        path: ChatNuRoutes.settings,
+        builder: (_, _) =>
+            const _DestinationRoute(destination: MessengerDestination.settings),
+      ),
+      GoRoute(
+        path: ChatNuRoutes.profile,
+        builder: (_, _) =>
+            const _DestinationRoute(destination: MessengerDestination.settings),
+      ),
     ],
   );
 });
 
-class FeaturePlaceholderScreen extends StatelessWidget {
-  const FeaturePlaceholderScreen({
-    required this.title,
-    required this.icon,
-    super.key,
-  });
+class _DestinationRoute extends ConsumerStatefulWidget {
+  const _DestinationRoute({required this.destination});
 
-  final String title;
-  final IconData icon;
+  final MessengerDestination destination;
+
+  @override
+  ConsumerState<_DestinationRoute> createState() => _DestinationRouteState();
+}
+
+class _DestinationRouteState extends ConsumerState<_DestinationRoute> {
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() {
+      ref
+          .read(messengerDemoProvider.notifier)
+          .setDestination(widget.destination);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const MessengerShell();
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
 
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
+    final strings = ChatNuStrings.of(context);
     return Scaffold(
       backgroundColor: palette.backgroundPrimary,
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 36, color: palette.accentPrimary),
-            const SizedBox(height: 16),
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(
-              'Route boundary ready for a later migration phase.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () => context.go(ChatNuRoutes.chat),
-              child: const Text('Back to chat'),
-            ),
-          ],
+        child: Semantics(
+          label: strings.splash,
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ChatNuMark(size: 64),
+              SizedBox(height: 20),
+              SizedBox.square(
+                dimension: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ),
         ),
       ),
     );

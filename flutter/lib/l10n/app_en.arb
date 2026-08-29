@@ -1,0 +1,18 @@
+{
+  "@@locale": "en",
+  "appName": "ChatNU",
+  "chats": "Chats",
+  "contacts": "Contacts",
+  "settings": "Settings",
+  "searchConversations": "Search conversations",
+  "all": "All",
+  "unread": "Unread",
+  "personal": "Personal",
+  "groups": "Groups",
+  "newConversation": "New conversation",
+  "newGroup": "New group",
+  "messageHint": "Message",
+  "send": "Send",
+  "attach": "Attach",
+  "encrypted": "End-to-end encrypted"
+}

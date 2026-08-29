@@ -20,17 +20,115 @@ jobs:
           flutter-version: "3.44.0"
           channel: stable
           cache: true
+      - name: Apply focused presentation fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('flutter/lib/core/glass/glass_components.dart')
+          s = p.read_text()
+          s = s.replace(
+              'children: <Widget>[title, if (subtitle != null) subtitle!],',
+              'children: <Widget>[title, ?subtitle],',
+          )
+          s = s.replace(
+              'minimum: const EdgeInsetsDirectional.fromSTEB(\n'
+              '        ChatNuSpacing.sm,\n'
+              '        0,\n'
+              '        ChatNuSpacing.sm,\n'
+              '        ChatNuSpacing.sm,\n'
+              '      ),',
+              'minimum: const EdgeInsets.fromLTRB(\n'
+              '        ChatNuSpacing.sm,\n'
+              '        0,\n'
+              '        ChatNuSpacing.sm,\n'
+              '        ChatNuSpacing.sm,\n'
+              '      ),',
+              1,
+          )
+          p.write_text(s)
+
+          p = Path('flutter/lib/features/messages/presentation/widgets/message_composer.dart')
+          s = p.read_text()
+          s = s.replace(
+              'minimum: const EdgeInsetsDirectional.fromSTEB(\n'
+              '        ChatNuSpacing.sm,\n'
+              '        ChatNuSpacing.xs,\n'
+              '        ChatNuSpacing.sm,\n'
+              '        ChatNuSpacing.sm,\n'
+              '      ),',
+              'minimum: const EdgeInsets.fromLTRB(\n'
+              '        ChatNuSpacing.sm,\n'
+              '        ChatNuSpacing.xs,\n'
+              '        ChatNuSpacing.sm,\n'
+              '        ChatNuSpacing.sm,\n'
+              '      ),',
+              1,
+          )
+          s = s.replace(': () => unawaited(_pickAttachment(context)),', ': () => unawaited(_pickAttachment()),')
+          s = s.replace('Future<void> _pickAttachment(BuildContext context) async {', 'Future<void> _pickAttachment() async {')
+          p.write_text(s)
+
+          p = Path('flutter/lib/features/messages/presentation/widgets/message_bubble.dart')
+          s = p.read_text().replace(
+              'Clipboard.setData(ClipboardData(text: message.body));',
+              'unawaited(Clipboard.setData(ClipboardData(text: message.body)));',
+          )
+          p.write_text(s)
+
+          p = Path('flutter/lib/features/calls/presentation/call_overlay.dart')
+          s = p.read_text().replace('_AudioCallBackdrop(state: state)', 'const _AudioCallBackdrop()')
+          s = s.replace(
+              'class _AudioCallBackdrop extends StatelessWidget {\n'
+              '  const _AudioCallBackdrop({required this.state});\n\n'
+              '  final ChatNuCallState state;\n',
+              'class _AudioCallBackdrop extends StatelessWidget {\n'
+              '  const _AudioCallBackdrop();\n',
+          )
+          p.write_text(s)
+
+          p = Path('flutter/lib/features/contacts/presentation/new_chat_sheet.dart')
+          s = p.read_text()
+          s = s.replace(
+              '  bool _submitting = false;\n\n'
+              '  @override\n'
+              '  void dispose() {',
+              '  bool _submitting = false;\n\n'
+              '  @override\n'
+              '  void initState() {\n'
+              '    super.initState();\n'
+              '    _groupName.addListener(_refresh);\n'
+              '  }\n\n'
+              '  @override\n'
+              '  void dispose() {',
+          )
+          s = s.replace(
+              '    _groupName.dispose();',
+              '    _groupName\n'
+              '      ..removeListener(_refresh)\n'
+              '      ..dispose();',
+          )
+          s = s.replace(
+              '  void _searchChanged(String value) {',
+              '  void _refresh() {\n'
+              '    if (mounted) setState(() {});\n'
+              '  }\n\n'
+              '  void _searchChanged(String value) {',
+          )
+          p.write_text(s)
+          PY
       - name: Format Flutter sources
         run: |
           cd flutter
           dart format lib test
-      - name: Commit canonical formatting
+      - name: Commit fixes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add flutter/lib flutter/test
           if ! git diff --cached --quiet; then
-            git commit -m "style(flutter): apply canonical Dart formatting"
+            git commit -m "fix(flutter): clear analyzer blockers and polish interactions"
             git push
           fi
       - name: Archive formatted sources

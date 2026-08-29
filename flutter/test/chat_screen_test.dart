@@ -46,9 +46,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('phone uses conversation list to chat navigation', (
-    tester,
-  ) async {
+  testWidgets('phone uses reference chat navigation', (tester) async {
     tester.view
       ..physicalSize = const Size(390, 844)
       ..devicePixelRatio = 1;
@@ -68,8 +66,8 @@ void main() {
     expect(find.byKey(const Key('conversation-list')), findsOneWidget);
     expect(find.byKey(const Key('message-composer-field')), findsNothing);
     expect(find.text('Chats'), findsOneWidget);
-    expect(find.text('Contacts'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
+    expect(find.byKey(const Key('new-chat-bottom-button')), findsOneWidget);
+    expect(find.text('Contacts'), findsNothing);
 
     await tester.tap(find.text('Leila Farhadi').first);
     await tester.pumpAndSettle();
@@ -83,6 +81,7 @@ void main() {
 
     expect(find.byKey(const Key('conversation-list')), findsOneWidget);
     expect(find.byKey(const Key('message-composer-field')), findsNothing);
+    expect(find.byKey(const Key('new-chat-bottom-button')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -42,6 +42,8 @@ class ChatNuSessionState {
   final bool offline;
 
   bool get isAuthenticated => status == ChatNuSessionStatus.authenticated;
+  bool get needsRecoveryCodeAcknowledgement =>
+      isAuthenticated && recoveryCode != null;
 }
 
 class SessionController extends Notifier<ChatNuSessionState> {
@@ -168,6 +170,12 @@ class SessionController extends Notifier<ChatNuSessionState> {
     } catch (error) {
       return error.toString();
     }
+  }
+
+  void acknowledgeRecoveryCode() {
+    final user = state.user;
+    if (user == null || !state.needsRecoveryCodeAcknowledgement) return;
+    state = ChatNuSessionState.authenticated(user, offline: state.offline);
   }
 
   Future<String?> recover({

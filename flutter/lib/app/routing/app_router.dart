@@ -34,6 +34,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (session.status == ChatNuSessionStatus.booting) {
         return location == ChatNuRoutes.splash ? null : ChatNuRoutes.splash;
       }
+      if (session.needsRecoveryCodeAcknowledgement) {
+        return location == ChatNuRoutes.login ? null : ChatNuRoutes.login;
+      }
       if (!session.isAuthenticated) {
         return location == ChatNuRoutes.login ? null : ChatNuRoutes.login;
       }
@@ -116,7 +119,7 @@ class _SplashScreen extends StatelessWidget {
     final palette = context.chatNu;
     final strings = ChatNuStrings.of(context);
     return Scaffold(
-      backgroundColor: palette.backgroundPrimary,
+      backgroundColor: palette.backgroundSecondary,
       body: Center(
         child: Semantics(
           label: strings.splash,

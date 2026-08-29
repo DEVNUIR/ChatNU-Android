@@ -1,9 +1,12 @@
-import 'package:chatnu/core/glass/glass_surface.dart';
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/responsive/chatnu_breakpoints.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/contacts/presentation/contacts_pane.dart';
+import 'package:chatnu/features/contacts/presentation/new_chat_sheet.dart';
 import 'package:chatnu/features/conversations/presentation/conversation_list_pane.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
 import 'package:chatnu/features/messages/presentation/conversation_pane.dart';
@@ -53,29 +56,75 @@ class _WideShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.chatNu;
+    final listWidth = windowClass == ChatNuWindowClass.desktop
+        ? ChatNuSizing.conversationListDesktop
+        : ChatNuSizing.conversationListTablet;
     return Scaffold(
       backgroundColor: palette.backgroundPrimary,
-      body: Row(
-        children: <Widget>[
-          _NavigationRail(destination: state.destination),
-          if (state.destination == MessengerDestination.chats) ...<Widget>[
-            SizedBox(
-              width: windowClass == ChatNuWindowClass.desktop ? 370 : 310,
-              child: ConversationListPane(
-                onSelected: ref
-                    .read(messengerDemoProvider.notifier)
-                    .selectConversation,
+      body: SafeArea(
+        child: Row(
+          children: <Widget>[
+            _DesktopNavigation(destination: state.destination),
+            if (state.destination == MessengerDestination.chats) ...<Widget>[
+              Container(
+                width: listWidth,
+                margin: const EdgeInsetsDirectional.fromSTEB(0, 12, 0, 12),
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: palette.backgroundSecondary,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: ConversationListPane(
+                  onSelected: ref
+                      .read(messengerDemoProvider.notifier)
+                      .selectConversation,
+                ),
               ),
-            ),
-            VerticalDivider(width: 1, color: palette.borderSubtle),
-            Expanded(
-              child: selectedId == null
-                  ? _NoConversationSelected(loading: state.isLoading)
-                  : ConversationPane(conversationId: selectedId!),
-            ),
-          ] else
-            Expanded(child: _DestinationContent(state.destination)),
-        ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsetsDirectional.fromSTEB(0, 12, 12, 12),
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: palette.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: selectedId == null
+                        ? _NoConversationSelected(
+                            key: const ValueKey('empty-conversation'),
+                            loading: state.isLoading,
+                          )
+                        : ConversationPane(
+                            key: ValueKey('conversation-$selectedId'),
+                            conversationId: selectedId!,
+                          ),
+                  ),
+                ),
+              ),
+            ] else
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.all(12),
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: palette.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    child: KeyedSubtree(
+                      key: ValueKey(state.destination),
+                      child: _DestinationContent(state.destination),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -90,30 +139,192 @@ class _PhoneShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(messengerDemoProvider.notifier);
-    if (state.destination == MessengerDestination.chats && selectedId != null) {
-      return Scaffold(
-        body: ConversationPane(
-          conversationId: selectedId!,
-          onBack: controller.clearConversationSelection,
-        ),
-      );
-    }
+    final palette = context.chatNu;
+    final inConversation =
+        state.destination == MessengerDestination.chats && selectedId != null;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 320);
+
+    final content = inConversation
+        ? ConversationPane(
+            key: ValueKey('phone-conversation-$selectedId'),
+            conversationId: selectedId!,
+            onBack: controller.clearConversationSelection,
+          )
+        : switch (state.destination) {
+            MessengerDestination.chats => ConversationListPane(
+              key: const ValueKey('phone-chats'),
+              onSelected: controller.selectConversation,
+            ),
+            MessengerDestination.contacts ||
+            MessengerDestination.settings => KeyedSubtree(
+              key: ValueKey('phone-${state.destination.name}'),
+              child: _DestinationContent(state.destination),
+            ),
+          };
 
     return Scaffold(
-      body: switch (state.destination) {
-        MessengerDestination.chats => ConversationListPane(
-          onSelected: controller.selectConversation,
-        ),
-        MessengerDestination.contacts ||
-        MessengerDestination.settings => _DestinationContent(state.destination),
-      },
-      bottomNavigationBar: _PhoneNavigation(destination: state.destination),
+      backgroundColor: palette.backgroundSecondary,
+      body: AnimatedSwitcher(
+        duration: duration,
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final fade = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+          final slide = Tween<Offset>(
+            begin: const Offset(0.025, 0.015),
+            end: Offset.zero,
+          ).animate(fade);
+          return FadeTransition(
+            opacity: fade,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
+        child: content,
+      ),
+      bottomNavigationBar: AnimatedSwitcher(
+        duration: duration,
+        child: inConversation
+            ? const SizedBox.shrink(key: ValueKey('nav-hidden'))
+            : _ReferenceBottomBar(
+                key: const ValueKey('nav-visible'),
+                destination: state.destination,
+              ),
+      ),
     );
   }
 }
 
-class _NavigationRail extends ConsumerWidget {
-  const _NavigationRail({required this.destination});
+class _ReferenceBottomBar extends ConsumerWidget {
+  const _ReferenceBottomBar({required this.destination, super.key});
+
+  final MessengerDestination destination;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.chatNu;
+    final strings = ChatNuStrings.of(context);
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: SafeArea(
+          top: false,
+          child: Container(
+            height: 72,
+            padding: const EdgeInsetsDirectional.fromSTEB(18, 8, 18, 8),
+            decoration: BoxDecoration(
+              color: palette.backgroundElevated.withValues(alpha: 0.8),
+              border: Border(top: BorderSide(color: palette.borderSubtle)),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  blurRadius: 24,
+                  offset: const Offset(0, -8),
+                  color: Colors.black.withValues(alpha: 0.045),
+                ),
+              ],
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: _BottomIcon(
+                    icon: destination == MessengerDestination.chats
+                        ? Icons.home_rounded
+                        : Icons.home_outlined,
+                    label: strings.chats,
+                    selected: destination == MessengerDestination.chats,
+                    onTap: () =>
+                        _setDestination(ref, MessengerDestination.chats),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Center(
+                    child: FilledButton.icon(
+                      key: const Key('new-chat-bottom-button'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(158, 48),
+                        elevation: 0,
+                        backgroundColor: palette.textPrimary,
+                        foregroundColor: palette.backgroundElevated,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                      onPressed: () => unawaited(showNewChatSheet(context)),
+                      icon: const Icon(Icons.edit_rounded, size: 19),
+                      label: Text(strings.newChat),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _BottomIcon(
+                    icon: destination == MessengerDestination.settings
+                        ? Icons.person_rounded
+                        : Icons.person_outline_rounded,
+                    label: strings.settings,
+                    selected: destination == MessengerDestination.settings,
+                    onTap: () =>
+                        _setDestination(ref, MessengerDestination.settings),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomIcon extends StatelessWidget {
+  const _BottomIcon({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.chatNu;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected
+              ? palette.glassMedium.withValues(alpha: 0.72)
+              : Colors.transparent,
+        ),
+        child: IconButton(
+          onPressed: onTap,
+          color: selected ? palette.textPrimary : palette.textMuted,
+          icon: AnimatedScale(
+            scale: selected ? 1.06 : 1,
+            duration: const Duration(milliseconds: 180),
+            child: Icon(icon, size: 25),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopNavigation extends ConsumerWidget {
+  const _DesktopNavigation({required this.destination});
 
   final MessengerDestination destination;
 
@@ -121,45 +332,60 @@ class _NavigationRail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
-    return Container(
-      width: 82,
-      color: palette.backgroundPrimary,
-      padding: const EdgeInsets.symmetric(vertical: ChatNuSpacing.md),
-      child: SafeArea(
-        child: Column(
-          children: <Widget>[
-            const ChatNuMark(size: 36),
-            const SizedBox(height: ChatNuSpacing.lg),
-            _RailButton(
-              icon: Icons.chat_bubble_outline_rounded,
-              label: strings.chats,
-              selected: destination == MessengerDestination.chats,
-              onPressed: () => _setDestination(ref, MessengerDestination.chats),
+    return SizedBox(
+      width: 88,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(10, 12, 10, 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(26),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: palette.backgroundElevated.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: palette.borderSubtle),
+              ),
+              child: Column(
+                children: <Widget>[
+                  const SizedBox(height: 14),
+                  const ChatNuMark(size: 36),
+                  const SizedBox(height: 24),
+                  _DesktopNavButton(
+                    icon: Icons.chat_bubble_rounded,
+                    label: strings.chats,
+                    selected: destination == MessengerDestination.chats,
+                    onPressed: () =>
+                        _setDestination(ref, MessengerDestination.chats),
+                  ),
+                  _DesktopNavButton(
+                    icon: Icons.people_alt_outlined,
+                    label: strings.contacts,
+                    selected: destination == MessengerDestination.contacts,
+                    onPressed: () =>
+                        _setDestination(ref, MessengerDestination.contacts),
+                  ),
+                  const Spacer(),
+                  _DesktopNavButton(
+                    icon: Icons.tune_rounded,
+                    label: strings.settings,
+                    selected: destination == MessengerDestination.settings,
+                    onPressed: () =>
+                        _setDestination(ref, MessengerDestination.settings),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+              ),
             ),
-            _RailButton(
-              icon: Icons.people_outline_rounded,
-              label: strings.contacts,
-              selected: destination == MessengerDestination.contacts,
-              onPressed: () =>
-                  _setDestination(ref, MessengerDestination.contacts),
-            ),
-            const Spacer(),
-            _RailButton(
-              icon: Icons.settings_outlined,
-              label: strings.settings,
-              selected: destination == MessengerDestination.settings,
-              onPressed: () =>
-                  _setDestination(ref, MessengerDestination.settings),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _RailButton extends StatelessWidget {
-  const _RailButton({
+class _DesktopNavButton extends StatelessWidget {
+  const _DesktopNavButton({
     required this.icon,
     required this.label,
     required this.selected,
@@ -173,48 +399,25 @@ class _RailButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.chatNu;
     return Padding(
-      padding: const EdgeInsets.only(bottom: ChatNuSpacing.xs),
-      child: GlassIconButton(
-        icon: icon,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: IconButton(
         tooltip: label,
-        selected: selected,
-        size: 52,
         onPressed: onPressed,
+        style: IconButton.styleFrom(
+          minimumSize: const Size(52, 52),
+          backgroundColor: selected
+              ? palette.glassMedium.withValues(alpha: 0.78)
+              : Colors.transparent,
+          foregroundColor: selected ? palette.textPrimary : palette.textMuted,
+        ),
+        icon: AnimatedScale(
+          scale: selected ? 1.08 : 1,
+          duration: const Duration(milliseconds: 180),
+          child: Icon(icon),
+        ),
       ),
-    );
-  }
-}
-
-class _PhoneNavigation extends ConsumerWidget {
-  const _PhoneNavigation({required this.destination});
-
-  final MessengerDestination destination;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final strings = ChatNuStrings.of(context);
-    return NavigationBar(
-      selectedIndex: destination.index,
-      onDestinationSelected: (index) {
-        ref
-            .read(messengerDemoProvider.notifier)
-            .setDestination(MessengerDestination.values[index]);
-      },
-      destinations: <NavigationDestination>[
-        NavigationDestination(
-          icon: const Icon(Icons.chat_bubble_outline_rounded),
-          label: strings.chats,
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.people_outline_rounded),
-          label: strings.contacts,
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.settings_outlined),
-          label: strings.settings,
-        ),
-      ],
     );
   }
 }
@@ -233,22 +436,34 @@ class _DestinationContent extends StatelessWidget {
 }
 
 class _NoConversationSelected extends StatelessWidget {
-  const _NoConversationSelected({required this.loading});
+  const _NoConversationSelected({required this.loading, super.key});
 
   final bool loading;
 
   @override
   Widget build(BuildContext context) {
     final strings = ChatNuStrings.of(context);
+    final palette = context.chatNu;
     return Center(
       child: loading
           ? const SizedBox.square(
               dimension: 28,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : Text(
-              strings.noConversation,
-              style: Theme.of(context).textTheme.bodyLarge,
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: palette.textMuted,
+                  size: 30,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  strings.noConversation,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ],
             ),
     );
   }

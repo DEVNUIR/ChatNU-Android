@@ -1,12 +1,17 @@
 import 'dart:async';
 
 import 'package:chatnu/core/di/app_providers.dart';
+import 'package:chatnu/core/glass/glass_components.dart';
 import 'package:chatnu/core/glass/glass_surface.dart';
+import 'package:chatnu/core/localization/chatnu_strings.dart';
+import 'package:chatnu/core/localization/locale_controller.dart';
 import 'package:chatnu/core/realtime/chatnu_realtime_client.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/auth/application/session_controller.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
+import 'package:chatnu/features/settings/application/appearance_controller.dart';
+import 'package:chatnu/features/settings/presentation/settings_support_sheets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,118 +23,308 @@ class SettingsPane extends ConsumerWidget {
     final state = ref.watch(messengerDemoProvider);
     final session = ref.watch(sessionProvider);
     final endpoint = ref.watch(serverEndpointProvider);
-    final themeMode = ref.watch(themeModeProvider);
+    final appearance = ref.watch(appearanceProvider);
+    final localeState = ref.watch(localeProvider);
+    final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
     final isDemo = ref.watch(appModeProvider) == ChatNuAppMode.demo;
+    final user = session.user ?? state.currentUser;
 
-    return ColoredBox(
-      color: palette.backgroundPrimary,
-      child: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: ListView(
-              padding: const EdgeInsets.all(ChatNuSpacing.lg),
-              children: <Widget>[
-                Text(
-                  'Settings',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: ChatNuSpacing.md),
-                _SettingsSection(
-                  title: 'Account',
-                  children: <Widget>[
-                    ListTile(
-                      leading: const Icon(Icons.person_outline_rounded),
-                      title: Text(
-                        session.user?.displayName ??
-                            state.currentUser.displayName,
-                      ),
-                      subtitle: Text(
-                        '@${session.user?.username ?? state.currentUser.username}',
-                      ),
-                    ),
-                    if (session.offline)
-                      const ListTile(
-                        leading: Icon(Icons.cloud_off_outlined),
-                        title: Text('Offline session'),
-                        subtitle: Text(
-                          'Cached credentials are available, but the selected server could not be verified right now.',
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: ChatNuSpacing.sm),
-                _SettingsSection(
-                  title: 'Connection',
-                  children: <Widget>[
-                    ListTile(
-                      leading: Icon(_connectionIcon(state.realtimeStatus)),
-                      title: Text(_connectionLabel(state.realtimeStatus)),
-                      subtitle: Text(endpoint.hostLabel),
-                      trailing: IconButton(
-                        tooltip: 'Refresh conversations',
-                        onPressed: isDemo
-                            ? null
-                            : () => unawaited(
-                                ref
-                                    .read(messengerDemoProvider.notifier)
-                                    .refreshConversations(),
-                              ),
-                        icon: const Icon(Icons.refresh_rounded),
-                      ),
-                    ),
-                    if (endpoint.usesEmergencyTls)
-                      const ListTile(
-                        leading: Icon(Icons.security_outlined),
-                        title: Text('Emergency CA enrollment saved'),
-                        subtitle: Text(
-                          'Flutter currently refuses this transport until native CA-pin verification has parity with the Android client.',
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: ChatNuSpacing.sm),
-                _SettingsSection(
-                  title: 'Appearance',
-                  children: <Widget>[
-                    RadioGroup<ThemeMode>(
-                      groupValue: themeMode,
-                      onChanged: (mode) {
-                        if (mode != null) {
-                          ref.read(themeModeProvider.notifier).setMode(mode);
-                        }
-                      },
-                      child: const Column(
-                        children: <Widget>[
-                          RadioListTile<ThemeMode>(
-                            value: ThemeMode.system,
-                            title: Text('System'),
-                          ),
-                          RadioListTile<ThemeMode>(
-                            value: ThemeMode.light,
-                            title: Text('Light'),
-                          ),
-                          RadioListTile<ThemeMode>(
-                            value: ThemeMode.dark,
-                            title: Text('Dark'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: ChatNuSpacing.md),
-                if (!isDemo)
-                  OutlinedButton.icon(
-                    key: const Key('logout-button'),
-                    onPressed: () =>
-                        unawaited(ref.read(sessionProvider.notifier).logout()),
-                    icon: const Icon(Icons.logout_rounded),
-                    label: const Text('Log out'),
-                  ),
-              ],
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: ChatNuSizing.contentMaxWidth,
+          ),
+          child: ListView(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              ChatNuSpacing.md,
+              ChatNuSpacing.sm,
+              ChatNuSpacing.md,
+              ChatNuSpacing.xl,
             ),
+            children: <Widget>[
+              GlassAppBar(
+                title: Text(
+                  strings.profile,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                subtitle: Text(
+                  endpoint.hostLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              const SizedBox(height: ChatNuSpacing.sm),
+              _ProfileHero(
+                displayName: user.displayName,
+                username: user.username,
+                avatarUrl: user.avatarUrl,
+                bio: user.bio,
+                serverLabel: endpoint.restUri.host,
+                onTap: () => unawaited(
+                  showChatNuProfileSheet(
+                    context,
+                    user: user,
+                    endpoint: endpoint,
+                  ),
+                ),
+              ),
+              if (session.offline) ...<Widget>[
+                const SizedBox(height: ChatNuSpacing.sm),
+                _NoticeTile(
+                  icon: Icons.cloud_off_outlined,
+                  color: palette.warning,
+                  title: strings.offlineSession,
+                  subtitle: strings.offlineSessionDetail,
+                ),
+              ],
+              const SizedBox(height: ChatNuSpacing.sm),
+              _SettingsSection(
+                title: strings.account,
+                children: <Widget>[
+                  _SettingsTile(
+                    icon: Icons.person_outline_rounded,
+                    title: strings.isPersian ? 'نمایهٔ شما' : 'Your profile',
+                    subtitle: strings.isPersian
+                        ? 'نام، نام کاربری، توضیح و سرور فعال'
+                        : 'Identity, bio and active server',
+                    onTap: () => unawaited(
+                      showChatNuProfileSheet(
+                        context,
+                        user: user,
+                        endpoint: endpoint,
+                      ),
+                    ),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.switch_account_rounded,
+                    title: strings.isPersian
+                        ? 'حساب‌ها و سرورها'
+                        : 'Accounts & servers',
+                    subtitle: strings.isPersian
+                        ? 'هویت فعال، سرور و provisioning امن'
+                        : 'Active identity, server and secure provisioning',
+                    onTap: () => unawaited(
+                      showAccountsServersSheet(
+                        context,
+                        user: user,
+                        endpoint: endpoint,
+                      ),
+                    ),
+                  ),
+                  _SettingsTile(
+                    icon: _connectionIcon(state.realtimeStatus),
+                    title: _connectionLabel(strings, state.realtimeStatus),
+                    subtitle: endpoint.hostLabel,
+                    trailing: IconButton(
+                      tooltip: strings.refresh,
+                      onPressed: isDemo
+                          ? null
+                          : () => unawaited(
+                              ref
+                                  .read(messengerDemoProvider.notifier)
+                                  .refreshConversations(),
+                            ),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: ChatNuSpacing.sm),
+              _SettingsSection(
+                title: strings.isPersian ? 'گفت‌وگو و رسانه' : 'Chats & media',
+                children: <Widget>[
+                  _SettingsTile(
+                    icon: Icons.wallpaper_rounded,
+                    title: strings.isPersian
+                        ? 'پس‌زمینهٔ گفتگو'
+                        : 'Chat background',
+                    subtitle: strings.isPersian
+                        ? 'پس‌زمینهٔ محیطی متحرک با احترام به Reduce Motion'
+                        : 'Ambient animated wallpaper that respects Reduce Motion',
+                  ),
+                  _SettingsTile(
+                    icon: Icons.photo_library_outlined,
+                    title: strings.isPersian
+                        ? 'رسانه و فایل‌ها'
+                        : 'Media & files',
+                    subtitle: strings.isPersian
+                        ? 'تصویر، ویدیو، صدا و فایل با رمزگذاری قبل از آپلود'
+                        : 'Images, video, audio and files encrypted before upload',
+                  ),
+                  _SettingsTile(
+                    icon: Icons.video_call_outlined,
+                    title: strings.isPersian ? 'تماس‌ها' : 'Calls',
+                    subtitle: strings.isPersian
+                        ? 'تماس صوتی و تصویری امن یک‌به‌یک'
+                        : 'Secure one-to-one audio and video calling',
+                  ),
+                ],
+              ),
+              const SizedBox(height: ChatNuSpacing.sm),
+              _SettingsSection(
+                title: strings.appearance,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      ChatNuSpacing.md,
+                      ChatNuSpacing.sm,
+                      ChatNuSpacing.md,
+                      ChatNuSpacing.xs,
+                    ),
+                    child: GlassSegmentedControl<ThemeMode>(
+                      value: appearance.themeMode,
+                      onChanged: (mode) => unawaited(
+                        ref
+                            .read(appearanceProvider.notifier)
+                            .setThemeMode(mode),
+                      ),
+                      items: <ThemeMode, String>{
+                        ThemeMode.system: strings.systemTheme,
+                        ThemeMode.light: strings.lightTheme,
+                        ThemeMode.dark: strings.darkTheme,
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      ChatNuSpacing.md,
+                      ChatNuSpacing.xs,
+                      ChatNuSpacing.md,
+                      ChatNuSpacing.sm,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          strings.glassQuality,
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: ChatNuSpacing.xs),
+                        GlassSegmentedControl<GlassEffectLevel>(
+                          value: appearance.glassEffectLevel,
+                          onChanged: (level) => unawaited(
+                            ref
+                                .read(appearanceProvider.notifier)
+                                .setGlassEffectLevel(level),
+                          ),
+                          items: <GlassEffectLevel, String>{
+                            GlassEffectLevel.full: strings.glassFull,
+                            GlassEffectLevel.balanced: strings.glassBalanced,
+                            GlassEffectLevel.reduced: strings.glassReduced,
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: ChatNuSpacing.sm),
+              _SettingsSection(
+                title: strings.isPersian ? 'زبان' : 'Language',
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      ChatNuSpacing.md,
+                      ChatNuSpacing.sm,
+                      ChatNuSpacing.md,
+                      ChatNuSpacing.md,
+                    ),
+                    child: GlassSegmentedControl<ChatNuLocalePreference>(
+                      value: localeState.preference,
+                      onChanged: (preference) => unawaited(
+                        ref
+                            .read(localeProvider.notifier)
+                            .setPreference(preference),
+                      ),
+                      items: const <ChatNuLocalePreference, String>{
+                        ChatNuLocalePreference.system: 'System',
+                        ChatNuLocalePreference.english: 'English',
+                        ChatNuLocalePreference.persian: 'فارسی',
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: ChatNuSpacing.sm),
+              _SettingsSection(
+                title: strings.privacySecurity,
+                children: <Widget>[
+                  _SettingsTile(
+                    icon: Icons.lock_outline_rounded,
+                    iconColor: palette.success,
+                    title: 'ChatNU Device Envelope v2',
+                    subtitle: strings.isPersian
+                        ? 'محتوای پیام روی دستگاه رمز می‌شود؛ این Signal Protocol نیست.'
+                        : 'Message content is encrypted on-device; this is not Signal Protocol.',
+                  ),
+                  _SettingsTile(
+                    icon: Icons.attach_file_rounded,
+                    title: strings.isPersian
+                        ? 'پیوست‌های رمزگذاری‌شده'
+                        : 'Encrypted attachments',
+                    subtitle: strings.isPersian
+                        ? 'فایل قبل از آپلود رمز می‌شود و کلید آن داخل پیام رمزگذاری‌شده است.'
+                        : 'Files are encrypted before upload; decryption material stays inside the encrypted message.',
+                  ),
+                  if (endpoint.usesEmergencyTls)
+                    _SettingsTile(
+                      icon: Icons.security_outlined,
+                      iconColor: palette.warning,
+                      title: strings.isPersian
+                          ? 'CA اضطراری ثبت شده'
+                          : 'Emergency CA enrollment saved',
+                      subtitle: strings.isPersian
+                          ? 'Flutter تا رسیدن pin verification به برابری Android این transport را رد می‌کند.'
+                          : 'Flutter refuses this transport until native CA-pin verification reaches Android parity.',
+                    ),
+                ],
+              ),
+              const SizedBox(height: ChatNuSpacing.sm),
+              _SettingsSection(
+                title: strings.isPersian ? 'راهنما و درباره' : 'Help & about',
+                children: <Widget>[
+                  _SettingsTile(
+                    icon: Icons.auto_awesome_rounded,
+                    title: strings.isPersian
+                        ? 'راهنمای شروع'
+                        : 'Getting started',
+                    subtitle: strings.isPersian
+                        ? 'هویت، سرور، افراد، رسانه و تماس'
+                        : 'Identity, server, people, media and calls',
+                    onTap: () => unawaited(showGettingStartedSheet(context)),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.help_outline_rounded,
+                    title: strings.isPersian ? 'پرسش‌های متداول' : 'FAQ',
+                    subtitle: strings.isPersian
+                        ? 'پاسخ‌های کوتاه درباره امنیت و قابلیت‌ها'
+                        : 'Short answers about security and product behavior',
+                    onTap: () => unawaited(showFaqSheet(context)),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.info_outline_rounded,
+                    title: strings.isPersian
+                        ? 'دربارهٔ ChatNU'
+                        : 'About ChatNU',
+                    subtitle: 'Developed by devnu.ir',
+                    onTap: () => unawaited(showAboutSheet(context)),
+                  ),
+                ],
+              ),
+              if (!isDemo) ...<Widget>[
+                const SizedBox(height: ChatNuSpacing.md),
+                GlassButton(
+                  label: strings.logout,
+                  icon: Icons.logout_rounded,
+                  destructive: true,
+                  onPressed: () =>
+                      unawaited(ref.read(sessionProvider.notifier).logout()),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -143,12 +338,134 @@ class SettingsPane extends ConsumerWidget {
         RealtimeConnectionStatus.disconnected => Icons.cloud_off_outlined,
       };
 
-  static String _connectionLabel(RealtimeConnectionStatus status) =>
-      switch (status) {
-        RealtimeConnectionStatus.connected => 'Realtime connected',
-        RealtimeConnectionStatus.connecting => 'Connecting realtime',
-        RealtimeConnectionStatus.disconnected => 'Realtime disconnected',
-      };
+  static String _connectionLabel(
+    ChatNuStrings strings,
+    RealtimeConnectionStatus status,
+  ) => switch (status) {
+    RealtimeConnectionStatus.connected => strings.realtimeConnected,
+    RealtimeConnectionStatus.connecting => strings.realtimeConnecting,
+    RealtimeConnectionStatus.disconnected => strings.realtimeDisconnected,
+  };
+}
+
+class _ProfileHero extends StatelessWidget {
+  const _ProfileHero({
+    required this.displayName,
+    required this.username,
+    required this.avatarUrl,
+    required this.bio,
+    required this.serverLabel,
+    required this.onTap,
+  });
+
+  final String displayName;
+  final String username;
+  final String? avatarUrl;
+  final String? bio;
+  final String serverLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.chatNu;
+    final url = avatarUrl?.trim();
+    return GlassPanel(
+      variant: GlassVariant.medium,
+      padding: const EdgeInsets.all(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: palette.glassMedium,
+                border: Border.all(color: palette.borderHighlight),
+                image: url == null || url.isEmpty
+                    ? null
+                    : DecorationImage(
+                        image: NetworkImage(url),
+                        fit: BoxFit.cover,
+                      ),
+              ),
+              alignment: Alignment.center,
+              child: url == null || url.isEmpty
+                  ? Text(
+                      _initials(displayName),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    displayName,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '@$username',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: palette.textMuted),
+                  ),
+                  if (bio?.trim().isNotEmpty == true) ...<Widget>[
+                    const SizedBox(height: 5),
+                    Text(
+                      bio!.trim(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: 7),
+                  Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.dns_outlined,
+                        size: 13,
+                        color: palette.textMuted,
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          serverLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _initials(String value) {
+    final words = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((item) => item.isNotEmpty);
+    final chars = words
+        .take(2)
+        .map((item) => item.characters.first.toUpperCase())
+        .join();
+    return chars.isEmpty ? '?' : chars;
+  }
 }
 
 class _SettingsSection extends StatelessWidget {
@@ -159,15 +476,14 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassSurface(
+    return GlassPanel(
       variant: GlassVariant.weak,
-      borderRadius: ChatNuRadii.lg,
       padding: const EdgeInsets.symmetric(vertical: ChatNuSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: const EdgeInsetsDirectional.fromSTEB(
               ChatNuSpacing.md,
               ChatNuSpacing.sm,
               ChatNuSpacing.md,
@@ -180,4 +496,70 @@ class _SettingsSection extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SettingsTile extends StatelessWidget {
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.iconColor,
+    this.onTap,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color? iconColor;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.chatNu;
+    return ListTile(
+      minTileHeight: 66,
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: palette.glassMedium,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, size: 20, color: iconColor ?? palette.textPrimary),
+      ),
+      title: Text(title),
+      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing:
+          trailing ??
+          (onTap == null ? null : const Icon(Icons.chevron_right_rounded)),
+      onTap: onTap,
+    );
+  }
+}
+
+class _NoticeTile extends StatelessWidget {
+  const _NoticeTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => GlassPanel(
+    variant: GlassVariant.weak,
+    padding: EdgeInsets.zero,
+    child: ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(title),
+      subtitle: Text(subtitle),
+    ),
+  );
 }

@@ -1,5 +1,6 @@
 import 'package:chatnu/app/routing/app_router.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
+import 'package:chatnu/features/calls/presentation/call_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,7 +30,13 @@ class ChatNuApp extends ConsumerWidget {
           data: MediaQuery.of(
             context,
           ).copyWith(boldText: MediaQuery.boldTextOf(context)),
-          child: child ?? const SizedBox.shrink(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              child ?? const SizedBox.shrink(),
+              const CallOverlay(),
+            ],
+          ),
         );
       },
     );

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:chatnu/core/glass/glass_components.dart';
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
@@ -31,20 +30,15 @@ class MessageBubble extends ConsumerWidget {
       TimeOfDay.fromDateTime(message.sentAt),
       alwaysUse24HourFormat: true,
     );
-    final bubbleColor = mine
-        ? Color.alphaBlend(
-            palette.accentPrimary.withValues(alpha: 0.3),
-            palette.glassMedium,
-          )
-        : palette.glassMedium;
+    final bubbleColor = mine ? palette.accentPrimary : palette.glassWeak;
     final alignment = mine
         ? AlignmentDirectional.centerEnd
         : AlignmentDirectional.centerStart;
     final radius = BorderRadiusDirectional.only(
-      topStart: const Radius.circular(ChatNuRadii.md),
-      topEnd: const Radius.circular(ChatNuRadii.md),
-      bottomStart: Radius.circular(mine ? ChatNuRadii.md : 5),
-      bottomEnd: Radius.circular(mine ? 5 : ChatNuRadii.md),
+      topStart: const Radius.circular(16),
+      topEnd: const Radius.circular(16),
+      bottomStart: Radius.circular(mine ? 16 : 5),
+      bottomEnd: Radius.circular(mine ? 5 : 16),
     );
 
     return Align(
@@ -53,32 +47,10 @@ class MessageBubble extends ConsumerWidget {
         onLongPress: () => _showActions(context, ref),
         onSecondaryTapDown: (_) => _showActions(context, ref),
         child: Container(
-          constraints: const BoxConstraints(
-            maxWidth: ChatNuSizing.messageMaxWidth,
-          ),
+          constraints: const BoxConstraints(maxWidth: ChatNuSizing.messageMaxWidth),
           margin: const EdgeInsetsDirectional.only(bottom: 6),
-          padding: const EdgeInsetsDirectional.fromSTEB(
-            ChatNuSpacing.sm,
-            ChatNuSpacing.xs,
-            ChatNuSpacing.sm,
-            6,
-          ),
-          decoration: BoxDecoration(
-            color: bubbleColor,
-            borderRadius: radius,
-            border: Border.all(
-              color: mine
-                  ? palette.accentPrimary.withValues(alpha: 0.22)
-                  : palette.borderSubtle,
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
+          padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 12, 7),
+          decoration: BoxDecoration(color: bubbleColor, borderRadius: radius),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -88,30 +60,42 @@ class MessageBubble extends ConsumerWidget {
                   child: Text(
                     message.senderName,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: palette.accentPrimary,
+                      color: palette.textSecondary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-              if (message.type == ChatNuMessageType.text ||
-                  !message.hasAttachment)
+              if (message.type == ChatNuMessageType.text || !message.hasAttachment)
                 Directionality(
                   textDirection: directionForText(message.body),
                   child: Text(
                     message.body,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: mine ? Colors.black : palette.textPrimary,
+                    ),
                   ),
                 )
               else
-                _AttachmentContent(message: message),
-              const SizedBox(height: 3),
+                _AttachmentContent(message: message, mine: mine),
+              const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(time, style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    time,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: mine
+                          ? Colors.black.withValues(alpha: 0.58)
+                          : palette.textMuted,
+                      fontSize: 10.5,
+                    ),
+                  ),
                   if (mine) ...<Widget>[
                     const SizedBox(width: 5),
-                    DeliveryStatus(state: message.deliveryState),
+                    DeliveryStatus(
+                      state: message.deliveryState,
+                      foreground: Colors.black.withValues(alpha: 0.58),
+                    ),
                   ],
                 ],
               ),
@@ -124,50 +108,107 @@ class MessageBubble extends ConsumerWidget {
 
   Future<void> _showActions(BuildContext context, WidgetRef ref) async {
     final strings = ChatNuStrings.of(context);
+    final palette = context.chatNu;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => GlassSheet(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.copy_outlined),
-              title: Text(strings.copy),
-              onTap: () {
-                unawaited(Clipboard.setData(ClipboardData(text: message.body)));
-                Navigator.of(sheetContext).pop();
-              },
-            ),
-            if (mine &&
-                message.deliveryState == MessageDeliveryState.failed &&
-                message.type == ChatNuMessageType.text)
-              ListTile(
-                leading: const Icon(Icons.refresh_rounded),
-                title: Text(strings.retry),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(18, 10, 18, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 18),
+                  decoration: BoxDecoration(
+                    color: palette.borderHighlight,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: palette.glassWeak,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  message.body,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _MessageSheetAction(
+                icon: Icons.copy_outlined,
+                label: strings.copy,
                 onTap: () {
+                  unawaited(Clipboard.setData(ClipboardData(text: message.body)));
                   Navigator.of(sheetContext).pop();
-                  ref
-                      .read(messengerDemoProvider.notifier)
-                      .retryMessage(message);
                 },
               ),
-          ],
+              if (mine &&
+                  message.deliveryState == MessageDeliveryState.failed &&
+                  message.type == ChatNuMessageType.text) ...<Widget>[
+                Divider(color: palette.borderSubtle, height: 1),
+                _MessageSheetAction(
+                  icon: Icons.refresh_rounded,
+                  label: strings.retry,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    ref
+                        .read(messengerDemoProvider.notifier)
+                        .retryMessage(message);
+                  },
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+class _MessageSheetAction extends StatelessWidget {
+  const _MessageSheetAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      minTileHeight: 58,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      title: Text(label),
+      trailing: Icon(icon),
+      onTap: onTap,
+    );
+  }
+}
+
 class _AttachmentContent extends ConsumerWidget {
-  const _AttachmentContent({required this.message});
+  const _AttachmentContent({required this.message, required this.mine});
 
   final ChatNuMessage message;
+  final bool mine;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
+    final foreground = mine ? Colors.black : palette.textPrimary;
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 210),
       child: Row(
@@ -177,14 +218,15 @@ class _AttachmentContent extends ConsumerWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: palette.glassStrong,
-              borderRadius: BorderRadius.circular(ChatNuRadii.sm),
-              border: Border.all(color: palette.borderSubtle),
+              color: mine
+                  ? Colors.black.withValues(alpha: 0.08)
+                  : palette.backgroundElevated,
+              borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
-            child: Icon(_attachmentIcon(message.type)),
+            child: Icon(_attachmentIcon(message.type), color: foreground),
           ),
-          const SizedBox(width: ChatNuSpacing.xs),
+          const SizedBox(width: 9),
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,12 +235,18 @@ class _AttachmentContent extends ConsumerWidget {
                   message.fileName ?? message.body,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: foreground,
+                  ),
                 ),
                 if (message.sizeBytes != null)
                   Text(
                     _formatBytes(message.sizeBytes!),
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: mine
+                          ? Colors.black.withValues(alpha: 0.58)
+                          : palette.textMuted,
+                    ),
                   ),
               ],
             ),
@@ -206,15 +254,19 @@ class _AttachmentContent extends ConsumerWidget {
           if (message.hasAttachment)
             IconButton(
               tooltip: strings.attachmentDownload,
+              color: foreground,
               onPressed: () => unawaited(_download(context, ref)),
               icon: const Icon(Icons.download_rounded),
             )
           else if (message.deliveryState == MessageDeliveryState.sending)
-            const Padding(
-              padding: EdgeInsets.all(ChatNuSpacing.sm),
+            Padding(
+              padding: const EdgeInsets.all(12),
               child: SizedBox.square(
                 dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 1.8),
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.8,
+                  color: foreground,
+                ),
               ),
             ),
         ],
@@ -261,14 +313,16 @@ class _AttachmentContent extends ConsumerWidget {
 }
 
 class DeliveryStatus extends StatelessWidget {
-  const DeliveryStatus({required this.state, super.key});
+  const DeliveryStatus({required this.state, this.foreground, super.key});
 
   final MessageDeliveryState state;
+  final Color? foreground;
 
   @override
   Widget build(BuildContext context) {
     final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
+    final color = foreground ?? palette.textMuted;
     final label = switch (state) {
       MessageDeliveryState.queuedOffline => strings.sending,
       MessageDeliveryState.sending => strings.sending,
@@ -280,27 +334,24 @@ class DeliveryStatus extends StatelessWidget {
     final child = switch (state) {
       MessageDeliveryState.queuedOffline => Icon(
         Icons.schedule_rounded,
-        size: 14,
-        color: palette.textMuted,
+        size: 13,
+        color: color,
       ),
       MessageDeliveryState.sending => SizedBox.square(
-        dimension: 12,
-        child: CircularProgressIndicator(
-          strokeWidth: 1.4,
-          color: palette.textMuted,
-        ),
+        dimension: 11,
+        child: CircularProgressIndicator(strokeWidth: 1.3, color: color),
       ),
       MessageDeliveryState.failed => Icon(
         Icons.error_outline,
-        size: 15,
-        color: palette.destructive,
+        size: 14,
+        color: foreground ?? palette.destructive,
       ),
       MessageDeliveryState.sentToServer ||
       MessageDeliveryState.deliveredToRecipientDevice ||
       MessageDeliveryState.read => Icon(
-        Icons.check_rounded,
-        size: 15,
-        color: palette.textMuted,
+        Icons.done_all_rounded,
+        size: 14,
+        color: color,
       ),
     };
     return Tooltip(

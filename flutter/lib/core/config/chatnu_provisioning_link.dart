@@ -43,7 +43,7 @@ class ChatNuProvisioningLink {
     }
 
     final version = int.tryParse(uri.queryParameters['v'] ?? '');
-    if (version != currentVersion) {
+    if (version == null || version != currentVersion) {
       throw const FormatException('Unsupported ChatNU provisioning version.');
     }
     final rawUrl = uri.queryParameters['url']?.trim() ?? '';

@@ -27,22 +27,24 @@ class RemoteAuthRepository(
 
     suspend fun login(username: String, password: String): AuthResult {
         val normalized = username.trim().lowercase()
+        val cryptoAccount = cryptoAccount(normalized)
         return runCatching {
             val response = apiClient.api.login(
                 LoginRequest(
                     username = normalized,
                     password = password,
                     deviceName = deviceName(),
-                    identityPublicKey = deviceE2ee.publicKeyBase64(normalized)
+                    identityPublicKey = deviceE2ee.publicKeyBase64(cryptoAccount)
                 )
             )
-            persist(response, normalized)
+            persist(response, cryptoAccount)
             AuthResult(success = true)
         }.getOrElse { AuthResult(success = false, error = readableError(it)) }
     }
 
     suspend fun register(username: String, password: String, displayName: String): AuthResult {
         val normalized = username.trim().lowercase()
+        val cryptoAccount = cryptoAccount(normalized)
         return runCatching {
             val response = apiClient.api.register(
                 RegisterRequest(
@@ -50,10 +52,10 @@ class RemoteAuthRepository(
                     password = password,
                     displayName = displayName.trim(),
                     deviceName = deviceName(),
-                    identityPublicKey = deviceE2ee.publicKeyBase64(normalized)
+                    identityPublicKey = deviceE2ee.publicKeyBase64(cryptoAccount)
                 )
             )
-            persist(response, normalized)
+            persist(response, cryptoAccount)
             AuthResult(success = true, recoveryCode = response.recoveryCode)
         }.getOrElse { AuthResult(success = false, error = readableError(it)) }
     }
@@ -61,11 +63,12 @@ class RemoteAuthRepository(
     /** Ensures sessions created by an older ChatNU build receive a current device id and public key. */
     suspend fun ensureDeviceIdentity() {
         val user = _currentUser.value ?: return
+        val account = tokenStore.cryptoAccount ?: cryptoAccount(user.username)
         val session = apiClient.api.session()
         tokenStore.deviceId = session.deviceId
-        tokenStore.cryptoAccount = user.username
+        tokenStore.cryptoAccount = account
         apiClient.api.updateIdentityKey(
-            IdentityKeyRequest(deviceE2ee.publicKeyBase64(user.username))
+            IdentityKeyRequest(deviceE2ee.publicKeyBase64(account))
         )
     }
 
@@ -97,11 +100,15 @@ class RemoteAuthRepository(
         _isLoggedIn.value = true
     }
 
+    private fun cryptoAccount(username: String): String =
+        "${ServerEndpoint.identityNamespace()}|${username.trim().lowercase()}"
+
     private fun readableError(error: Throwable): String {
         if (error is HttpException) {
             return when (error.code()) {
                 400 -> "اطلاعات واردشده معتبر نیست."
                 401 -> "نام کاربری یا رمز عبور اشتباه است."
+                403 -> "ثبت‌نام یا ورود روی این سرور مجاز نیست."
                 409 -> "این نام کاربری قبلاً گرفته شده."
                 429 -> "درخواست‌ها خیلی زیاد شده؛ کمی بعد دوباره امتحان کن."
                 else -> "خطای سرور (${error.code()})"

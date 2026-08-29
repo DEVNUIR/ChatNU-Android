@@ -1,12 +1,14 @@
 package com.example
 
 import android.app.Application
+import com.example.remote.SecureCacheCleaner
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 
 class ChatNuApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        SecureCacheCleaner.cleanOnColdStart(this)
         initializeFirebaseIfConfigured()
     }
 

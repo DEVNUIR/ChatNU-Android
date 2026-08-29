@@ -18,7 +18,7 @@ Future<void> showChatNuProfileSheet(
       user.displayName,
       textAlign: TextAlign.center,
       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.w750,
+        fontWeight: FontWeight.w700,
       ),
     ),
     const SizedBox(height: 4),
@@ -37,12 +37,12 @@ Future<void> showChatNuProfileSheet(
     _InfoRow(
       icon: Icons.dns_outlined,
       title: _fa(context) ? 'سرور فعال' : 'Active server',
-      value: endpoint.uri.host,
+      value: endpoint.restUri.host,
     ),
     _InfoRow(
       icon: Icons.lock_outline_rounded,
       title: _fa(context) ? 'رمزگذاری' : 'Encryption',
-      value: _fa(context) ? 'Device Envelope v2' : 'Device Envelope v2',
+      value: 'Device Envelope v2',
     ),
     const SizedBox(height: 14),
     _Notice(
@@ -274,11 +274,7 @@ Future<void> _showSheet(
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 34),
-              sliver: SliverList.list(
-                children: <Widget>[
-                  for (final child in children) child,
-                ],
-              ),
+              sliver: SliverList(delegate: SliverChildListDelegate(children)),
             ),
           ],
         ),
@@ -308,10 +304,7 @@ class _ProfileAvatar extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: url == null || url.isEmpty
-          ? Text(
-              user.initials,
-              style: Theme.of(context).textTheme.headlineSmall,
-            )
+          ? Text(user.initials, style: Theme.of(context).textTheme.labelLarge)
           : null,
     );
   }
@@ -353,7 +346,7 @@ class _AccountServerCard extends StatelessWidget {
                     const SizedBox(width: 5),
                     Flexible(
                       child: Text(
-                        endpoint.uri.host,
+                        endpoint.restUri.host,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall,
@@ -466,7 +459,7 @@ class _InfoRow extends StatelessWidget {
             value,
             textAlign: TextAlign.end,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w650,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),

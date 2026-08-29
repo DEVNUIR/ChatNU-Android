@@ -6,7 +6,9 @@ class ChatNuStrings {
   final bool isPersian;
 
   static ChatNuStrings of(BuildContext context) {
-    return ChatNuStrings._(Localizations.localeOf(context).languageCode == 'fa');
+    return ChatNuStrings._(
+      Localizations.localeOf(context).languageCode == 'fa',
+    );
   }
 
   String get appName => 'ChatNU';
@@ -54,8 +56,7 @@ class ChatNuStrings {
       ? 'رابط تماس آماده است؛ WebRTC هنوز به Flutter متصل نشده.'
       : 'Call UI is staged; WebRTC is not connected to Flutter yet.';
   String get sending => isPersian ? 'در حال ارسال' : 'Sending';
-  String get sentToServer =>
-      isPersian ? 'ارسال‌شده به سرور' : 'Sent to server';
+  String get sentToServer => isPersian ? 'ارسال‌شده به سرور' : 'Sent to server';
   String get failed => isPersian ? 'ناموفق' : 'Failed';
   String get pinned => isPersian ? 'سنجاق‌شده' : 'Pinned';
   String get muted => isPersian ? 'بی‌صدا' : 'Muted';

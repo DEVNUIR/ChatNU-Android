@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Persian locale exposes RTL messenger navigation', (tester) async {
+  testWidgets('Persian locale exposes RTL messenger navigation', (
+    tester,
+  ) async {
     tester.view
       ..physicalSize = const Size(390, 844)
       ..devicePixelRatio = 1;

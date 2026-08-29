@@ -36,14 +36,13 @@ void main() {
     await tester.tap(find.byKey(const Key('message-send-button')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Hello from the messenger migration test'),
-      findsWidgets,
-    );
+    expect(find.text('Hello from the messenger migration test'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('phone uses conversation list to chat navigation', (tester) async {
+  testWidgets('phone uses conversation list to chat navigation', (
+    tester,
+  ) async {
     tester.view
       ..physicalSize = const Size(390, 844)
       ..devicePixelRatio = 1;

@@ -19,7 +19,8 @@ class MessengerShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(messengerDemoProvider);
     final windowClass = ChatNuBreakpoints.of(context);
-    final selectedId = initialConversationId ??
+    final selectedId =
+        initialConversationId ??
         state.selectedConversationId ??
         (windowClass == ChatNuWindowClass.phone
             ? null
@@ -99,8 +100,8 @@ class _PhoneShell extends ConsumerWidget {
     return Scaffold(
       body: switch (state.destination) {
         MessengerDestination.chats => ConversationListPane(
-            onSelected: controller.selectConversation,
-          ),
+          onSelected: controller.selectConversation,
+        ),
         MessengerDestination.contacts || MessengerDestination.settings =>
           _DestinationPlaceholder(state.destination),
       },
@@ -131,29 +132,22 @@ class _NavigationRail extends ConsumerWidget {
               icon: Icons.chat_bubble_outline_rounded,
               label: strings.chats,
               selected: destination == MessengerDestination.chats,
-              onPressed: () => _setDestination(
-                ref,
-                MessengerDestination.chats,
-              ),
+              onPressed: () => _setDestination(ref, MessengerDestination.chats),
             ),
             _RailButton(
               icon: Icons.people_outline_rounded,
               label: strings.contacts,
               selected: destination == MessengerDestination.contacts,
-              onPressed: () => _setDestination(
-                ref,
-                MessengerDestination.contacts,
-              ),
+              onPressed: () =>
+                  _setDestination(ref, MessengerDestination.contacts),
             ),
             const Spacer(),
             _RailButton(
               icon: Icons.settings_outlined,
               label: strings.settings,
               selected: destination == MessengerDestination.settings,
-              onPressed: () => _setDestination(
-                ref,
-                MessengerDestination.settings,
-              ),
+              onPressed: () =>
+                  _setDestination(ref, MessengerDestination.settings),
             ),
           ],
         ),

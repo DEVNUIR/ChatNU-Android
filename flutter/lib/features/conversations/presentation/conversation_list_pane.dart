@@ -11,10 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 enum ConversationFilter { all, unread, personal, groups }
 
 class ConversationListPane extends ConsumerStatefulWidget {
-  const ConversationListPane({
-    required this.onSelected,
-    super.key,
-  });
+  const ConversationListPane({required this.onSelected, super.key});
 
   final ValueChanged<String> onSelected;
 
@@ -39,19 +36,23 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
     final palette = context.chatNu;
     final state = ref.watch(messengerDemoProvider);
     final query = _searchController.text.trim().toLowerCase();
-    final conversations = state.conversations.where((conversation) {
-      final matchesFilter = switch (_filter) {
-        ConversationFilter.all => true,
-        ConversationFilter.unread => conversation.unreadCount > 0,
-        ConversationFilter.personal =>
-          conversation.kind == ConversationKind.direct,
-        ConversationFilter.groups => conversation.kind == ConversationKind.group,
-      };
-      final matchesQuery = query.isEmpty ||
-          conversation.title.toLowerCase().contains(query) ||
-          conversation.lastMessagePreview.toLowerCase().contains(query);
-      return matchesFilter && matchesQuery;
-    }).toList(growable: false);
+    final conversations = state.conversations
+        .where((conversation) {
+          final matchesFilter = switch (_filter) {
+            ConversationFilter.all => true,
+            ConversationFilter.unread => conversation.unreadCount > 0,
+            ConversationFilter.personal =>
+              conversation.kind == ConversationKind.direct,
+            ConversationFilter.groups =>
+              conversation.kind == ConversationKind.group,
+          };
+          final matchesQuery =
+              query.isEmpty ||
+              conversation.title.toLowerCase().contains(query) ||
+              conversation.lastMessagePreview.toLowerCase().contains(query);
+          return matchesFilter && matchesQuery;
+        })
+        .toList(growable: false);
 
     return ColoredBox(
       color: palette.backgroundSecondary,
@@ -84,9 +85,7 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: ChatNuSpacing.md,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: ChatNuSpacing.md),
               child: TextField(
                 key: const Key('conversation-search-field'),
                 controller: _searchController,
@@ -144,8 +143,7 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                   final conversation = conversations[index];
                   return _ConversationTile(
                     conversation: conversation,
-                    selected:
-                        conversation.id == state.selectedConversationId,
+                    selected: conversation.id == state.selectedConversationId,
                     onTap: () => widget.onSelected(conversation.id),
                     onLongPress: () {
                       ref
@@ -175,7 +173,9 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
   }
 
   void _showLocalOnly(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -271,7 +271,10 @@ class _ConversationTile extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        Text(time, style: Theme.of(context).textTheme.bodySmall),
+                        Text(
+                          time,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -321,7 +324,8 @@ class _ConversationTile extends StatelessWidget {
                             ),
                             child: Text(
                               '${conversation.unreadCount}',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
                                   ),

@@ -28,21 +28,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/conversation/:id',
-        builder: (_, state) => MessengerShell(
-          initialConversationId: state.pathParameters['id'],
-        ),
+        builder: (_, state) =>
+            MessengerShell(initialConversationId: state.pathParameters['id']),
       ),
       GoRoute(
         path: ChatNuRoutes.contacts,
-        builder: (_, _) => const _DestinationRoute(
-          destination: MessengerDestination.contacts,
-        ),
+        builder: (_, _) =>
+            const _DestinationRoute(destination: MessengerDestination.contacts),
       ),
       GoRoute(
         path: ChatNuRoutes.settings,
-        builder: (_, _) => const _DestinationRoute(
-          destination: MessengerDestination.settings,
-        ),
+        builder: (_, _) =>
+            const _DestinationRoute(destination: MessengerDestination.settings),
       ),
       GoRoute(
         path: ChatNuRoutes.splash,
@@ -90,7 +87,9 @@ class _DestinationRouteState extends ConsumerState<_DestinationRoute> {
   void initState() {
     super.initState();
     Future<void>.microtask(() {
-      ref.read(messengerDemoProvider.notifier).setDestination(widget.destination);
+      ref
+          .read(messengerDemoProvider.notifier)
+          .setDestination(widget.destination);
     });
   }
 

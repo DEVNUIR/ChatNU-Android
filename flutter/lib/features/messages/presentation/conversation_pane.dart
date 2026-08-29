@@ -42,7 +42,8 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
     if (conversation == null) {
       return const SizedBox.shrink();
     }
-    final messages = state.messagesByConversation[conversation.id] ??
+    final messages =
+        state.messagesByConversation[conversation.id] ??
         const <ChatNuMessage>[];
     final palette = context.chatNu;
 
@@ -146,7 +147,8 @@ class _ConversationHeader extends StatelessWidget {
                 ],
               ),
             ),
-            if (isDirect && ChatNuCapabilities.current.oneToOneCalls) ...<Widget>[
+            if (isDirect &&
+                ChatNuCapabilities.current.oneToOneCalls) ...<Widget>[
               GlassIconButton(
                 icon: Icons.call_outlined,
                 tooltip: strings.voiceCall,
@@ -213,9 +215,9 @@ class _MessageBubble extends StatelessWidget {
                 child: Text(
                   message.senderName,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: palette.accentPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: palette.accentPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             Directionality(
@@ -252,30 +254,36 @@ class _DeliveryIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.chatNu;
     return switch (state) {
-      MessageDeliveryState.queuedOffline =>
-        Icon(Icons.schedule_rounded, size: 14, color: palette.textMuted),
+      MessageDeliveryState.queuedOffline => Icon(
+        Icons.schedule_rounded,
+        size: 14,
+        color: palette.textMuted,
+      ),
       MessageDeliveryState.sending => SizedBox.square(
-          dimension: 12,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.4,
-            color: palette.textMuted,
-          ),
+        dimension: 12,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.4,
+          color: palette.textMuted,
         ),
-      MessageDeliveryState.failed =>
-        Icon(Icons.error_outline, size: 15, color: palette.destructive),
+      ),
+      MessageDeliveryState.failed => Icon(
+        Icons.error_outline,
+        size: 15,
+        color: palette.destructive,
+      ),
       MessageDeliveryState.sentToServer ||
       MessageDeliveryState.deliveredToRecipientDevice ||
-      MessageDeliveryState.read =>
-        Icon(Icons.check_rounded, size: 15, color: palette.textMuted),
+      MessageDeliveryState.read => Icon(
+        Icons.check_rounded,
+        size: 15,
+        color: palette.textMuted,
+      ),
     };
   }
 }
 
 class _Composer extends ConsumerWidget {
-  const _Composer({
-    required this.controller,
-    required this.conversationId,
-  });
+  const _Composer({required this.controller, required this.conversationId});
 
   final TextEditingController controller;
   final String conversationId;

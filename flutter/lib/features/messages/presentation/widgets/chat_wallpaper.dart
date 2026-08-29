@@ -1,18 +1,20 @@
 import 'dart:math' as math;
 
 import 'package:chatnu/core/theme/chatnu_theme.dart';
+import 'package:chatnu/features/settings/application/appearance_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ChatWallpaper extends StatefulWidget {
+class ChatWallpaper extends ConsumerStatefulWidget {
   const ChatWallpaper({super.key, this.animate = true});
 
   final bool animate;
 
   @override
-  State<ChatWallpaper> createState() => _ChatWallpaperState();
+  ConsumerState<ChatWallpaper> createState() => _ChatWallpaperState();
 }
 
-class _ChatWallpaperState extends State<ChatWallpaper>
+class _ChatWallpaperState extends ConsumerState<ChatWallpaper>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -56,11 +58,18 @@ class _ChatWallpaperState extends State<ChatWallpaper>
 
   @override
   Widget build(BuildContext context) {
+    final style = ref.watch(
+      appearanceProvider.select((value) => value.wallpaperStyle),
+    );
     final palette = context.chatNu;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final base = dark
         ? palette.backgroundPrimary
         : Color.lerp(palette.backgroundSecondary, Colors.white, 0.3)!;
+
+    if (style == ChatWallpaperStyle.solid) {
+      return RepaintBoundary(child: ColoredBox(color: base));
+    }
 
     return RepaintBoundary(
       child: ClipRect(
@@ -71,61 +80,83 @@ class _ChatWallpaperState extends State<ChatWallpaper>
             return Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                ColoredBox(color: base),
-                _Orb(
-                  alignment: Alignment(
-                    -0.78 + math.sin(phase) * 0.08,
-                    -0.62 + math.cos(phase * 0.7) * 0.07,
-                  ),
-                  sizeFactor: 1.15,
-                  color: palette.accentPrimary.withValues(
-                    alpha: dark ? 0.11 : 0.08,
-                  ),
+                ColoredBox(
+                  color: style == ChatWallpaperStyle.midnight
+                      ? Color.lerp(base, const Color(0xFF09101F), dark ? 0.48 : 0.72)!
+                      : base,
                 ),
-                _Orb(
-                  alignment: Alignment(
-                    0.82 + math.cos(phase * 0.8) * 0.07,
-                    0.34 + math.sin(phase * 0.6) * 0.08,
+                if (style != ChatWallpaperStyle.softGrid) ...<Widget>[
+                  _Orb(
+                    alignment: Alignment(
+                      -0.78 + math.sin(phase) * 0.08,
+                      -0.62 + math.cos(phase * 0.7) * 0.07,
+                    ),
+                    sizeFactor: 1.15,
+                    color: palette.accentPrimary.withValues(
+                      alpha: style == ChatWallpaperStyle.midnight
+                          ? 0.16
+                          : dark
+                          ? 0.11
+                          : 0.08,
+                    ),
                   ),
-                  sizeFactor: 1.35,
-                  color: palette.accentCyan.withValues(
-                    alpha: dark ? 0.09 : 0.065,
+                  _Orb(
+                    alignment: Alignment(
+                      0.82 + math.cos(phase * 0.8) * 0.07,
+                      0.34 + math.sin(phase * 0.6) * 0.08,
+                    ),
+                    sizeFactor: 1.35,
+                    color: palette.accentCyan.withValues(
+                      alpha: style == ChatWallpaperStyle.midnight
+                          ? 0.14
+                          : dark
+                          ? 0.09
+                          : 0.065,
+                    ),
                   ),
-                ),
-                _Orb(
-                  alignment: Alignment(
-                    -0.18 + math.cos(phase * 0.55) * 0.06,
-                    0.9 + math.sin(phase * 0.75) * 0.05,
+                ] else
+                  _Orb(
+                    alignment: const Alignment(0.82, -0.72),
+                    sizeFactor: 0.95,
+                    color: palette.accentPrimary.withValues(alpha: 0.045),
                   ),
-                  sizeFactor: 0.9,
-                  color: palette.success.withValues(
-                    alpha: dark ? 0.055 : 0.035,
-                  ),
-                ),
                 CustomPaint(
                   painter: _WallpaperLinePainter(
                     grid: palette.textPrimary.withValues(
-                      alpha: dark ? 0.025 : 0.022,
+                      alpha: style == ChatWallpaperStyle.softGrid
+                          ? dark
+                                ? 0.045
+                                : 0.038
+                          : dark
+                          ? 0.025
+                          : 0.022,
                     ),
-                    line: palette.accentPrimary.withValues(
-                      alpha: dark ? 0.055 : 0.035,
-                    ),
+                    line: style == ChatWallpaperStyle.softGrid
+                        ? Colors.transparent
+                        : palette.accentPrimary.withValues(
+                            alpha: style == ChatWallpaperStyle.midnight
+                                ? 0.075
+                                : dark
+                                ? 0.055
+                                : 0.035,
+                          ),
                   ),
                 ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[
-                        Colors.transparent,
-                        base.withValues(alpha: 0.16),
-                        base.withValues(alpha: 0.38),
-                      ],
-                      stops: const <double>[0, 0.68, 1],
+                if (style != ChatWallpaperStyle.softGrid)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[
+                          Colors.transparent,
+                          base.withValues(alpha: 0.16),
+                          base.withValues(alpha: 0.38),
+                        ],
+                        stops: const <double>[0, 0.68, 1],
+                      ),
                     ),
                   ),
-                ),
               ],
             );
           },
@@ -188,6 +219,7 @@ class _WallpaperLinePainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
+    if (line.a == 0) return;
     final linePaint = Paint()
       ..color = line
       ..style = PaintingStyle.stroke

@@ -60,7 +60,7 @@ class StoredSession {
       cryptoAccount,
       userId,
       username,
-    ].any((value) => value == null || value!.isEmpty)) {
+    ].any((value) => value == null || value.isEmpty)) {
       return null;
     }
     return StoredSession(

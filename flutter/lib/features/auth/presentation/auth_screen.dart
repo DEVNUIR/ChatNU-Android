@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:chatnu/core/di/app_providers.dart';
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
-import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/auth/application/session_controller.dart';
 import 'package:chatnu/shared/widgets/chatnu_mark.dart';
 import 'package:flutter/material.dart';
@@ -150,6 +149,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ),
         const SizedBox(height: 14),
         _PasswordField(
+          key: const Key('auth-password-field'),
           controller: _password,
           obscure: _obscurePassword,
           enabled: !_busy,
@@ -199,7 +199,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             enabled: !_busy,
             autocorrect: false,
             textCapitalization: TextCapitalization.none,
-            autofillHints: const <String>[AutofillHints.newUsername],
+            autofillHints: const <String>[AutofillHints.username],
             decoration: InputDecoration(
               labelText: strings.isPersian ? 'نام کاربری' : 'Username',
               hintText: 'amir',
@@ -369,7 +369,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       key: const Key('auth-sign-in'),
       onPressed: _busy ? null : () => _switchMode(AuthMode.login),
       child: Text(
-        strings.isPersian ? 'قبلاً حساب دارید؟ ورود' : 'Already have an account? Sign in',
+        strings.isPersian
+            ? 'قبلاً حساب دارید؟ ورود'
+            : 'Already have an account? Sign in',
       ),
     );
   }
@@ -377,36 +379,46 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   void _primaryAction() {
     FocusScope.of(context).unfocus();
     setState(() => _error = null);
-    switch (_mode) {
-      case AuthMode.login:
-        unawaited(_submitLogin());
-      case AuthMode.register:
-        if (_step == 0) {
-          if (_displayName.text.trim().isEmpty || _username.text.trim().isEmpty) {
-            setState(() => _error = 'Display name and username are required.');
-            return;
-          }
-          setState(() => _step = 1);
-        } else if (_step == 1) {
-          if (_password.text.isEmpty) {
-            setState(() => _error = 'Password is required.');
-            return;
-          }
-          setState(() => _step = 2);
-        } else {
-          unawaited(_submitRegistration());
-        }
-      case AuthMode.recover:
-        if (_step == 0) {
-          if (_username.text.trim().isEmpty || _recoveryCode.text.trim().isEmpty) {
-            setState(() => _error = 'Username and recovery code are required.');
-            return;
-          }
-          setState(() => _step = 1);
-        } else {
-          unawaited(_submitRecovery());
-        }
+
+    if (_mode == AuthMode.login) {
+      unawaited(_submitLogin());
+      return;
     }
+
+    if (_mode == AuthMode.register) {
+      if (_step == 0) {
+        if (_displayName.text.trim().isEmpty || _username.text.trim().isEmpty) {
+          setState(() => _error = 'Display name and username are required.');
+          return;
+        }
+        setState(() => _step = 1);
+        return;
+      }
+      if (_step == 1) {
+        if (_password.text.isEmpty) {
+          setState(() => _error = 'Password is required.');
+          return;
+        }
+        setState(() => _step = 2);
+        return;
+      }
+      unawaited(_submitRegistration());
+      return;
+    }
+
+    if (_step == 0) {
+      if (_username.text.trim().isEmpty || _recoveryCode.text.trim().isEmpty) {
+        setState(() => _error = 'Username and recovery code are required.');
+        return;
+      }
+      setState(() => _step = 1);
+      return;
+    }
+    if (_password.text.isEmpty) {
+      setState(() => _error = 'New password is required.');
+      return;
+    }
+    unawaited(_submitRecovery());
   }
 
   void _switchMode(AuthMode mode) {
@@ -433,33 +445,33 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _submitLogin() async {
     await _runAuthAction(() async {
-      final controller = ref.read(sessionProvider.notifier);
-      return controller.login(
-        username: _username.text,
-        password: _password.text,
-      );
+      return ref
+          .read(sessionProvider.notifier)
+          .login(username: _username.text, password: _password.text);
     });
   }
 
   Future<void> _submitRegistration() async {
     await _runAuthAction(() async {
-      final controller = ref.read(sessionProvider.notifier);
-      return controller.register(
-        username: _username.text,
-        password: _password.text,
-        displayName: _displayName.text,
-      );
+      return ref
+          .read(sessionProvider.notifier)
+          .register(
+            username: _username.text,
+            password: _password.text,
+            displayName: _displayName.text,
+          );
     });
   }
 
   Future<void> _submitRecovery() async {
     await _runAuthAction(() async {
-      final controller = ref.read(sessionProvider.notifier);
-      return controller.recover(
-        username: _username.text,
-        recoveryCode: _recoveryCode.text,
-        newPassword: _password.text,
-      );
+      return ref
+          .read(sessionProvider.notifier)
+          .recover(
+            username: _username.text,
+            recoveryCode: _recoveryCode.text,
+            newPassword: _password.text,
+          );
     });
   }
 
@@ -525,7 +537,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               controller: _server,
               keyboardType: TextInputType.url,
               autocorrect: false,
-              decoration: const InputDecoration(hintText: 'https://api.devnu.ir/'),
+              decoration: const InputDecoration(
+                hintText: 'https://api.devnu.ir/',
+              ),
             ),
             const SizedBox(height: 16),
             FilledButton(
@@ -566,7 +580,10 @@ class _AuthTopBar extends StatelessWidget {
                 ? IconButton(
                     key: const Key('auth-back'),
                     onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                    ),
                   )
                 : const ChatNuMark(size: 34),
           ),
@@ -675,7 +692,9 @@ class _StepProgress extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             height: 4,
-            margin: EdgeInsetsDirectional.only(end: index == count - 1 ? 0 : 6),
+            margin: EdgeInsetsDirectional.only(
+              end: index == count - 1 ? 0 : 6,
+            ),
             decoration: BoxDecoration(
               color: active ? palette.textPrimary : palette.borderSubtle,
               borderRadius: BorderRadius.circular(99),
@@ -703,7 +722,11 @@ class _ServerRow extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: <Widget>[
-            Icon(Icons.lock_outline_rounded, size: 18, color: palette.success),
+            Icon(
+              Icons.lock_outline_rounded,
+              size: 18,
+              color: palette.success,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -747,7 +770,10 @@ class _ReviewRow extends StatelessWidget {
           children: <Widget>[
             SizedBox(
               width: 96,
-              child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ),
             Expanded(
               child: Text(
@@ -756,10 +782,11 @@ class _ReviewRow extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            if (onTap != null) const Padding(
-              padding: EdgeInsetsDirectional.only(start: 8),
-              child: Icon(Icons.chevron_right_rounded, size: 20),
-            ),
+            if (onTap != null)
+              const Padding(
+                padding: EdgeInsetsDirectional.only(start: 8),
+                child: Icon(Icons.chevron_right_rounded, size: 20),
+              ),
           ],
         ),
       ),
@@ -931,20 +958,27 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                     child: ChatNuMark(size: 36),
                   ),
                   const Spacer(),
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: palette.accentPrimary,
-                      shape: BoxShape.circle,
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: palette.accentPrimary,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.key_rounded, color: Colors.black),
                     ),
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.key_rounded, color: Colors.black),
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    strings.isPersian ? 'کد بازیابی را ذخیره کنید' : 'Save your recovery code',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(fontSize: 36),
+                    strings.isPersian
+                        ? 'کد بازیابی را ذخیره کنید'
+                        : 'Save your recovery code',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontSize: 36,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -966,11 +1000,7 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                           child: SelectableText(
                             recoveryCode,
                             key: const Key('recovery-code-result'),
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontFeatures: const <FontFeature>[
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
                         IconButton(
@@ -995,7 +1025,9 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                       ),
                     ),
                     onPressed: onContinue,
-                    child: Text(strings.isPersian ? 'ذخیره کردم' : "I've saved it"),
+                    child: Text(
+                      strings.isPersian ? 'ذخیره کردم' : "I've saved it",
+                    ),
                   ),
                   const SizedBox(height: 6),
                 ],

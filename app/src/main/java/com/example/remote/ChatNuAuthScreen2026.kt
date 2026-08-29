@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,7 +48,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,6 +58,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.R
 import com.example.ui.chatnu2026.ChatNuGlassSurface
 import com.example.ui.chatnu2026.ChatNuRadius
 import com.example.ui.chatnu2026.ChatNuSemantic
@@ -133,21 +137,12 @@ fun ChatNuAuthScreen2026(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Surface(
-                modifier = Modifier.size(70.dp),
-                shape = RoundedCornerShape(ChatNuRadius.xl),
-                color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 10.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        "NU",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Black
-                    )
-                }
-            }
+            Image(
+                painter = painterResource(R.drawable.chatnu_launcher_foreground),
+                contentDescription = "ChatNU",
+                modifier = Modifier.size(86.dp),
+                contentScale = ContentScale.Fit
+            )
             Spacer(Modifier.size(ChatNuSpacing.lg))
             Text("ChatNU", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
             Text(

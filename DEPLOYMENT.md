@@ -1,84 +1,189 @@
 # ChatNU deployment
 
-This guide targets one Linux host with Docker Engine + Docker Compose v2, Nginx/Caddy for TLS, and an optional Firebase project for offline push.
+This guide targets a single Linux host with Docker Engine + Docker Compose v2. ChatNU now ships an interactive installer for public deployments and real Internet-blackout deployments.
 
-## 1. DNS and public ports
+## 1. Recommended install
 
-Point the API hostname, for example `api.devnu.ir`, to the server. The ChatNU API remains bound to `127.0.0.1:3000` and should only be exposed through a TLS reverse proxy.
-
-For reliable WebRTC calls, set `TURN_HOST` to a public DNS name or IP reachable by phones. The supplied Coturn container uses host networking. Open/forward:
-
-- TCP/UDP `3478` for TURN/STUN, or your configured `TURN_PORT`.
-- UDP `49160-49200` for relayed media, or your configured `TURN_MIN_PORT`/`TURN_MAX_PORT` range.
-
-PostgreSQL and Redis must remain private.
-
-## 2. Start the stack
+From the repository root:
 
 ```bash
-git clone https://github.com/DEVNUIR/ChatNU-Android.git
-cd ChatNU-Android
-git checkout feat/production-ready-chatnu
 chmod +x scripts/chatnu.sh
-./scripts/chatnu.sh up
+./scripts/chatnu.sh install
 ```
 
-If `.env` does not exist, `scripts/chatnu.sh` creates it mode `0600` with random PostgreSQL, JWT and TURN shared secrets. It then builds the API, starts PostgreSQL/Redis/API/Coturn, applies committed Prisma migrations and verifies `/health`.
+The wizard asks for a domain/reachable IP, checks port conflicts, starts the Docker stack, configures TLS, optionally opens supported host firewall rules, and prints the exact address users paste into Android.
 
-Useful commands:
+The network layout intentionally keeps the Node API private:
+
+```text
+Internet / LAN
+    |
+    v
+Nginx TLS edge: 0.0.0.0:443
+    |
+    v
+ChatNU API: 127.0.0.1:3000 (or another automatic free 3000-3099 port)
+    |
+    +--> PostgreSQL (Docker-private)
+    +--> Redis      (Docker-private)
+```
+
+Do **not** bind the ChatNU API itself to `0.0.0.0` for a normal deployment. Nginx should be the public HTTP/TLS boundary. TURN is separately reachable because WebRTC clients need it.
+
+## 2. Public TLS mode
+
+Choose:
+
+```text
+1) Public / Let's Encrypt
+```
+
+The wizard:
+
+- installs Nginx when it is absent on supported apt/dnf/yum systems;
+- reuses an existing Nginx installation when present;
+- installs/uses Certbot;
+- creates the ChatNU reverse-proxy and `/realtime` WebSocket configuration;
+- obtains a publicly trusted certificate;
+- redirects HTTP to HTTPS;
+- keeps the API bound to localhost.
+
+For the simplest public flow, use a DNS hostname such as:
+
+```text
+chat.example.com
+```
+
+Point that hostname to the server before issuance. Public ACME validation still requires network reachability; if the outside Internet is unavailable, use emergency mode instead.
+
+## 3. Internet blackout / emergency TLS
+
+Choose:
+
+```text
+2) Emergency offline CA
+```
+
+or run:
 
 ```bash
-./scripts/chatnu.sh status
-./scripts/chatnu.sh logs
-./scripts/chatnu.sh restart
-./scripts/chatnu.sh down
+./scripts/chatnu.sh emergency 10.20.30.40
 ```
 
-`./scripts/chatnu.sh reset` destroys PostgreSQL, Redis and attachment volumes. Do not run it on production unless data loss is intentional.
+This mode does not contact Let's Encrypt and does not install a certificate-generation package on the host. OpenSSL is already included inside the ChatNU API image. The wizard generates a persistent local ChatNU CA, signs a server certificate with DNS/IP SANs, and starts the included Docker Nginx edge.
 
-## 3. Environment
+The server prints an enrollment URL such as:
 
-Review `.env` before public deployment:
+```text
+https://10.20.30.40#chatnu-ca=sha256/BASE64_PIN
+```
+
+Paste the complete line into ChatNU Android. Android pins that emergency CA for only that server and continues to verify the certificate chain and hostname. ChatNU never uses a global `trust all certificates` fallback.
+
+See `EMERGENCY_DEPLOYMENT.md` for offline preparation and trust-rotation details.
+
+## 4. Ports and conflicts
+
+Preferred defaults:
+
+- public HTTPS: TCP 443 on Nginx;
+- public HTTP/ACME redirect: TCP 80 in normal public mode;
+- internal ChatNU API: TCP 3000 on `127.0.0.1` only;
+- TURN/STUN: TCP+UDP 3478;
+- TURN relay media: UDP 49160-49200.
+
+The wizard automatically moves the **internal API** to a free port in 3000-3099 when needed. It also moves TURN to a later free TCP/UDP port when 3478 is occupied.
+
+In emergency mode, if TCP/443 is occupied, the included Nginx edge chooses a free HTTPS port starting at 8443 and prints that port in the Android enrollment URL.
+
+For normal public Let's Encrypt mode, TCP/80 and TCP/443 should be available to Nginx (or already owned by the existing Nginx instance). If another unrelated daemon owns them, the wizard reports the listener instead of silently killing it.
+
+## 5. TURN and calls
+
+The supplied Coturn service uses host networking. Set by the wizard:
 
 ```dotenv
-POSTGRES_PASSWORD=<random-secret>
-JWT_SECRET=<long-random-secret>
-ACCESS_TOKEN_TTL_SECONDS=900
-CORS_ORIGIN=*
-MAX_UPLOAD_BYTES=26214400
-
-TURN_HOST=turn.example.com
+TURN_HOST=chat.example.com
 TURN_PORT=3478
 TURN_REALM=chatnu
-TURN_SHARED_SECRET=<random-secret>
+TURN_SHARED_SECRET=<random secret>
 TURN_MIN_PORT=49160
 TURN_MAX_PORT=49200
-TURN_DETECT_EXTERNAL_IP=yes
-
-FIREBASE_SERVICE_ACCOUNT_B64=
 ```
 
-`TURN_SHARED_SECRET` must be identical for the API and Coturn. The API derives short-lived TURN REST credentials from it; no permanent TURN password is embedded in Android.
+`TURN_SHARED_SECRET` is generated locally and shared only between the API and Coturn. The API returns short-lived TURN REST credentials to authenticated clients; there is no permanent TURN password in the APK.
 
-If the server is behind NAT, ensure the public IP is correctly detected/advertised by Coturn and forward both the listening port and relay range. Test calls from two different networks, not merely two phones on the same Wi-Fi.
+If the server is behind NAT, forward the selected TURN TCP/UDP listening port and UDP relay range to the host. Test calls from two genuinely different networks.
 
-## 4. Optional FCM push
+## 6. Firewall automation
 
-ChatNU works without FCM while the realtime WebSocket is connected. For offline wake-up notifications, create a Firebase service account with Firebase Messaging permission and base64-encode its JSON as one line:
+At the end of installation the wizard can add narrowly scoped rules when active `ufw` or `firewalld` is detected. It opens only the selected HTTPS port, TURN TCP/UDP port and TURN UDP relay range; public mode also keeps TCP/80 available for ACME/redirect traffic.
+
+The script does not replace arbitrary custom firewall policy on systems it does not recognize.
+
+## 7. Offline image preparation
+
+A completely fresh host cannot download containers during a total blackout. Beforehand, create a bundle:
 
 ```bash
-base64 -w0 firebase-service-account.json
+./scripts/chatnu.sh offline-export chatnu-offline-images.tar
 ```
 
-Put the result only on the server:
+It includes:
+
+- PostgreSQL;
+- Redis;
+- Coturn;
+- the built ChatNU API image;
+- the emergency Nginx edge image.
+
+On the isolated host, Docker Engine + Compose must already exist. Then:
+
+```bash
+./scripts/chatnu.sh offline-import chatnu-offline-images.tar
+./scripts/chatnu.sh install
+```
+
+Choose emergency mode. No runtime image pull or public CA is required.
+
+## 8. Environment and secrets
+
+The first run creates `.env` mode `0600` with random secrets. Important values include:
+
+```dotenv
+POSTGRES_PASSWORD=<random>
+JWT_SECRET=<random>
+ACCESS_TOKEN_TTL_SECONDS=900
+MAX_UPLOAD_BYTES=26214400
+
+CHATNU_BIND_ADDRESS=127.0.0.1
+CHATNU_HOST_PORT=3000
+CHATNU_EDGE_BIND_ADDRESS=0.0.0.0
+CHATNU_HTTPS_PORT=443
+CHATNU_PUBLIC_NAME=chat.example.com
+CHATNU_TLS_MODE=public
+
+TURN_HOST=chat.example.com
+TURN_PORT=3478
+TURN_REALM=chatnu
+TURN_SHARED_SECRET=<random>
+TURN_MIN_PORT=49160
+TURN_MAX_PORT=49200
+```
+
+Do not commit `.env`, emergency CA private keys, Android signing keys, or offline image bundles.
+
+## 9. Optional FCM push
+
+ChatNU works without FCM while realtime WebSocket connectivity is alive. For offline wake-up notifications, configure a Firebase service account only on the server:
 
 ```dotenv
 FIREBASE_SERVICE_ACCOUNT_B64=<base64-json>
 ```
 
-The server uses FCM HTTP v1. Push data contains routing identifiers only; message plaintext and E2EE keys are not sent through Firebase.
+Push payloads contain routing identifiers only, not message plaintext or E2EE media keys.
 
-Android Firebase client values are supplied at build time:
+Android Firebase client values remain optional build-time values:
 
 ```text
 FIREBASE_APP_ID
@@ -87,96 +192,48 @@ FIREBASE_PROJECT_ID
 FIREBASE_SENDER_ID
 ```
 
-Leaving them blank produces a valid build with FCM disabled.
+## 10. Backups
 
-## 5. Nginx reverse proxy
-
-Example:
-
-```nginx
-server {
-    listen 80;
-    server_name api.devnu.ir;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name api.devnu.ir;
-
-    ssl_certificate /etc/letsencrypt/live/api.devnu.ir/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.devnu.ir/privkey.pem;
-
-    client_max_body_size 25m;
-
-    location /realtime {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header Authorization $http_authorization;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 75s;
-    }
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header Authorization $http_authorization;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Issue a valid TLS certificate before using the production Android endpoints. Android production traffic should use HTTPS/WSS only.
-
-## 6. Database migrations and storage
-
-API startup runs:
+PostgreSQL:
 
 ```bash
-npx prisma migrate deploy
+docker compose exec -T postgres pg_dump -U chatnu -d chatnu > chatnu-$(date +%F).sql
 ```
 
-Migration files live in `server/prisma/migrations/`. Do not replace production migration history with `prisma db push`.
-
-Attachments are already encrypted on Android before upload. The server stores the encrypted blobs on the `chatnu_attachments` named volume and serves them only through membership-authorized API routes.
-
-## 7. Android builds
-
-Debug defaults:
-
-```text
-http://10.0.2.2:3000/
-ws://10.0.2.2:3000/realtime
-```
-
-DEVNU production defaults:
-
-```text
-https://api.devnu.ir/
-wss://api.devnu.ir/realtime
-```
-
-Override endpoints at build time:
+Encrypted attachments:
 
 ```bash
-CHATNU_API_URL=https://api.example.com/ \
-CHATNU_WS_URL=wss://api.example.com/realtime \
-gradle :app:assembleDebug
+docker compose run --rm --no-deps api \
+  tar -C /data -czf - attachments > chatnu-attachments-$(date +%F).tar.gz
 ```
 
-The current Android version is `1.1.0` (`versionCode 3`).
+When emergency mode is used, also back up **privately**:
 
-## 8. Production signing and AAB
+```text
+deploy/tls/ca.key
+deploy/tls/ca.crt
+```
 
-The release workflow requires these GitHub Actions secrets:
+Losing the CA private key does not expose old traffic, but generating a replacement CA changes the emergency trust identity and requires trusted out-of-band re-enrollment of clients.
+
+## 11. Useful operations
+
+```bash
+./scripts/chatnu.sh status
+./scripts/chatnu.sh logs
+./scripts/chatnu.sh restart
+./scripts/chatnu.sh down
+```
+
+`reset` destroys PostgreSQL, Redis and attachment volumes, but deliberately preserves the emergency CA files:
+
+```bash
+./scripts/chatnu.sh reset
+```
+
+## 12. Android release signing
+
+Production release signing remains owner-controlled through:
 
 ```text
 ANDROID_KEYSTORE_BASE64
@@ -185,47 +242,10 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-Encode the long-lived owner-controlled keystore:
+Never commit a long-lived Android keystore or its passwords.
 
-```bash
-base64 -w0 chatnu-release.jks
-```
+## 13. Security boundary
 
-Store the output as `ANDROID_KEYSTORE_BASE64`. Do not commit the keystore or passwords. Preserve this keystore permanently because Android app updates depend on the signing identity.
+Message plaintext is encrypted client-side before reaching the server and attachments are encrypted before upload. One-to-one WebRTC media uses DTLS-SRTP. Emergency TLS protects transport without depending on a public CA during a blackout.
 
-The release workflow builds both:
-
-- signed `app-release.apk`
-- signed `app-release.aab`
-
-and verifies the APK signature with `apksigner`.
-
-## 9. Backups
-
-PostgreSQL dump:
-
-```bash
-docker compose exec -T postgres pg_dump -U chatnu -d chatnu > chatnu-$(date +%F).sql
-```
-
-Encrypted attachment archive:
-
-```bash
-docker compose run --rm --no-deps api \
-  tar -C /data -czf - attachments > chatnu-attachments-$(date +%F).tar.gz
-```
-
-Store backups away from the VPS and test restoration.
-
-## 10. Update
-
-```bash
-git pull --ff-only
-./scripts/chatnu.sh up
-```
-
-Back up data before schema-changing deployments.
-
-## 11. Security boundary
-
-New messages and attachments use real client-side device-based E2EE. This implementation is not Signal Protocol/Double Ratchet and does not claim Signal-grade forward secrecy or an external audit. One-to-one calls are real WebRTC using DTLS-SRTP and authenticated signaling; group calling is not implemented. See `SECURITY_MODEL.md` for exact guarantees and metadata limitations.
+The current application E2EE protocol is still not Signal Double Ratchet/MLS and has not received an independent cryptographic audit. Stronger claims remain blocked on the work described in `SECURITY_HARDENING_ROADMAP.md`.

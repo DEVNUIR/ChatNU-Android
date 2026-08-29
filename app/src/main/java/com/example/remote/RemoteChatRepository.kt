@@ -375,7 +375,22 @@ class RemoteChatRepository(
     }
 
     fun markRead(conversationId: String) {
-        scope.launch { runCatching { apiClient.api.markRead(conversationId) } }
+        val previousUnread = _conversations.value.firstOrNull { it.id == conversationId }?.unreadCount ?: 0
+        if (previousUnread <= 0) return
+        _conversations.value = _conversations.value.map {
+            if (it.id == conversationId) it.copy(unreadCount = 0) else it
+        }
+        scope.launch {
+            runCatching { apiClient.api.markRead(conversationId) }
+                .onFailure {
+                    // Roll back only if no newer unread event has already arrived.
+                    _conversations.value = _conversations.value.map { conversation ->
+                        if (conversation.id == conversationId && conversation.unreadCount == 0) {
+                            conversation.copy(unreadCount = previousUnread)
+                        } else conversation
+                    }
+                }
+        }
     }
 
     suspend fun rtcConfig(): RtcConfigResponse = apiClient.api.rtcConfig()
@@ -569,6 +584,7 @@ class RemoteChatRepository(
             avatarUrl = avatarUrl,
             lastMessageText = preview,
             lastMessageTime = lastMessage?.createdAt?.toDisplayTime().orEmpty(),
+            lastMessageTimestampMillis = lastMessage?.createdAt?.toEpochMillis() ?: 0L,
             unreadCount = unreadCount,
             isPinned = isPinned,
             isMuted = isMuted,
@@ -586,7 +602,8 @@ class RemoteChatRepository(
             senderName = senderName,
             text = decrypted.displayText,
             type = type.fromServerType(),
-            status = MessageStatus.READ,
+            // The server has accepted this message, but does not provide delivered/read receipts.
+            status = MessageStatus.SENT,
             timestamp = createdAt.toDisplayTime(),
             timestampMillis = createdAt.toEpochMillis(),
             fileName = decrypted.fileName,

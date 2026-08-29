@@ -15,6 +15,12 @@ abstract final class ChatNuRoutes {
   static const contacts = '/contacts';
   static const profile = '/profile';
   static const settings = '/settings';
+
+  // Compile-only aliases for the retained Phase 1 prototype sources. The active
+  // router does not expose AI history/model destinations; those old widgets are
+  // intentionally kept in the repository until destructive cleanup is approved.
+  static const history = chats;
+  static const models = contacts;
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {

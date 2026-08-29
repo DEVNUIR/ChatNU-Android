@@ -30,7 +30,7 @@ void main() {
     expect(await store.read('chatnu.appearance.theme'), 'dark');
   });
 
-  testWidgets('signup is a staged account flow', (tester) async {
+  testWidgets('signup is a focused staged onboarding journey', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [secretStoreProvider.overrideWithValue(MemorySecretStore())],
@@ -39,18 +39,25 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Welcome back'), findsOneWidget);
-    expect(keyedTextField('auth-username-field'), findsOneWidget);
-    expect(keyedTextField('auth-password-field'), findsOneWidget);
+    expect(find.text('Chat, simply and securely.'), findsOneWidget);
+    expect(find.byKey(const Key('auth-create-account')), findsOneWidget);
+    expect(find.byKey(const Key('auth-login-entry')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('auth-create-account')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Create your profile'), findsOneWidget);
+    expect(find.text('What should people call you?'), findsOneWidget);
     expect(keyedTextField('auth-display-name-field'), findsOneWidget);
+    expect(keyedTextField('auth-username-field'), findsNothing);
     expect(keyedTextField('auth-password-field'), findsNothing);
 
     await tester.enterText(keyedTextField('auth-display-name-field'), 'Amir');
+    await tester.tap(find.byKey(const Key('auth-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pick a username'), findsOneWidget);
+    expect(keyedTextField('auth-username-field'), findsOneWidget);
+
     await tester.enterText(keyedTextField('auth-username-field'), 'amir');
     await tester.tap(find.byKey(const Key('auth-submit-button')));
     await tester.pumpAndSettle();
@@ -65,9 +72,24 @@ void main() {
     await tester.tap(find.byKey(const Key('auth-submit-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ready to join'), findsOneWidget);
+    expect(find.text('You’re ready'), findsOneWidget);
     expect(find.text('Amir'), findsOneWidget);
     expect(find.text('@amir'), findsOneWidget);
+  });
+
+  testWidgets('login is separate from account creation', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [secretStoreProvider.overrideWithValue(MemorySecretStore())],
+        child: MaterialApp(theme: ChatNuTheme.light, home: const AuthScreen()),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('auth-login-entry')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(keyedTextField('auth-username-field'), findsOneWidget);
+    expect(keyedTextField('auth-password-field'), findsOneWidget);
   });
 
   testWidgets('failed outgoing text exposes retry without fake actions', (

@@ -8,11 +8,25 @@ import 'package:web_socket_channel/io.dart';
 enum RealtimeConnectionStatus { disconnected, connecting, connected }
 
 class ChatNuRealtimeClient {
-  ChatNuRealtimeClient({
+  factory ChatNuRealtimeClient({
+    required ChatNuServerEndpoint endpoint,
+    required CredentialVault vault,
+  }) {
+    final key = '${endpoint.restBaseUrl}|${identityHashCode(vault)}';
+    return _instances.putIfAbsent(
+      key,
+      () => ChatNuRealtimeClient._(endpoint: endpoint, vault: vault),
+    );
+  }
+
+  ChatNuRealtimeClient._({
     required ChatNuServerEndpoint endpoint,
     required CredentialVault vault,
   }) : _endpoint = endpoint,
        _vault = vault;
+
+  static final Map<String, ChatNuRealtimeClient> _instances =
+      <String, ChatNuRealtimeClient>{};
 
   final ChatNuServerEndpoint _endpoint;
   final CredentialVault _vault;
@@ -125,11 +139,5 @@ class ChatNuRealtimeClient {
     _channel = null;
     if (channel != null) await channel.sink.close(1000, 'logout');
     _status.add(RealtimeConnectionStatus.disconnected);
-  }
-
-  Future<void> dispose() async {
-    await stop();
-    await _events.close();
-    await _status.close();
   }
 }

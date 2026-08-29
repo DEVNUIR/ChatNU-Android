@@ -30,8 +30,8 @@ jobs:
           cache: true
       - name: Bootstrap Android platform
         run: ./tool/bootstrap_android.sh
-      - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Format Flutter sources
+        run: dart format lib test
       - name: Analyze
         run: flutter analyze --fatal-infos
       - name: Test

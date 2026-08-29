@@ -192,12 +192,12 @@ abstract final class ChatNuTheme {
       ),
       headlineSmall: base.textTheme.headlineSmall?.copyWith(
         color: palette.textPrimary,
-        fontWeight: FontWeight.w650,
+        fontWeight: FontWeight.w600,
         letterSpacing: -0.45,
       ),
       titleLarge: base.textTheme.titleLarge?.copyWith(
         color: palette.textPrimary,
-        fontWeight: FontWeight.w650,
+        fontWeight: FontWeight.w600,
         letterSpacing: -0.25,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(
@@ -218,7 +218,7 @@ abstract final class ChatNuTheme {
       ),
       labelLarge: base.textTheme.labelLarge?.copyWith(
         color: palette.textPrimary,
-        fontWeight: FontWeight.w650,
+        fontWeight: FontWeight.w600,
       ),
     );
 

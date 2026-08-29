@@ -1,7 +1,10 @@
-import 'package:chatnu/core/glass/glass_surface.dart';
+import 'dart:async';
+
+import 'package:chatnu/core/glass/glass_components.dart';
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
+import 'package:chatnu/features/contacts/presentation/new_chat_sheet.dart';
 import 'package:chatnu/features/conversations/domain/conversation.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
 import 'package:chatnu/shared/widgets/chatnu_mark.dart';
@@ -55,15 +58,15 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
         .toList(growable: false);
 
     return ColoredBox(
-      color: palette.backgroundSecondary,
+      color: palette.backgroundSecondary.withValues(alpha: 0.88),
       child: SafeArea(
         child: Column(
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.fromLTRB(
+              padding: const EdgeInsetsDirectional.fromSTEB(
                 ChatNuSpacing.md,
                 ChatNuSpacing.md,
-                ChatNuSpacing.md,
+                ChatNuSpacing.sm,
                 ChatNuSpacing.sm,
               ),
               child: Row(
@@ -76,90 +79,79 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
-                  GlassIconButton(
+                  GlassButton(
+                    label: strings.newChat,
                     icon: Icons.edit_square,
-                    tooltip: strings.newConversation,
-                    onPressed: () => _showLocalOnly(context, strings.mockMode),
+                    onPressed: () => unawaited(showNewChatSheet(context)),
                   ),
                 ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: ChatNuSpacing.md),
-              child: TextField(
+              child: GlassSearchField(
                 key: const Key('conversation-search-field'),
                 controller: _searchController,
+                hintText: strings.searchConversations,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: strings.searchConversations,
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  filled: true,
-                  fillColor: palette.glassWeak,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(ChatNuRadii.md),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
               ),
             ),
             const SizedBox(height: ChatNuSpacing.sm),
-            SizedBox(
-              height: 38,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ChatNuSpacing.md,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: ChatNuSpacing.md),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: GlassSegmentedControl<ConversationFilter>(
+                  value: _filter,
+                  onChanged: (value) => setState(() => _filter = value),
+                  items: <ConversationFilter, String>{
+                    ConversationFilter.all: strings.all,
+                    ConversationFilter.unread: strings.unread,
+                    ConversationFilter.personal: strings.personal,
+                    ConversationFilter.groups: strings.groups,
+                  },
                 ),
-                children: <Widget>[
-                  _FilterChip(
-                    label: strings.all,
-                    selected: _filter == ConversationFilter.all,
-                    onTap: () => _selectFilter(ConversationFilter.all),
-                  ),
-                  _FilterChip(
-                    label: strings.unread,
-                    selected: _filter == ConversationFilter.unread,
-                    onTap: () => _selectFilter(ConversationFilter.unread),
-                  ),
-                  _FilterChip(
-                    label: strings.personal,
-                    selected: _filter == ConversationFilter.personal,
-                    onTap: () => _selectFilter(ConversationFilter.personal),
-                  ),
-                  _FilterChip(
-                    label: strings.groups,
-                    selected: _filter == ConversationFilter.groups,
-                    onTap: () => _selectFilter(ConversationFilter.groups),
-                  ),
-                ],
               ),
             ),
             const SizedBox(height: ChatNuSpacing.xs),
             Expanded(
-              child: ListView.builder(
-                key: const Key('conversation-list'),
-                itemCount: conversations.length,
-                itemBuilder: (context, index) {
-                  final conversation = conversations[index];
-                  return _ConversationTile(
-                    conversation: conversation,
-                    selected: conversation.id == state.selectedConversationId,
-                    onTap: () => widget.onSelected(conversation.id),
-                    onLongPress: () {
-                      ref
-                          .read(messengerDemoProvider.notifier)
-                          .togglePin(conversation.id);
-                    },
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(ChatNuSpacing.sm),
-              child: Text(
-                strings.mockMode,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
+              child: RefreshIndicator(
+                onRefresh: ref
+                    .read(messengerDemoProvider.notifier)
+                    .refreshConversations,
+                child: conversations.isEmpty
+                    ? _ConversationEmptyState(
+                        hasAnyConversation: state.conversations.isNotEmpty,
+                        queryActive: query.isNotEmpty,
+                        onStart: () => unawaited(showNewChatSheet(context)),
+                      )
+                    : ListView.builder(
+                        key: const Key('conversation-list'),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          ChatNuSpacing.xs,
+                          2,
+                          ChatNuSpacing.xs,
+                          ChatNuSpacing.md,
+                        ),
+                        itemCount: conversations.length,
+                        itemBuilder: (context, index) {
+                          final conversation = conversations[index];
+                          return RepaintBoundary(
+                            child: _ConversationTile(
+                              conversation: conversation,
+                              selected:
+                                  conversation.id == state.selectedConversationId,
+                              onTap: () => widget.onSelected(conversation.id),
+                              onContextMenu: () => _showConversationMenu(
+                                context,
+                                conversation,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
               ),
             ),
           ],
@@ -168,43 +160,114 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
     );
   }
 
-  void _selectFilter(ConversationFilter value) {
-    setState(() => _filter = value);
-  }
-
-  void _showLocalOnly(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _showConversationMenu(
+    BuildContext context,
+    ChatNuConversation conversation,
+  ) async {
+    final strings = ChatNuStrings.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => GlassSheet(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: Icon(
+                conversation.isPinned
+                    ? Icons.push_pin_rounded
+                    : Icons.push_pin_outlined,
+              ),
+              title: Text(
+                conversation.isPinned ? strings.unpin : strings.pin,
+              ),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                ref
+                    .read(messengerDemoProvider.notifier)
+                    .togglePin(conversation.id);
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                conversation.isMuted
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+              ),
+              title: Text(
+                conversation.isMuted ? strings.unmute : strings.mute,
+              ),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                ref
+                    .read(messengerDemoProvider.notifier)
+                    .toggleMute(conversation.id);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
+class _ConversationEmptyState extends StatelessWidget {
+  const _ConversationEmptyState({
+    required this.hasAnyConversation,
+    required this.queryActive,
+    required this.onStart,
   });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final bool hasAnyConversation;
+  final bool queryActive;
+  final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
+    final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: ChatNuSpacing.xs),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        side: BorderSide(
-          color: selected ? palette.borderHighlight : palette.borderSubtle,
+    final filtered = queryActive || hasAnyConversation;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: <Widget>[
+        SizedBox(height: MediaQuery.sizeOf(context).height * 0.16),
+        Padding(
+          padding: const EdgeInsets.all(ChatNuSpacing.lg),
+          child: Column(
+            children: <Widget>[
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: palette.glassMedium,
+                  border: Border.all(color: palette.borderHighlight),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  filtered ? Icons.search_off_rounded : Icons.chat_outlined,
+                  color: palette.accentPrimary,
+                ),
+              ),
+              const SizedBox(height: ChatNuSpacing.md),
+              Text(
+                filtered ? strings.noSearchResults : strings.noConversations,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              if (!filtered) ...<Widget>[
+                const SizedBox(height: ChatNuSpacing.md),
+                GlassButton(
+                  label: strings.startConversation,
+                  icon: Icons.edit_square,
+                  prominent: true,
+                  onPressed: onStart,
+                ),
+              ],
+            ],
+          ),
         ),
-        selectedColor: palette.glassStrong,
-        backgroundColor: palette.glassWeak,
-      ),
+      ],
     );
   }
 }
@@ -214,13 +277,13 @@ class _ConversationTile extends StatelessWidget {
     required this.conversation,
     required this.selected,
     required this.onTap,
-    required this.onLongPress,
+    required this.onContextMenu,
   });
 
   final ChatNuConversation conversation;
   final bool selected;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
+  final VoidCallback onContextMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -233,136 +296,109 @@ class _ConversationTile extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: AnimatedContainer(
-          duration: ChatNuMotion.micro,
-          margin: const EdgeInsets.symmetric(
-            horizontal: ChatNuSpacing.xs,
-            vertical: 2,
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: ChatNuSpacing.sm,
-            vertical: ChatNuSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(ChatNuRadii.md),
-            color: selected ? palette.glassMedium : Colors.transparent,
-          ),
-          child: Row(
-            children: <Widget>[
-              _Avatar(
-                title: conversation.title,
-                group: conversation.kind == ConversationKind.group,
+      label: conversation.title,
+      child: GestureDetector(
+        onSecondaryTapDown: (_) => onContextMenu(),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(ChatNuRadii.md),
+          onTap: onTap,
+          onLongPress: onContextMenu,
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : ChatNuMotion.micro,
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            padding: const EdgeInsets.symmetric(
+              horizontal: ChatNuSpacing.sm,
+              vertical: ChatNuSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(ChatNuRadii.md),
+              color: selected ? palette.glassMedium : Colors.transparent,
+              border: Border.all(
+                color: selected ? palette.borderSubtle : Colors.transparent,
               ),
-              const SizedBox(width: ChatNuSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            conversation.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        Text(
-                          time,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            conversation.lastMessagePreview,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                        if (conversation.isMuted)
-                          Tooltip(
-                            message: strings.muted,
-                            child: Icon(
-                              Icons.notifications_off_outlined,
-                              size: 16,
-                              color: palette.textMuted,
+            ),
+            child: Row(
+              children: <Widget>[
+                GlassAvatar(
+                  label: conversation.title,
+                  imageUrl: conversation.avatarUrl,
+                  group: conversation.kind == ConversationKind.group,
+                ),
+                const SizedBox(width: ChatNuSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              conversation.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
                           ),
-                        if (conversation.isPinned)
-                          Padding(
-                            padding: const EdgeInsetsDirectional.only(start: 5),
-                            child: Tooltip(
-                              message: strings.pinned,
+                          const SizedBox(width: ChatNuSpacing.xs),
+                          Text(
+                            time,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              conversation.lastMessagePreview,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ),
+                          if (conversation.isMuted)
+                            Tooltip(
+                              message: strings.muted,
                               child: Icon(
-                                Icons.push_pin_outlined,
+                                Icons.notifications_off_outlined,
                                 size: 16,
                                 color: palette.textMuted,
                               ),
                             ),
-                          ),
-                        if (conversation.unreadCount > 0)
-                          Container(
-                            margin: const EdgeInsetsDirectional.only(start: 7),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: palette.accentPrimary,
-                              borderRadius: BorderRadius.circular(
-                                ChatNuRadii.pill,
+                          if (conversation.isPinned)
+                            Padding(
+                              padding: const EdgeInsetsDirectional.only(start: 5),
+                              child: Tooltip(
+                                message: strings.pinned,
+                                child: Icon(
+                                  Icons.push_pin_outlined,
+                                  size: 16,
+                                  color: palette.textMuted,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              '${conversation.unreadCount}',
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                          if (conversation.unreadCount > 0)
+                            Padding(
+                              padding: const EdgeInsetsDirectional.only(start: 7),
+                              child: GlassBadge(
+                                label: '${conversation.unreadCount}',
+                                semanticLabel:
+                                    '${conversation.unreadCount} ${strings.unread}',
+                              ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.title, required this.group});
-
-  final String title;
-  final bool group;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.chatNu;
-    return CircleAvatar(
-      radius: 25,
-      backgroundColor: palette.glassStrong,
-      foregroundColor: palette.textPrimary,
-      child: group
-          ? const Icon(Icons.group_outlined)
-          : Text(
-              title.isEmpty ? '?' : title.substring(0, 1).toUpperCase(),
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
     );
   }
 }

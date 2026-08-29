@@ -88,3 +88,5 @@ flutter build apk --release
 The bootstrap script generates only missing Flutter Android host boilerplate in a temporary directory and copies it into this Flutter workspace. It does not overwrite the hand-authored Flutter project or delete/replace the existing Kotlin application.
 
 The release workflow verifies the resulting APK signature. When production signing secrets are unavailable, the CI artifact is explicitly recorded as fallback-signed and must not be represented as a production-signed in-place upgrade build.
+
+The final merge candidate is always validated by the Flutter migration workflow before it is merged to `main`.

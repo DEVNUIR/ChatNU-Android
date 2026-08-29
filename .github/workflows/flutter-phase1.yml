@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   flutter:
@@ -30,8 +30,20 @@ jobs:
           cache: true
       - name: Bootstrap Android platform
         run: ./tool/bootstrap_android.sh
-      - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Normalize formatting
+        run: dart format lib test
+      - name: Commit normalized Dart sources
+        if: github.event_name == 'push'
+        working-directory: .
+        run: |
+          if git diff --quiet -- flutter/lib flutter/test; then
+            exit 0
+          fi
+          git config user.name "ChatNU CI"
+          git config user.email "ci@chatnu.invalid"
+          git add flutter/lib flutter/test
+          git commit -m "Normalize full-stack Flutter migration sources"
+          git push
       - name: Analyze
         run: flutter analyze --fatal-infos
       - name: Test

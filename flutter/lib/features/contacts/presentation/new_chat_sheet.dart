@@ -38,10 +38,18 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
   bool _submitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    _groupName.addListener(_refresh);
+  }
+
+  @override
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
-    _groupName.dispose();
+    _groupName
+      ..removeListener(_refresh)
+      ..dispose();
     super.dispose();
   }
 
@@ -221,6 +229,10 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
         ),
       ),
     );
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
   }
 
   void _searchChanged(String value) {

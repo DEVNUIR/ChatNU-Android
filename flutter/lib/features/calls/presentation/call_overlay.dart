@@ -65,7 +65,7 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                         objectFit:
                             RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                       )
-                    : _AudioCallBackdrop(state: state),
+                    : const _AudioCallBackdrop(),
               ),
               if (hasRemoteVideo)
                 Positioned.fill(
@@ -193,9 +193,7 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
 }
 
 class _AudioCallBackdrop extends StatelessWidget {
-  const _AudioCallBackdrop({required this.state});
-
-  final ChatNuCallState state;
+  const _AudioCallBackdrop();
 
   @override
   Widget build(BuildContext context) {

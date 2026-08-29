@@ -135,7 +135,7 @@ class MessageBubble extends ConsumerWidget {
               leading: const Icon(Icons.copy_outlined),
               title: Text(strings.copy),
               onTap: () {
-                Clipboard.setData(ClipboardData(text: message.body));
+                unawaited(Clipboard.setData(ClipboardData(text: message.body)));
                 Navigator.of(sheetContext).pop();
               },
             ),

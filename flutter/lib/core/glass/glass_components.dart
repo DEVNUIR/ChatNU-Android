@@ -162,7 +162,7 @@ class GlassAppBar extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[title, if (subtitle != null) subtitle!],
+                children: <Widget>[title, ?subtitle],
               ),
             ),
             ...actions,
@@ -181,7 +181,7 @@ class GlassBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      minimum: const EdgeInsetsDirectional.fromSTEB(
+      minimum: const EdgeInsets.fromLTRB(
         ChatNuSpacing.sm,
         0,
         ChatNuSpacing.sm,

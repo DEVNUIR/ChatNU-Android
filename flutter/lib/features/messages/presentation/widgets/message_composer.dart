@@ -61,7 +61,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return SafeArea(
       top: false,
-      minimum: const EdgeInsetsDirectional.fromSTEB(
+      minimum: const EdgeInsets.fromLTRB(
         ChatNuSpacing.sm,
         ChatNuSpacing.xs,
         ChatNuSpacing.sm,
@@ -78,9 +78,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
             GlassIconButton(
               icon: Icons.attach_file_rounded,
               tooltip: strings.attach,
-              onPressed: demo
-                  ? null
-                  : () => unawaited(_pickAttachment(context)),
+              onPressed: demo ? null : () => unawaited(_pickAttachment()),
             ),
             Expanded(
               child: ConstrainedBox(
@@ -153,7 +151,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     widget.controller.clear();
   }
 
-  Future<void> _pickAttachment(BuildContext context) async {
+  Future<void> _pickAttachment() async {
     final file = await FilePicker.pickFile();
     if (file == null) return;
     final bytes = await file.readAsBytes();

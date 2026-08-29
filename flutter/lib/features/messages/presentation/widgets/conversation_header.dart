@@ -190,7 +190,7 @@ class _HeaderAvatar extends StatelessWidget {
         boxShadow: <BoxShadow>[
           BoxShadow(
             blurRadius: 12,
-            color: palette.accent.withValues(alpha: 0.1),
+            color: palette.accentPrimary.withValues(alpha: 0.1),
           ),
         ],
         image: url == null || url.isEmpty

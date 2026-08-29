@@ -1,4 +1,6 @@
+import 'package:chatnu/core/config/chatnu_provisioning_link.dart';
 import 'package:chatnu/core/di/app_providers.dart';
+import 'package:chatnu/core/localization/locale_controller.dart';
 import 'package:chatnu/core/storage/secret_store.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/features/auth/presentation/auth_screen.dart';
@@ -35,6 +37,48 @@ void main() {
 
     expect(container.read(appearanceProvider).themeMode, ThemeMode.dark);
     expect(await store.read('chatnu.appearance.theme'), 'dark');
+  });
+
+  test('locale controller persists explicit language selection', () async {
+    final store = MemorySecretStore();
+    final container = ProviderContainer(
+      overrides: [secretStoreProvider.overrideWithValue(store)],
+    );
+    addTearDown(container.dispose);
+
+    await Future<void>.delayed(Duration.zero);
+    await container
+        .read(localeProvider.notifier)
+        .setPreference(ChatNuLocalePreference.persian);
+
+    expect(
+      container.read(localeProvider).preference,
+      ChatNuLocalePreference.persian,
+    );
+    expect(await store.read('chatnu.locale.preference'), 'persian');
+  });
+
+  test('chatnu server provisioning links are versioned and secret-free', () {
+    final parsed = ChatNuProvisioningLink.parse(
+      'chatnu://server/add?v=1&url=https%3A%2F%2Fchat.example.com%2F&name=Example',
+    );
+
+    expect(parsed.version, ChatNuProvisioningLink.currentVersion);
+    expect(parsed.endpoint.restBaseUrl, 'https://chat.example.com/');
+    expect(parsed.name, 'Example');
+    expect(parsed.qrData, contains('chatnu://server/add'));
+    expect(
+      () => ChatNuProvisioningLink.parse(
+        'chatnu://server/add?v=1&url=http%3A%2F%2Finsecure.example.com%2F',
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => ChatNuProvisioningLink.parse(
+        'chatnu://server/add?v=1&url=https%3A%2F%2Fchat.example.com%2F&token=secret',
+      ),
+      throwsFormatException,
+    );
   });
 
   testWidgets('signup is a focused staged onboarding journey', (tester) async {

@@ -40,12 +40,19 @@ enum class MessageDeliveryState {
     FAILED
 }
 
+/**
+ * Truthful mapping for the API contract that exists today.
+ *
+ * Older ChatNU code materializes server messages as READ even though MessageDto contains no read
+ * or delivery receipt. Clamp those legacy values to SENT_TO_SERVER until the backend adds a real
+ * receipt field/event. When that contract exists, only this boundary needs to change.
+ */
 fun MessageStatus.toDeliveryState(): MessageDeliveryState = when (this) {
     MessageStatus.QUEUED -> MessageDeliveryState.QUEUED_OFFLINE
     MessageStatus.SENDING -> MessageDeliveryState.SENDING
-    MessageStatus.SENT -> MessageDeliveryState.SENT_TO_SERVER
-    MessageStatus.DELIVERED -> MessageDeliveryState.DELIVERED_TO_RECIPIENT_DEVICE
-    MessageStatus.READ -> MessageDeliveryState.READ
+    MessageStatus.SENT,
+    MessageStatus.DELIVERED,
+    MessageStatus.READ -> MessageDeliveryState.SENT_TO_SERVER
     MessageStatus.FAILED -> MessageDeliveryState.FAILED
 }
 

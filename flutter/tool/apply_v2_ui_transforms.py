@@ -66,7 +66,9 @@ start = text.find("class _AttachmentContent extends ConsumerWidget {")
 end = text.find("class DeliveryStatus extends StatelessWidget {")
 if start < 0 or end < 0 or end <= start:
     raise SystemExit("AttachmentContent block not found")
-bubble.write_text(text[:start] + text[end:])
+text = text[:start] + text[end:]
+text = text.replace("import 'package:file_picker/file_picker.dart';\n", "", 1)
+bubble.write_text(text)
 
 
 # Call controller: add native speaker route and camera switching without changing signaling.
@@ -109,4 +111,41 @@ replace_once(
     overlay,
     """        if (state.video) ...<Widget>[\n          const SizedBox(width: ChatNuSpacing.xs),\n          _CallControlButton(\n            tooltip: state.cameraEnabled ? 'Camera off' : 'Camera on',\n            icon: state.cameraEnabled\n                ? Icons.videocam_rounded\n                : Icons.videocam_off_rounded,\n            selected: !state.cameraEnabled,\n            onPressed: ref.read(callControllerProvider.notifier).toggleCamera,\n          ),\n        ],\n        const SizedBox(width: ChatNuSpacing.md),""",
     """        const SizedBox(width: ChatNuSpacing.xs),\n        _CallControlButton(\n          tooltip: state.speakerOn ? 'Speaker off' : 'Speaker on',\n          icon: state.speakerOn ? Icons.volume_up_rounded : Icons.hearing_rounded,\n          selected: state.speakerOn,\n          onPressed: () => unawaited(\n            ref.read(callControllerProvider.notifier).toggleSpeaker(),\n          ),\n        ),\n        if (state.video) ...<Widget>[\n          const SizedBox(width: ChatNuSpacing.xs),\n          _CallControlButton(\n            tooltip: state.cameraEnabled ? 'Camera off' : 'Camera on',\n            icon: state.cameraEnabled\n                ? Icons.videocam_rounded\n                : Icons.videocam_off_rounded,\n            selected: !state.cameraEnabled,\n            onPressed: ref.read(callControllerProvider.notifier).toggleCamera,\n          ),\n          const SizedBox(width: ChatNuSpacing.xs),\n          _CallControlButton(\n            tooltip: 'Switch camera',\n            icon: Icons.cameraswitch_rounded,\n            onPressed: () => unawaited(\n              ref.read(callControllerProvider.notifier).switchCamera(),\n            ),\n          ),\n        ],\n        const SizedBox(width: ChatNuSpacing.md),""",
+)
+
+
+# Analyzer/API compatibility fixes for file_picker 12 and Flutter 3.44.
+contacts = ROOT / "flutter/lib/features/contacts/application/contact_book_controller.dart"
+contacts_text = contacts.read_text().replace(
+    "if (ref.mounted) state = const ContactBookState(loading: false);",
+    "if (ref.mounted) {\n          state = const ContactBookState(loading: false);\n        }",
+)
+contacts.write_text(contacts_text)
+
+composer = ROOT / "flutter/lib/features/messages/presentation/widgets/message_composer.dart"
+replace_once(
+    composer,
+    """    final result = await FilePicker.platform.pickFiles(\n      type: fileType,\n      allowMultiple: false,\n      withData: true,\n    );\n    if (result == null || result.files.isEmpty) return;\n    final file = result.files.single;\n    final bytes = file.bytes;\n    if (bytes == null || !mounted) return;""",
+    """    final file = await FilePicker.pickFile(type: fileType);\n    if (file == null) return;\n    final bytes = await file.readAsBytes();\n    if (!mounted) return;""",
+)
+
+rich = ROOT / "flutter/lib/features/messages/presentation/widgets/rich_message_content.dart"
+replace_once(
+    rich,
+    """    if (message.hasLocation) return _LocationMessage(message: message, mine: mine);""",
+    """    if (message.hasLocation) {\n      return _LocationMessage(message: message, mine: mine);\n    }""",
+)
+rich_text = rich.read_text().replace("FilePicker.platform.saveFile(", "FilePicker.saveFile(")
+rich.write_text(rich_text)
+
+actions = ROOT / "flutter/lib/features/settings/presentation/settings_action_sheets.dart"
+replace_once(
+    actions,
+    """    final result = await FilePicker.platform.pickFiles(\n      type: FileType.image,\n      allowMultiple: false,\n      withData: true,\n    );\n    if (result == null || result.files.isEmpty) return;\n    final file = result.files.single;\n    final bytes = file.bytes;\n    if (bytes == null) {\n      setState(() => _error = 'Unable to read the selected image.');\n      return;\n    }""",
+    """    final file = await FilePicker.pickFile(type: FileType.image);\n    if (file == null) return;\n    final bytes = await file.readAsBytes();""",
+)
+replace_once(
+    actions,
+    """          ...choices.entries.map(\n            (entry) => RadioListTile<ChatWallpaperStyle>(\n              value: entry.key,\n              groupValue: selected,\n              secondary: Icon(entry.value.icon),\n              title: Text(entry.value.title),\n              onChanged: (value) {\n                if (value == null) return;\n                unawaited(\n                  ref.read(appearanceProvider.notifier).setWallpaperStyle(value),\n                );\n              },\n            ),\n          ),""",
+    """          ...choices.entries.map(\n            (entry) => ListTile(\n              leading: Icon(entry.value.icon),\n              title: Text(entry.value.title),\n              trailing: selected == entry.key\n                  ? const Icon(Icons.check_circle_rounded)\n                  : const Icon(Icons.circle_outlined),\n              selected: selected == entry.key,\n              onTap: () => unawaited(\n                ref.read(appearanceProvider.notifier).setWallpaperStyle(entry.key),\n              ),\n            ),\n          ),""",
 )

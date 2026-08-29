@@ -1,0 +1,37 @@
+name: Refactor v2 one-shot
+
+on:
+  push:
+    branches:
+      - refactor/settings-media-glass-v2
+    paths:
+      - ".github/workflows/refactor-v2-one-shot.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Apply audited refactor
+        run: python3 flutter/tool/refactor_settings_media_v2.py
+      - name: Resolve and format Flutter
+        run: |
+          cd flutter
+          flutter pub get
+          dart format lib test
+      - name: Commit transformed sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm flutter/tool/refactor_settings_media_v2.py .github/workflows/refactor-v2-one-shot.yml
+          git add -A
+          git commit -m "feat: connect profile server and rich media foundations"
+          git push

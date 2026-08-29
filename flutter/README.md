@@ -26,19 +26,23 @@ The Flutter transport intentionally refuses emergency custom-CA endpoints until 
 
 See `FEATURE_PARITY.md` for the audited capability matrix and unsupported features that must not be faked.
 
-## 2026 Liquid Glass UI architecture
+## Reference-led messenger UI architecture
 
-The UI rebuild uses Riverpod, `go_router`, feature-first presentation code, centralized theme/design tokens, and reusable glass primitives. The visual hierarchy is intentionally selective:
+The UI uses Riverpod, `go_router`, feature-first presentation code, and centralized theme/design tokens. Its visual direction is deliberately closer to a focused modern messenger than a showcase design system: flat white/near-white surfaces, compact radii, restrained black/yellow emphasis, simple native-feeling sheets, and strong spacing rather than decorative effects.
 
-- blur is reserved for navigation chrome, headers, composer surfaces, sheets/dialogs and call controls
+- the primary conversation list uses lightweight flat rows with circular avatars, compact metadata and yellow unread badges
+- recent direct conversations form a small horizontal people strip rather than decorative cards
+- phone navigation keeps a central black New Chat action and minimal surrounding navigation
+- outgoing messages use the ChatNU yellow accent while incoming messages remain neutral and quiet
+- message and conversation context surfaces use simple bottom sheets rather than visually heavy glass cards
+- registration is a true staged onboarding journey: welcome → display name → username → security → review → recovery-code handoff
+- login and account recovery remain separate focused journeys instead of modes inside one overloaded form
 - conversation rows and message bubbles do not use backdrop blur
-- scrolling rows use lightweight paint and repaint isolation where useful
 - phone, tablet and desktop layouts are composed deliberately rather than stretching one layout
 - English and Persian layouts use directional APIs and support LTR/RTL text flow
-- appearance settings persist System/Light/Dark mode plus Full/Balanced/Reduced glass quality
 - reduced-motion preferences are respected by custom transitions and microinteractions
 
-Core shared UI lives under `lib/core/glass`, `lib/core/theme`, and focused feature widgets rather than repeated `BackdropFilter` decoration in individual screens.
+Reusable primitives remain centralized, but a component is used only where it improves product consistency; the interface should not expose the design system for its own sake.
 
 ## Product identity
 

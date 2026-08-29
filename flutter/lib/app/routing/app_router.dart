@@ -1,7 +1,10 @@
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
+import 'package:chatnu/features/auth/application/session_controller.dart';
+import 'package:chatnu/features/auth/presentation/auth_screen.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
 import 'package:chatnu/features/home/presentation/messenger_shell.dart';
+import 'package:chatnu/shared/widgets/chatnu_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,17 +19,45 @@ abstract final class ChatNuRoutes {
   static const profile = '/profile';
   static const settings = '/settings';
 
-  // Compile-only aliases for the retained Phase 1 prototype sources. The active
-  // router does not expose AI history/model destinations; those old widgets are
-  // intentionally kept in the repository until destructive cleanup is approved.
+  // Compile-only aliases for retained Phase 1 prototype sources. The active
+  // router does not expose AI history/model destinations.
   static const history = chats;
   static const models = contacts;
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final session = ref.watch(sessionProvider);
   return GoRouter(
-    initialLocation: ChatNuRoutes.chats,
+    initialLocation: ChatNuRoutes.splash,
+    redirect: (_, state) {
+      final location = state.matchedLocation;
+      if (session.status == ChatNuSessionStatus.booting) {
+        return location == ChatNuRoutes.splash ? null : ChatNuRoutes.splash;
+      }
+      if (!session.isAuthenticated) {
+        return location == ChatNuRoutes.login ? null : ChatNuRoutes.login;
+      }
+      if (location == ChatNuRoutes.splash ||
+          location == ChatNuRoutes.login ||
+          location == ChatNuRoutes.onboarding ||
+          location == ChatNuRoutes.home) {
+        return ChatNuRoutes.chats;
+      }
+      return null;
+    },
     routes: <RouteBase>[
+      GoRoute(
+        path: ChatNuRoutes.splash,
+        builder: (_, _) => const _SplashScreen(),
+      ),
+      GoRoute(
+        path: ChatNuRoutes.login,
+        builder: (_, _) => const AuthScreen(),
+      ),
+      GoRoute(
+        path: ChatNuRoutes.onboarding,
+        redirect: (_, _) => ChatNuRoutes.login,
+      ),
       GoRoute(path: ChatNuRoutes.home, redirect: (_, _) => ChatNuRoutes.chats),
       GoRoute(
         path: ChatNuRoutes.chats,
@@ -48,32 +79,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             const _DestinationRoute(destination: MessengerDestination.settings),
       ),
       GoRoute(
-        path: ChatNuRoutes.splash,
-        builder: (_, _) => const FeaturePlaceholderScreen(
-          kind: PlaceholderKind.splash,
-          icon: Icons.bolt_rounded,
-        ),
-      ),
-      GoRoute(
-        path: ChatNuRoutes.onboarding,
-        builder: (_, _) => const FeaturePlaceholderScreen(
-          kind: PlaceholderKind.onboarding,
-          icon: Icons.explore_rounded,
-        ),
-      ),
-      GoRoute(
-        path: ChatNuRoutes.login,
-        builder: (_, _) => const FeaturePlaceholderScreen(
-          kind: PlaceholderKind.login,
-          icon: Icons.lock_outline_rounded,
-        ),
-      ),
-      GoRoute(
         path: ChatNuRoutes.profile,
-        builder: (_, _) => const FeaturePlaceholderScreen(
-          kind: PlaceholderKind.profile,
-          icon: Icons.person_outline_rounded,
-        ),
+        builder: (_, _) =>
+            const _DestinationRoute(destination: MessengerDestination.settings),
       ),
     ],
   );
@@ -103,48 +111,29 @@ class _DestinationRouteState extends ConsumerState<_DestinationRoute> {
   Widget build(BuildContext context) => const MessengerShell();
 }
 
-enum PlaceholderKind { splash, onboarding, login, profile }
-
-class FeaturePlaceholderScreen extends StatelessWidget {
-  const FeaturePlaceholderScreen({
-    required this.kind,
-    required this.icon,
-    super.key,
-  });
-
-  final PlaceholderKind kind;
-  final IconData icon;
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
 
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
     final strings = ChatNuStrings.of(context);
-    final title = switch (kind) {
-      PlaceholderKind.splash => strings.splash,
-      PlaceholderKind.onboarding => strings.onboarding,
-      PlaceholderKind.login => strings.login,
-      PlaceholderKind.profile => strings.profile,
-    };
     return Scaffold(
       backgroundColor: palette.backgroundPrimary,
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 36, color: palette.accentPrimary),
-            const SizedBox(height: 16),
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(
-              strings.routeSoon,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () => context.go(ChatNuRoutes.chats),
-              child: Text(strings.chats),
-            ),
-          ],
+        child: Semantics(
+          label: strings.splash,
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ChatNuMark(size: 64),
+              SizedBox(height: 20),
+              SizedBox.square(
+                dimension: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ),
         ),
       ),
     );

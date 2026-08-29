@@ -13,9 +13,7 @@ void main() {
   test('appearance controller persists theme selection', () async {
     final store = MemorySecretStore();
     final container = ProviderContainer(
-      overrides: <Override>[
-        secretStoreProvider.overrideWithValue(store),
-      ],
+      overrides: [secretStoreProvider.overrideWithValue(store)],
     );
     addTearDown(container.dispose);
 
@@ -33,7 +31,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: <Override>[
+        overrides: [
           secretStoreProvider.overrideWithValue(MemorySecretStore()),
         ],
         child: MaterialApp(
@@ -56,7 +54,7 @@ void main() {
   testWidgets('failed outgoing text exposes retry without fake actions', (
     tester,
   ) async {
-    const message = ChatNuMessage(
+    final message = ChatNuMessage(
       id: 'failed-message',
       clientId: 'stable-client-id',
       conversationId: 'conversation-1',
@@ -69,12 +67,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: <Override>[
-          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
-        ],
+        overrides: [appModeProvider.overrideWithValue(ChatNuAppMode.demo)],
         child: MaterialApp(
           theme: ChatNuTheme.light,
-          home: const Scaffold(
+          home: Scaffold(
             body: Center(
               child: MessageBubble(
                 message: message,

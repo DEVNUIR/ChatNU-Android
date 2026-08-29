@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum AuthMode { login, register, recover }
+enum AuthMode { welcome, login, register, recover }
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -25,7 +25,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _recoveryCode = TextEditingController();
   final _server = TextEditingController(text: 'https://api.devnu.ir/');
 
-  AuthMode _mode = AuthMode.login;
+  AuthMode _mode = AuthMode.welcome;
   int _step = 0;
   bool _busy = false;
   bool _obscurePassword = true;
@@ -64,51 +64,39 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: 480),
             child: Column(
               children: <Widget>[
                 _AuthTopBar(
-                  canGoBack: _mode != AuthMode.login || _step > 0,
+                  canGoBack: _mode != AuthMode.welcome,
                   onBack: _goBack,
+                  onServer: _showServerSheet,
                 ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                      24,
-                      16,
-                      24,
-                      24,
-                    ),
-                    child: AutofillGroup(
-                      child: AnimatedSwitcher(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 220),
-                        transitionBuilder: (child, animation) => FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.035, 0),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
+                  child: AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 220),
+                    transitionBuilder: (child, animation) {
+                      final slide = Tween<Offset>(
+                        begin: const Offset(0.06, 0),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
                         ),
-                        child: KeyedSubtree(
-                          key: ValueKey<String>('${_mode.name}-$_step'),
-                          child: _buildStep(),
-                        ),
-                      ),
+                      );
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(position: slide, child: child),
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey<String>('${_mode.name}-$_step'),
+                      child: _buildCurrentScreen(),
                     ),
                   ),
-                ),
-                _BottomActionArea(
-                  busy: _busy,
-                  primaryLabel: _primaryLabel,
-                  onPrimary: _busy ? null : _primaryAction,
-                  secondary: _secondaryAction,
                 ),
               ],
             ),
@@ -118,88 +106,135 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 
-  Widget _buildStep() {
-    return switch (_mode) {
-      AuthMode.login => _buildLogin(),
-      AuthMode.register => _buildRegisterStep(),
-      AuthMode.recover => _buildRecoveryStep(),
-    };
-  }
+  Widget _buildCurrentScreen() => switch (_mode) {
+    AuthMode.welcome => _buildWelcome(),
+    AuthMode.login => _buildLogin(),
+    AuthMode.register => _buildRegister(),
+    AuthMode.recover => _buildRecovery(),
+  };
 
-  Widget _buildLogin() {
-    final strings = ChatNuStrings.of(context);
+  Widget _screen({
+    required Widget body,
+    required String primaryLabel,
+    required VoidCallback? onPrimary,
+    Widget? footer,
+    int? step,
+    int? stepCount,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const SizedBox(height: 20),
-        _HeroTitle(
-          eyebrow: strings.secureMessaging,
-          title: strings.isPersian ? 'خوش برگشتید' : 'Welcome back',
-          subtitle: strings.isPersian
-              ? 'برای ادامه به گفتگوهای رمزگذاری‌شده وارد شوید.'
-              : 'Sign in and pick up exactly where your secure conversations left off.',
-        ),
-        const SizedBox(height: 36),
-        TextField(
-          key: const Key('auth-username-field'),
-          controller: _username,
-          enabled: !_busy,
-          autocorrect: false,
-          textCapitalization: TextCapitalization.none,
-          autofillHints: const <String>[AutofillHints.username],
-          decoration: InputDecoration(
-            labelText: strings.isPersian ? 'نام کاربری' : 'Username',
-            hintText: 'yourname',
+        Expanded(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 20),
+            child: AutofillGroup(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  if (step != null && stepCount != null) ...<Widget>[
+                    _StepProgress(step: step, count: stepCount),
+                    const SizedBox(height: 34),
+                  ],
+                  body,
+                  _ErrorMessage(message: _error),
+                ],
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 14),
-        _PasswordField(
-          key: const Key('auth-password-field'),
-          controller: _password,
-          obscure: _obscurePassword,
-          enabled: !_busy,
-          label: strings.isPersian ? 'گذرواژه' : 'Password',
-          onToggleVisibility: () =>
-              setState(() => _obscurePassword = !_obscurePassword),
-          onSubmitted: (_) => _primaryAction(),
+        _BottomActionArea(
+          busy: _busy,
+          primaryLabel: primaryLabel,
+          onPrimary: _busy ? null : onPrimary,
+          secondary: footer,
         ),
-        const SizedBox(height: 18),
-        _ServerRow(onTap: _showServerSheet),
-        _ErrorMessage(message: _error),
       ],
     );
   }
 
-  Widget _buildRegisterStep() {
+  Widget _buildWelcome() {
     final strings = ChatNuStrings.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        _StepProgress(step: _step, count: 3),
-        const SizedBox(height: 30),
-        if (_step == 0) ...<Widget>[
-          _HeroTitle(
-            eyebrow: strings.isPersian ? 'مرحله ۱ از ۳' : 'Step 1 of 3',
-            title: strings.isPersian
-                ? 'خودتان را معرفی کنید'
-                : 'Create your profile',
-            subtitle: strings.isPersian
-                ? 'یک نام نمایشی و نام کاربری ساده انتخاب کنید. بعداً می‌توانید پروفایل را کامل‌تر کنید.'
-                : 'Choose the name people will see and a simple username they can find you by.',
-          ),
-          const SizedBox(height: 34),
-          TextField(
-            key: const Key('auth-display-name-field'),
-            controller: _displayName,
-            enabled: !_busy,
-            textCapitalization: TextCapitalization.words,
-            autofillHints: const <String>[AutofillHints.name],
-            decoration: InputDecoration(
-              labelText: strings.isPersian ? 'نام نمایشی' : 'Display name',
-              hintText: strings.isPersian ? 'مثلاً امیر' : 'e.g. Amir',
+    final palette = context.chatNu;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(24, 10, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const Spacer(flex: 2),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Container(
+              width: 82,
+              height: 82,
+              decoration: BoxDecoration(
+                color: palette.accentPrimary,
+                borderRadius: BorderRadius.circular(26),
+              ),
+              alignment: Alignment.center,
+              child: const ChatNuMark(size: 48),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 34),
+          Text(
+            strings.isPersian ? 'گفتگو، ساده و امن.' : 'Chat, simply and securely.',
+            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+              fontSize: 42,
+              height: 1.05,
+              letterSpacing: -1.8,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            strings.isPersian
+                ? 'ChatNU یک پیام‌رسان واقعی با رمزگذاری سرتاسری دستگاهی است. بدون دستیار هوش مصنوعی، بدون شلوغی.'
+                : 'ChatNU is a real device-encrypted messenger. No AI assistant, no feed, no clutter.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: palette.textSecondary,
+              fontSize: 17,
+            ),
+          ),
+          const Spacer(flex: 3),
+          FilledButton(
+            key: const Key('auth-create-account'),
+            style: _blackButtonStyle(context),
+            onPressed: () => _switchMode(AuthMode.register),
+            child: Text(strings.isPersian ? 'ساخت حساب' : 'Create account'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            key: const Key('auth-login-entry'),
+            style: _outlineButtonStyle(context),
+            onPressed: () => _switchMode(AuthMode.login),
+            child: Text(strings.isPersian ? 'ورود' : 'Log in'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            key: const Key('auth-recover-account'),
+            onPressed: () => _switchMode(AuthMode.recover),
+            child: Text(strings.isPersian ? 'بازیابی حساب' : 'Recover account'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogin() {
+    final strings = ChatNuStrings.of(context);
+    return _screen(
+      primaryLabel: strings.isPersian ? 'ورود' : 'Log in',
+      onPrimary: _primaryAction,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          _HeroTitle(
+            title: strings.isPersian ? 'خوش برگشتید' : 'Welcome back',
+            subtitle: strings.isPersian
+                ? 'نام کاربری و گذرواژه‌تان را وارد کنید.'
+                : 'Enter your username and password to continue.',
+          ),
+          const SizedBox(height: 38),
+          _FieldLabel(strings.isPersian ? 'نام کاربری' : 'Username'),
+          const SizedBox(height: 8),
           TextField(
             key: const Key('auth-username-field'),
             controller: _username,
@@ -207,187 +242,225 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             autocorrect: false,
             textCapitalization: TextCapitalization.none,
             autofillHints: const <String>[AutofillHints.username],
-            decoration: InputDecoration(
-              labelText: strings.isPersian ? 'نام کاربری' : 'Username',
-              hintText: 'amir',
-              prefixText: '@',
-            ),
+            decoration: const InputDecoration(hintText: 'username'),
           ),
-        ] else if (_step == 1) ...<Widget>[
-          _HeroTitle(
-            eyebrow: strings.isPersian ? 'مرحله ۲ از ۳' : 'Step 2 of 3',
-            title: strings.isPersian
-                ? 'حساب را امن کنید'
-                : 'Secure your account',
-            subtitle: strings.isPersian
-                ? 'گذرواژهٔ حساب را بسازید. کلید هویت E2EE دستگاه جداگانه و محلی ساخته می‌شود.'
-                : 'Create your account password. Your device E2EE identity key is generated separately and stays local.',
-          ),
-          const SizedBox(height: 34),
+          const SizedBox(height: 18),
+          _FieldLabel(strings.isPersian ? 'گذرواژه' : 'Password'),
+          const SizedBox(height: 8),
           _PasswordField(
             key: const Key('auth-password-field'),
             controller: _password,
             obscure: _obscurePassword,
             enabled: !_busy,
-            label: strings.isPersian ? 'گذرواژه' : 'Password',
             onToggleVisibility: () =>
                 setState(() => _obscurePassword = !_obscurePassword),
             onSubmitted: (_) => _primaryAction(),
           ),
-          const SizedBox(height: 18),
-          _SecurityCallout(
-            icon: Icons.lock_outline_rounded,
-            title: strings.isPersian
-                ? 'رمزگذاری سرتاسری'
-                : 'End-to-end identity',
-            body: strings.isPersian
-                ? 'کلید خصوصی هویت روی این دستگاه باقی می‌ماند و به سرور فرستاده نمی‌شود.'
-                : 'The private identity key stays on this device and is never uploaded to the server.',
-          ),
-        ] else ...<Widget>[
-          _HeroTitle(
-            eyebrow: strings.isPersian ? 'مرحله ۳ از ۳' : 'Step 3 of 3',
-            title: strings.isPersian ? 'آماده‌اید' : 'Ready to join',
-            subtitle: strings.isPersian
-                ? 'قبل از ساخت حساب، هویت و سروری را که به آن اعتماد می‌کنید مرور کنید.'
-                : 'Review your identity and the server you are trusting before the account is created.',
-          ),
-          const SizedBox(height: 30),
-          _ReviewRow(
-            label: strings.isPersian ? 'نام' : 'Name',
-            value: _displayName.text.trim(),
-          ),
-          _ReviewRow(
-            label: strings.isPersian ? 'نام کاربری' : 'Username',
-            value: '@${_username.text.trim().toLowerCase()}',
-          ),
-          _ReviewRow(
-            label: strings.isPersian ? 'سرور' : 'Server',
-            value: _server.text.trim(),
-            onTap: _showServerSheet,
-          ),
-          const SizedBox(height: 18),
-          _SecurityCallout(
-            icon: Icons.key_rounded,
-            title: strings.isPersian ? 'کد بازیابی' : 'Recovery code',
-            body: strings.isPersian
-                ? 'بعد از ساخت حساب، کد بازیابی یک‌بار نمایش داده می‌شود و تا ذخیره‌کردن آن وارد برنامه نمی‌شوید.'
-                : 'After account creation, your recovery code is shown once and the app will wait for you to save it.',
-          ),
         ],
-        _ErrorMessage(message: _error),
-      ],
-    );
-  }
-
-  Widget _buildRecoveryStep() {
-    final strings = ChatNuStrings.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        _StepProgress(step: _step, count: 2),
-        const SizedBox(height: 30),
-        if (_step == 0) ...<Widget>[
-          _HeroTitle(
-            eyebrow: strings.isPersian ? 'بازیابی امن' : 'Secure recovery',
-            title: strings.isPersian
-                ? 'حساب را پیدا کنید'
-                : 'Find your account',
-            subtitle: strings.isPersian
-                ? 'نام کاربری و کد بازیابی‌ای را که هنگام ثبت‌نام ذخیره کردید وارد کنید.'
-                : 'Enter your username and the recovery code you saved when the account was created.',
-          ),
-          const SizedBox(height: 34),
-          TextField(
-            key: const Key('auth-username-field'),
-            controller: _username,
-            enabled: !_busy,
-            autocorrect: false,
-            textCapitalization: TextCapitalization.none,
-            decoration: InputDecoration(
-              labelText: strings.isPersian ? 'نام کاربری' : 'Username',
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            key: const Key('auth-recovery-code-field'),
-            controller: _recoveryCode,
-            enabled: !_busy,
-            autocorrect: false,
-            decoration: InputDecoration(
-              labelText: strings.isPersian ? 'کد بازیابی' : 'Recovery code',
-            ),
-          ),
-        ] else ...<Widget>[
-          _HeroTitle(
-            eyebrow: strings.isPersian ? 'مرحله آخر' : 'Final step',
-            title: strings.isPersian
-                ? 'گذرواژهٔ تازه بسازید'
-                : 'Create a new password',
-            subtitle: strings.isPersian
-                ? 'بازیابی گذرواژه را تغییر می‌دهد و نشست‌ها و دستگاه‌های فعلی را لغو می‌کند.'
-                : 'Recovery changes the password and revokes the existing sessions and devices for this account.',
-          ),
-          const SizedBox(height: 34),
-          _PasswordField(
-            key: const Key('auth-password-field'),
-            controller: _password,
-            obscure: _obscurePassword,
-            enabled: !_busy,
-            label: strings.isPersian ? 'گذرواژهٔ جدید' : 'New password',
-            onToggleVisibility: () =>
-                setState(() => _obscurePassword = !_obscurePassword),
-            onSubmitted: (_) => _primaryAction(),
-          ),
-          const SizedBox(height: 18),
-          _ServerRow(onTap: _showServerSheet),
-        ],
-        _ErrorMessage(message: _error),
-      ],
-    );
-  }
-
-  String get _primaryLabel {
-    final fa = ChatNuStrings.of(context).isPersian;
-    return switch (_mode) {
-      AuthMode.login => fa ? 'ورود' : 'Sign in',
-      AuthMode.register when _step < 2 => fa ? 'ادامه' : 'Continue',
-      AuthMode.register => fa ? 'ساخت حساب' : 'Create account',
-      AuthMode.recover when _step == 0 => fa ? 'ادامه' : 'Continue',
-      AuthMode.recover => fa ? 'بازیابی حساب' : 'Recover account',
-    };
-  }
-
-  Widget? get _secondaryAction {
-    final strings = ChatNuStrings.of(context);
-    if (_mode == AuthMode.login) {
-      return Column(
-        children: <Widget>[
-          TextButton(
-            key: const Key('auth-create-account'),
-            onPressed: _busy ? null : () => _switchMode(AuthMode.register),
-            child: Text(
-              strings.isPersian
-                  ? 'حساب ندارید؟ ساخت حساب'
-                  : 'New to ChatNU? Create account',
-            ),
-          ),
-          TextButton(
-            key: const Key('auth-recover-account'),
-            onPressed: _busy ? null : () => _switchMode(AuthMode.recover),
-            child: Text(strings.isPersian ? 'بازیابی حساب' : 'Recover account'),
-          ),
-        ],
-      );
-    }
-    return TextButton(
-      key: const Key('auth-sign-in'),
-      onPressed: _busy ? null : () => _switchMode(AuthMode.login),
-      child: Text(
-        strings.isPersian
-            ? 'قبلاً حساب دارید؟ ورود'
-            : 'Already have an account? Sign in',
       ),
+      footer: TextButton(
+        onPressed: _busy ? null : () => _switchMode(AuthMode.recover),
+        child: Text(strings.isPersian ? 'گذرواژه را فراموش کردید؟' : 'Forgot password?'),
+      ),
+    );
+  }
+
+  Widget _buildRegister() {
+    final strings = ChatNuStrings.of(context);
+    const count = 4;
+    return _screen(
+      step: _step,
+      stepCount: count,
+      primaryLabel: _step == count - 1
+          ? (strings.isPersian ? 'ساخت حساب' : 'Create account')
+          : (strings.isPersian ? 'ادامه' : 'Continue'),
+      onPrimary: _primaryAction,
+      body: switch (_step) {
+        0 => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _HeroTitle(
+                title: strings.isPersian ? 'اسمتان چیست؟' : 'What should people call you?',
+                subtitle: strings.isPersian
+                    ? 'این نام در بالای گفتگوها و گروه‌ها دیده می‌شود.'
+                    : 'This is the name people will see in chats and groups.',
+              ),
+              const SizedBox(height: 42),
+              _FieldLabel(strings.isPersian ? 'نام نمایشی' : 'Display name'),
+              const SizedBox(height: 8),
+              TextField(
+                key: const Key('auth-display-name-field'),
+                controller: _displayName,
+                autofocus: true,
+                enabled: !_busy,
+                textCapitalization: TextCapitalization.words,
+                autofillHints: const <String>[AutofillHints.name],
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  hintText: strings.isPersian ? 'مثلاً امیر' : 'e.g. Amir',
+                ),
+                onSubmitted: (_) => _primaryAction(),
+              ),
+            ],
+          ),
+        1 => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _HeroTitle(
+                title: strings.isPersian ? 'یک نام کاربری انتخاب کنید' : 'Pick a username',
+                subtitle: strings.isPersian
+                    ? 'دوستانتان با این نام شما را پیدا می‌کنند.'
+                    : 'People use this to find you on ChatNU.',
+              ),
+              const SizedBox(height: 42),
+              _FieldLabel(strings.isPersian ? 'نام کاربری' : 'Username'),
+              const SizedBox(height: 8),
+              TextField(
+                key: const Key('auth-username-field'),
+                controller: _username,
+                autofocus: true,
+                enabled: !_busy,
+                autocorrect: false,
+                textCapitalization: TextCapitalization.none,
+                autofillHints: const <String>[AutofillHints.username],
+                decoration: const InputDecoration(
+                  hintText: 'username',
+                  prefixText: '@',
+                ),
+                onSubmitted: (_) => _primaryAction(),
+              ),
+            ],
+          ),
+        2 => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _HeroTitle(
+                title: strings.isPersian ? 'حسابتان را امن کنید' : 'Secure your account',
+                subtitle: strings.isPersian
+                    ? 'یک گذرواژه قوی بسازید. کلید خصوصی هویت دستگاه جداگانه روی همین دستگاه ساخته می‌شود.'
+                    : 'Create a strong password. Your device identity key is generated separately and stays on this device.',
+              ),
+              const SizedBox(height: 42),
+              _FieldLabel(strings.isPersian ? 'گذرواژه' : 'Password'),
+              const SizedBox(height: 8),
+              _PasswordField(
+                key: const Key('auth-password-field'),
+                controller: _password,
+                obscure: _obscurePassword,
+                enabled: !_busy,
+                onToggleVisibility: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+                onSubmitted: (_) => _primaryAction(),
+              ),
+              const SizedBox(height: 22),
+              _SecurityNote(
+                title: strings.isPersian ? 'رمزگذاری سرتاسری دستگاهی' : 'Device end-to-end encryption',
+                body: strings.isPersian
+                    ? 'کلید خصوصی هویت شما به سرور ارسال نمی‌شود.'
+                    : 'Your private identity key is never uploaded to the server.',
+              ),
+            ],
+          ),
+        _ => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _HeroTitle(
+                title: strings.isPersian ? 'همه‌چیز آماده است' : 'You’re ready',
+                subtitle: strings.isPersian
+                    ? 'قبل از ساخت حساب، اطلاعاتتان را یک‌بار بررسی کنید.'
+                    : 'Check the details once before we create your account.',
+              ),
+              const SizedBox(height: 30),
+              _ProfileReview(
+                displayName: _displayName.text.trim(),
+                username: _username.text.trim(),
+              ),
+              const SizedBox(height: 20),
+              _ServerRow(onTap: _showServerSheet),
+              const SizedBox(height: 18),
+              _SecurityNote(
+                title: strings.isPersian ? 'کد بازیابی را ذخیره کنید' : 'Save the recovery code',
+                body: strings.isPersian
+                    ? 'بعد از ثبت‌نام، کد بازیابی یک‌بار نمایش داده می‌شود.'
+                    : 'After signup, ChatNU shows your recovery code once before entering the app.',
+              ),
+            ],
+          ),
+      },
+      footer: TextButton(
+        onPressed: _busy ? null : () => _switchMode(AuthMode.login),
+        child: Text(
+          strings.isPersian ? 'حساب دارید؟ ورود' : 'Already have an account? Log in',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecovery() {
+    final strings = ChatNuStrings.of(context);
+    return _screen(
+      step: _step,
+      stepCount: 2,
+      primaryLabel: _step == 0
+          ? (strings.isPersian ? 'ادامه' : 'Continue')
+          : (strings.isPersian ? 'بازیابی حساب' : 'Recover account'),
+      onPrimary: _primaryAction,
+      body: _step == 0
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _HeroTitle(
+                  title: strings.isPersian ? 'حسابتان را پیدا کنید' : 'Find your account',
+                  subtitle: strings.isPersian
+                      ? 'نام کاربری و کد بازیابی‌ای که هنگام ثبت‌نام ذخیره کردید وارد کنید.'
+                      : 'Enter your username and the recovery code you saved during signup.',
+                ),
+                const SizedBox(height: 38),
+                _FieldLabel(strings.isPersian ? 'نام کاربری' : 'Username'),
+                const SizedBox(height: 8),
+                TextField(
+                  key: const Key('auth-username-field'),
+                  controller: _username,
+                  enabled: !_busy,
+                  autocorrect: false,
+                  textCapitalization: TextCapitalization.none,
+                  decoration: const InputDecoration(hintText: 'username'),
+                ),
+                const SizedBox(height: 18),
+                _FieldLabel(strings.isPersian ? 'کد بازیابی' : 'Recovery code'),
+                const SizedBox(height: 8),
+                TextField(
+                  key: const Key('auth-recovery-code-field'),
+                  controller: _recoveryCode,
+                  enabled: !_busy,
+                  autocorrect: false,
+                  decoration: const InputDecoration(hintText: 'XXXX-XXXX-XXXX'),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                _HeroTitle(
+                  title: strings.isPersian ? 'گذرواژه تازه بسازید' : 'Create a new password',
+                  subtitle: strings.isPersian
+                      ? 'بازیابی گذرواژه را تغییر می‌دهد و نشست‌ها و دستگاه‌های فعلی را لغو می‌کند.'
+                      : 'Recovery changes the password and revokes existing sessions and devices.',
+                ),
+                const SizedBox(height: 38),
+                _FieldLabel(strings.isPersian ? 'گذرواژه جدید' : 'New password'),
+                const SizedBox(height: 8),
+                _PasswordField(
+                  key: const Key('auth-password-field'),
+                  controller: _password,
+                  obscure: _obscurePassword,
+                  enabled: !_busy,
+                  onToggleVisibility: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                  onSubmitted: (_) => _primaryAction(),
+                ),
+              ],
+            ),
     );
   }
 
@@ -396,44 +469,58 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() => _error = null);
 
     if (_mode == AuthMode.login) {
+      if (_username.text.trim().isEmpty || _password.text.isEmpty) {
+        setState(() => _error = 'Username and password are required.');
+        return;
+      }
       unawaited(_submitLogin());
       return;
     }
 
     if (_mode == AuthMode.register) {
       if (_step == 0) {
-        if (_displayName.text.trim().isEmpty || _username.text.trim().isEmpty) {
-          setState(() => _error = 'Display name and username are required.');
+        if (_displayName.text.trim().isEmpty) {
+          setState(() => _error = 'Display name is required.');
           return;
         }
         setState(() => _step = 1);
         return;
       }
       if (_step == 1) {
+        if (_username.text.trim().isEmpty) {
+          setState(() => _error = 'Username is required.');
+          return;
+        }
+        setState(() => _step = 2);
+        return;
+      }
+      if (_step == 2) {
         if (_password.text.isEmpty) {
           setState(() => _error = 'Password is required.');
           return;
         }
-        setState(() => _step = 2);
+        setState(() => _step = 3);
         return;
       }
       unawaited(_submitRegistration());
       return;
     }
 
-    if (_step == 0) {
-      if (_username.text.trim().isEmpty || _recoveryCode.text.trim().isEmpty) {
-        setState(() => _error = 'Username and recovery code are required.');
+    if (_mode == AuthMode.recover) {
+      if (_step == 0) {
+        if (_username.text.trim().isEmpty || _recoveryCode.text.trim().isEmpty) {
+          setState(() => _error = 'Username and recovery code are required.');
+          return;
+        }
+        setState(() => _step = 1);
         return;
       }
-      setState(() => _step = 1);
-      return;
+      if (_password.text.isEmpty) {
+        setState(() => _error = 'New password is required.');
+        return;
+      }
+      unawaited(_submitRecovery());
     }
-    if (_password.text.isEmpty) {
-      setState(() => _error = 'New password is required.');
-      return;
-    }
-    unawaited(_submitRecovery());
   }
 
   void _switchMode(AuthMode mode) {
@@ -455,7 +542,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
       return;
     }
-    _switchMode(AuthMode.login);
+    _switchMode(AuthMode.welcome);
   }
 
   Future<void> _submitLogin() async {
@@ -513,10 +600,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      barrierColor: Colors.black.withValues(alpha: 0.34),
       builder: (sheetContext) => Padding(
         padding: EdgeInsetsDirectional.fromSTEB(
           22,
-          12,
+          10,
           22,
           22 + MediaQuery.viewInsetsOf(sheetContext).bottom,
         ),
@@ -526,7 +614,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           children: <Widget>[
             Center(
               child: Container(
-                width: 42,
+                width: 38,
                 height: 4,
                 decoration: BoxDecoration(
                   color: palette.borderHighlight,
@@ -534,7 +622,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 26),
             Text(
               strings.isPersian ? 'سرور ChatNU' : 'ChatNU server',
               style: Theme.of(context).textTheme.headlineSmall,
@@ -542,30 +630,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             const SizedBox(height: 8),
             Text(
               strings.isPersian
-                  ? 'این نشانی مرز اعتماد اتصال شماست. فقط سروری را وارد کنید که به آن اعتماد دارید.'
-                  : 'This address is the trust boundary for your connection. Only use a server you trust.',
+                  ? 'فقط سروری را وارد کنید که به آن اعتماد دارید.'
+                  : 'Only connect to a server you trust.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             TextField(
               key: const Key('auth-server-field'),
               controller: _server,
               keyboardType: TextInputType.url,
               autocorrect: false,
-              decoration: const InputDecoration(
-                hintText: 'https://api.devnu.ir/',
-              ),
+              decoration: const InputDecoration(hintText: 'https://api.devnu.ir/'),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             FilledButton(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(54),
-                backgroundColor: palette.textPrimary,
-                foregroundColor: palette.backgroundElevated,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
+              style: _blackButtonStyle(context),
               onPressed: () => Navigator.of(sheetContext).pop(),
               child: Text(strings.isPersian ? 'انجام شد' : 'Done'),
             ),
@@ -576,37 +655,49 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 }
 
-class _AuthTopBar extends StatelessWidget {
-  const _AuthTopBar({required this.canGoBack, required this.onBack});
+class _AuthTopBar extends ConsumerWidget {
+  const _AuthTopBar({
+    required this.canGoBack,
+    required this.onBack,
+    required this.onServer,
+  });
 
   final bool canGoBack;
   final VoidCallback onBack;
+  final VoidCallback onServer;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final endpoint = ref.watch(serverEndpointProvider);
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 4),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 8),
       child: Row(
         children: <Widget>[
           SizedBox(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             child: canGoBack
                 ? IconButton(
                     key: const Key('auth-back'),
                     onPressed: onBack,
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 20,
-                    ),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
                   )
-                : const ChatNuMark(size: 34),
+                : const Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: ChatNuMark(size: 32),
+                  ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'ChatNU',
-              style: Theme.of(context).textTheme.titleLarge,
+          const Spacer(),
+          TextButton.icon(
+            onPressed: onServer,
+            icon: const Icon(Icons.lock_outline_rounded, size: 15),
+            label: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 160),
+              child: Text(
+                endpoint.enrollmentValue,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         ],
@@ -616,13 +707,8 @@ class _AuthTopBar extends StatelessWidget {
 }
 
 class _HeroTitle extends StatelessWidget {
-  const _HeroTitle({
-    required this.eyebrow,
-    required this.title,
-    required this.subtitle,
-  });
+  const _HeroTitle({required this.title, required this.subtitle});
 
-  final String eyebrow;
   final String title;
   final String subtitle;
 
@@ -632,26 +718,40 @@ class _HeroTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        const SizedBox(height: 18),
         Text(
-          eyebrow.toUpperCase(),
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: palette.textMuted,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.9,
+          title,
+          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+            fontSize: 34,
+            height: 1.08,
+            letterSpacing: -1.25,
           ),
         ),
         const SizedBox(height: 12),
         Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.displaySmall?.copyWith(fontSize: 36),
+          subtitle,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: palette.textSecondary,
+            fontSize: 16,
+          ),
         ),
-        const SizedBox(height: 12),
-        Text(subtitle, style: Theme.of(context).textTheme.bodyLarge),
       ],
     );
   }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+      fontWeight: FontWeight.w600,
+    ),
+  );
 }
 
 class _PasswordField extends StatelessWidget {
@@ -659,7 +759,6 @@ class _PasswordField extends StatelessWidget {
     required this.controller,
     required this.obscure,
     required this.enabled,
-    required this.label,
     required this.onToggleVisibility,
     required this.onSubmitted,
     super.key,
@@ -668,7 +767,6 @@ class _PasswordField extends StatelessWidget {
   final TextEditingController controller;
   final bool obscure;
   final bool enabled;
-  final String label;
   final VoidCallback onToggleVisibility;
   final ValueChanged<String> onSubmitted;
 
@@ -684,7 +782,7 @@ class _PasswordField extends StatelessWidget {
       autofillHints: const <String>[AutofillHints.password],
       onSubmitted: onSubmitted,
       decoration: InputDecoration(
-        labelText: label,
+        hintText: '••••••••••',
         suffixIcon: IconButton(
           onPressed: enabled ? onToggleVisibility : null,
           icon: Icon(
@@ -707,19 +805,103 @@ class _StepProgress extends StatelessWidget {
     final palette = context.chatNu;
     return Row(
       children: List<Widget>.generate(count, (index) {
-        final active = index <= step;
         return Expanded(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            height: 4,
-            margin: EdgeInsetsDirectional.only(end: index == count - 1 ? 0 : 6),
+          child: Container(
+            height: 3,
+            margin: EdgeInsetsDirectional.only(end: index == count - 1 ? 0 : 5),
             decoration: BoxDecoration(
-              color: active ? palette.textPrimary : palette.borderSubtle,
+              color: index <= step ? palette.textPrimary : palette.borderSubtle,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
         );
       }),
+    );
+  }
+}
+
+class _ProfileReview extends StatelessWidget {
+  const _ProfileReview({required this.displayName, required this.username});
+
+  final String displayName;
+  final String username;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.chatNu;
+    final initial = displayName.trim().isEmpty
+        ? '?'
+        : displayName.trim().characters.first.toUpperCase();
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: palette.glassWeak,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: <Widget>[
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: palette.accentPrimary,
+            foregroundColor: Colors.black,
+            child: Text(
+              initial,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Colors.black,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(displayName, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 3),
+                Text('@$username', style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecurityNote extends StatelessWidget {
+  const _SecurityNote({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.chatNu;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: palette.accentPrimary,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: const Icon(Icons.lock_outline_rounded, size: 18, color: Colors.black),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(title, style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Text(body, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -736,120 +918,26 @@ class _ServerRow extends ConsumerWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: palette.borderSubtle),
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Row(
           children: <Widget>[
-            Icon(Icons.lock_outline_rounded, size: 18, color: palette.success),
+            const Icon(Icons.dns_outlined, size: 19),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 endpoint.enrollmentValue,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
-            const SizedBox(width: 8),
-            Text(
-              ChatNuStrings.of(context).isPersian ? 'تغییر' : 'Change',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
+            const Icon(Icons.chevron_right_rounded, size: 20),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ReviewRow extends StatelessWidget {
-  const _ReviewRow({required this.label, required this.value, this.onTap});
-
-  final String label;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.chatNu;
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: palette.borderSubtle)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SizedBox(
-              width: 96,
-              child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-            ),
-            Expanded(
-              child: Text(
-                value,
-                textAlign: TextAlign.end,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            if (onTap != null)
-              const Padding(
-                padding: EdgeInsetsDirectional.only(start: 8),
-                child: Icon(Icons.chevron_right_rounded, size: 20),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SecurityCallout extends StatelessWidget {
-  const _SecurityCallout({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.chatNu;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: palette.glassWeak,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: palette.accentPrimary,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 20, color: Colors.black),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(body, style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -863,7 +951,6 @@ class _ErrorMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (message == null) return const SizedBox.shrink();
-    final palette = context.chatNu;
     return Semantics(
       liveRegion: true,
       child: Padding(
@@ -872,7 +959,7 @@ class _ErrorMessage extends StatelessWidget {
           message!,
           key: const Key('auth-error'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: palette.destructive,
+            color: context.chatNu.destructive,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -896,36 +983,21 @@ class _BottomActionArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.chatNu;
     return Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(24, 14, 24, 16),
-      decoration: BoxDecoration(
-        color: palette.backgroundElevated,
-        border: Border(top: BorderSide(color: palette.borderSubtle)),
-      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 14),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           FilledButton(
             key: const Key('auth-submit-button'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(56),
-              backgroundColor: palette.textPrimary,
-              foregroundColor: palette.backgroundElevated,
-              textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: palette.backgroundElevated,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
+            style: _blackButtonStyle(context),
             onPressed: onPrimary,
             child: busy
-                ? SizedBox.square(
+                ? const SizedBox.square(
                     dimension: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: palette.backgroundElevated,
+                      color: Colors.white,
                     ),
                   )
                 : Text(primaryLabel),
@@ -938,6 +1010,27 @@ class _BottomActionArea extends StatelessWidget {
       ),
     );
   }
+}
+
+ButtonStyle _blackButtonStyle(BuildContext context) {
+  final palette = context.chatNu;
+  return FilledButton.styleFrom(
+    minimumSize: const Size.fromHeight(54),
+    backgroundColor: palette.textPrimary,
+    foregroundColor: palette.backgroundElevated,
+    disabledBackgroundColor: palette.borderHighlight,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  );
+}
+
+ButtonStyle _outlineButtonStyle(BuildContext context) {
+  final palette = context.chatNu;
+  return OutlinedButton.styleFrom(
+    minimumSize: const Size.fromHeight(54),
+    foregroundColor: palette.textPrimary,
+    side: BorderSide(color: palette.borderHighlight),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  );
 }
 
 class _RecoveryCodeCompletion extends StatelessWidget {
@@ -958,7 +1051,7 @@ class _RecoveryCodeCompletion extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: 480),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -966,44 +1059,40 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                 children: <Widget>[
                   const Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: ChatNuMark(size: 36),
+                    child: ChatNuMark(size: 34),
                   ),
-                  const Spacer(),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: palette.accentPrimary,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.key_rounded, color: Colors.black),
+                  const Spacer(flex: 2),
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: palette.accentPrimary,
+                      borderRadius: BorderRadius.circular(18),
                     ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.key_rounded, color: Colors.black),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 26),
                   Text(
-                    strings.isPersian
-                        ? 'کد بازیابی را ذخیره کنید'
-                        : 'Save your recovery code',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.displaySmall?.copyWith(fontSize: 36),
+                    strings.isPersian ? 'کد بازیابی را ذخیره کنید' : 'Save your recovery code',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontSize: 36,
+                      height: 1.08,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     strings.isPersian
-                        ? 'این کد برای بازیابی حساب لازم است. آن را در جای امنی خارج از ChatNU نگه دارید.'
-                        : 'You need this code to recover the account. Store it somewhere safe outside ChatNU.',
+                        ? 'این تنها راه بازیابی حساب است. آن را خارج از ChatNU در جای امنی نگه دارید.'
+                        : 'This is your account recovery key. Keep it somewhere safe outside ChatNU.',
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 30),
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: palette.glassWeak,
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
                       children: <Widget>[
@@ -1017,32 +1106,20 @@ class _RecoveryCodeCompletion extends StatelessWidget {
                         IconButton(
                           tooltip: strings.copy,
                           onPressed: () => unawaited(
-                            Clipboard.setData(
-                              ClipboardData(text: recoveryCode),
-                            ),
+                            Clipboard.setData(ClipboardData(text: recoveryCode)),
                           ),
                           icon: const Icon(Icons.copy_rounded),
                         ),
                       ],
                     ),
                   ),
-                  const Spacer(),
+                  const Spacer(flex: 3),
                   FilledButton(
                     key: const Key('recovery-code-acknowledge'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
-                      backgroundColor: palette.textPrimary,
-                      foregroundColor: palette.backgroundElevated,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
+                    style: _blackButtonStyle(context),
                     onPressed: onContinue,
-                    child: Text(
-                      strings.isPersian ? 'ذخیره کردم' : "I've saved it",
-                    ),
+                    child: Text(strings.isPersian ? 'ذخیره کردم' : 'I saved it'),
                   ),
-                  const SizedBox(height: 6),
                 ],
               ),
             ),

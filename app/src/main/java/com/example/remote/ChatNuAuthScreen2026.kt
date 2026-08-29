@@ -137,8 +137,11 @@ fun ChatNuAuthScreen2026(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Launcher foregrounds are adaptive-icon resources and are not guaranteed to resolve
+            // as BitmapDrawable on every Android build/ROM. Use the dedicated vector logo in
+            // Compose so auth rendering is stable across devices.
             Image(
-                painter = painterResource(R.drawable.chatnu_launcher_foreground),
+                painter = painterResource(R.drawable.ic_chatnu),
                 contentDescription = "ChatNU",
                 modifier = Modifier.size(86.dp),
                 contentScale = ContentScale.Fit

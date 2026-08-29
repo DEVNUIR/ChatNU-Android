@@ -29,7 +29,7 @@ fun ServerAwareAuthScreen(
     onAuthSuccess: () -> Unit
 ) {
     var serverUrl by remember(initialServerUrl) { mutableStateOf(initialServerUrl) }
-    var draftServer by remember { mutableStateOf(serverUrl) }
+    var draftServer by remember(initialServerUrl) { mutableStateOf(ServerEndpoint.enrollmentValue()) }
     var showServerDialog by remember { mutableStateOf(false) }
     var serverError by remember { mutableStateOf<String?>(null) }
 
@@ -42,7 +42,7 @@ fun ServerAwareAuthScreen(
 
         TextButton(
             onClick = {
-                draftServer = serverUrl
+                draftServer = ServerEndpoint.enrollmentValue()
                 serverError = null
                 showServerDialog = true
             },
@@ -99,7 +99,7 @@ fun ServerAwareAuthScreen(
                         onChangeServer(draftServer)
                             .onSuccess { normalized ->
                                 serverUrl = normalized
-                                draftServer = normalized
+                                draftServer = ServerEndpoint.enrollmentValue()
                                 showServerDialog = false
                             }
                             .onFailure { serverError = it.message ?: "Invalid server address." }

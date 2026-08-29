@@ -27,17 +27,18 @@ import com.example.remote.ApiClient
 import com.example.remote.CallForegroundService
 import com.example.remote.CallPhase
 import com.example.remote.ChatNuMessagingService
-import com.example.remote.EnhancedProductionConversationScreen
 import com.example.remote.EnhancedProductionSettingsScreen
 import com.example.remote.PushRegistration
 import com.example.remote.RemoteAuthRepository
 import com.example.remote.RemoteChatRepository
 import com.example.remote.ServerAwareAuthScreen
 import com.example.remote.ServerEndpoint
+import com.example.remote.TelegramConversationScreenV2
 import com.example.remote.TelegramHomeScreen
 import com.example.remote.TokenStore
 import com.example.remote.WebRtcCallManager
 import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.ThemeManager
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -55,6 +56,7 @@ class ProductionMainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         ServerEndpoint.initialize(applicationContext)
+        ThemeManager.initialize(applicationContext)
         val tokenStore = TokenStore(applicationContext)
         val apiClient = ApiClient(tokenStore)
         val deviceE2ee = DeviceE2ee()
@@ -311,7 +313,7 @@ class ProductionMainActivity : ComponentActivity() {
                         if (conversation == null) {
                             screen = ProductionScreen.HOME
                         } else {
-                            EnhancedProductionConversationScreen(
+                            TelegramConversationScreenV2(
                                 conversation = conversation,
                                 messages = messagesMap[conversation.id].orEmpty(),
                                 currentUserId = currentUser?.id,
@@ -329,8 +331,14 @@ class ProductionMainActivity : ComponentActivity() {
                                 onSendText = { text ->
                                     chatRepository.sendMessage(conversation.id, text, MessageType.TEXT)
                                 },
+                                onSendTypedMessage = { text, type ->
+                                    chatRepository.sendMessage(conversation.id, text, type)
+                                },
                                 onSendAttachment = { uri ->
                                     chatRepository.sendAttachment(conversation.id, uri)
+                                },
+                                onResolveAttachment = { message ->
+                                    chatRepository.downloadAttachment(message)
                                 },
                                 onOpenAttachment = ::openEncryptedAttachment
                             )

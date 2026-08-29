@@ -13,6 +13,10 @@ enum class MessageType {
     SYSTEM_KEY_CHANGE
 }
 
+/**
+ * Persistence/network-facing status values kept for source compatibility with the existing app.
+ * The current server only confirms acceptance, so SENT must never be rendered as delivered/read.
+ */
 enum class MessageStatus {
     QUEUED,
     SENDING,
@@ -22,6 +26,29 @@ enum class MessageStatus {
     FAILED
 }
 
+/**
+ * Explicit product semantics for the UI. DELIVERED/READ are intentionally future-facing: the
+ * current backend does not emit those receipts, therefore production mapping stops at
+ * SENT_TO_SERVER.
+ */
+enum class MessageDeliveryState {
+    QUEUED_OFFLINE,
+    SENDING,
+    SENT_TO_SERVER,
+    DELIVERED_TO_RECIPIENT_DEVICE,
+    READ,
+    FAILED
+}
+
+fun MessageStatus.toDeliveryState(): MessageDeliveryState = when (this) {
+    MessageStatus.QUEUED -> MessageDeliveryState.QUEUED_OFFLINE
+    MessageStatus.SENDING -> MessageDeliveryState.SENDING
+    MessageStatus.SENT -> MessageDeliveryState.SENT_TO_SERVER
+    MessageStatus.DELIVERED -> MessageDeliveryState.DELIVERED_TO_RECIPIENT_DEVICE
+    MessageStatus.READ -> MessageDeliveryState.READ
+    MessageStatus.FAILED -> MessageDeliveryState.FAILED
+}
+
 data class Message(
     val id: String,
     val conversationId: String,
@@ -29,7 +56,8 @@ data class Message(
     val senderName: String,
     val text: String,
     val type: MessageType = MessageType.TEXT,
-    val status: MessageStatus = MessageStatus.READ,
+    // Safe default for a model materialized from the server. Local optimistic sends set SENDING.
+    val status: MessageStatus = MessageStatus.SENT,
     val timestamp: String,
     val timestampMillis: Long = System.currentTimeMillis(),
     val mediaUrl: String? = null,

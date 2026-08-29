@@ -26,9 +26,7 @@ void main() {
     expect(await store.read('chatnu.appearance.theme'), 'dark');
   });
 
-  testWidgets('authentication surface exposes real account modes', (
-    tester,
-  ) async {
+  testWidgets('signup is a staged account flow', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [secretStoreProvider.overrideWithValue(MemorySecretStore())],
@@ -37,13 +35,41 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('ChatNU'), findsOneWidget);
-    expect(find.text('Login'), findsWidgets);
-    expect(find.text('Register'), findsWidgets);
-    expect(find.text('Recover'), findsWidgets);
-    expect(find.byKey(const Key('auth-server-field')), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
     expect(find.byKey(const Key('auth-username-field')), findsOneWidget);
     expect(find.byKey(const Key('auth-password-field')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('auth-create-account')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create your profile'), findsOneWidget);
+    expect(find.byKey(const Key('auth-display-name-field')), findsOneWidget);
+    expect(find.byKey(const Key('auth-password-field')), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('auth-display-name-field')),
+      'Amir',
+    );
+    await tester.enterText(
+      find.byKey(const Key('auth-username-field')),
+      'amir',
+    );
+    await tester.tap(find.byKey(const Key('auth-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Secure your account'), findsOneWidget);
+    expect(find.byKey(const Key('auth-password-field')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('auth-password-field')),
+      'example-password',
+    );
+    await tester.tap(find.byKey(const Key('auth-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ready to join'), findsOneWidget);
+    expect(find.text('Amir'), findsOneWidget);
+    expect(find.text('@amir'), findsOneWidget);
   });
 
   testWidgets('failed outgoing text exposes retry without fake actions', (
@@ -86,5 +112,6 @@ void main() {
     expect(find.text('Edit'), findsNothing);
     expect(find.text('Delete'), findsNothing);
     expect(find.text('Forward'), findsNothing);
+    expect(find.text('Reply'), findsNothing);
   });
 }

@@ -367,30 +367,32 @@ private fun ChatNuHomeTopBar(
                 ChatNuAvatar(user?.displayName ?: "ChatNU", user?.avatarUrl, size = 38.dp)
                 Spacer(Modifier.width(ChatNuSpacing.sm))
                 if (destination == ChatNuPrimaryDestination.CHATS) {
-                    AnimatedVisibility(visible = !searchOpen, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.weight(1f)) {
-                        Column {
-                            Text("Chats", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text(
-                                when (realtimeStatus) {
-                                    RealtimeStatus.CONNECTED -> "Connected"
-                                    RealtimeStatus.CONNECTING -> "Connecting…"
-                                    RealtimeStatus.DISCONNECTED -> "Offline"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (realtimeStatus == RealtimeStatus.CONNECTED) MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
+                    Box(modifier = Modifier.weight(1f)) {
+                        AnimatedVisibility(visible = !searchOpen, enter = fadeIn(), exit = fadeOut()) {
+                            Column {
+                                Text("Chats", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text(
+                                    when (realtimeStatus) {
+                                        RealtimeStatus.CONNECTED -> "Connected"
+                                        RealtimeStatus.CONNECTING -> "Connecting…"
+                                        RealtimeStatus.DISCONNECTED -> "Offline"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (realtimeStatus == RealtimeStatus.CONNECTED) MaterialTheme.colorScheme.tertiary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        AnimatedVisibility(visible = searchOpen, enter = fadeIn(), exit = fadeOut()) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = onSearchQuery,
+                                placeholder = { Text("Search chats") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(ChatNuRadius.pill),
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
-                    }
-                    AnimatedVisibility(visible = searchOpen, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.weight(1f)) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = onSearchQuery,
-                            placeholder = { Text("Search chats") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(ChatNuRadius.pill),
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
                     IconButton(onClick = onSearchToggle) {
                         Icon(if (searchOpen) Icons.Default.Close else Icons.Default.Search, contentDescription = if (searchOpen) "Close search" else "Search chats")

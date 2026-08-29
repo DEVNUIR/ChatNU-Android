@@ -12,12 +12,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   flutter:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: flutter
@@ -30,81 +30,49 @@ jobs:
           cache: true
       - name: Bootstrap Android platform
         run: ./tool/bootstrap_android.sh
-      - name: Apply analyzer compatibility fixes
+      - name: Verify ChatNU Android identity
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          def patch(path, old, new):
-              file = Path(path)
-              text = file.read_text()
-              if old in text:
-                  file.write_text(text.replace(old, new))
-
-          patch(
-              'lib/features/home/application/demo_messenger_controller.dart',
-              'List<T> get orEmpty => this ?? const <T>[];',
-              'List<T> get orEmpty => this ?? <T>[];',
-          )
-
-          patch(
-              'lib/features/calls/application/call_controller.dart',
-              'final repository = _repository ?? ref.read(messengerRepositoryProvider);',
-              'final MessengerRepository repository = _repository ?? ref.read(messengerRepositoryProvider);',
-          )
-          patch(
-              'lib/features/calls/application/call_controller.dart',
-              "final config = await (_repository ?? ref.read(messengerRepositoryProvider))\n        .rtcConfig();",
-              "final MessengerRepository repository =\n        _repository ?? ref.read(messengerRepositoryProvider);\n    _repository = repository;\n    final config = await repository.rtcConfig();",
-          )
-          patch(
-              'lib/features/calls/application/call_controller.dart',
-              '      track.stop();',
-              '      await track.stop();',
-          )
-
-          patch(
-              'lib/core/network/chatnu_api_client.dart',
-              "        if (isPinned != null) 'isPinned': isPinned,\n        if (isMuted != null) 'isMuted': isMuted,",
-              "        'isPinned': ?isPinned,\n        'isMuted': ?isMuted,",
-          )
-          patch(
-              'lib/core/network/chatnu_api_client.dart',
-              "        if (before != null) 'before': before,",
-              "        'before': ?before,",
-          )
-
-          patch(
-              'lib/features/messages/presentation/conversation_pane.dart',
-              "final result = await FilePicker.platform.saveFile(\n      dialogTitle: 'Save decrypted attachment',\n      fileName: message.fileName ?? 'attachment',\n      bytes: bytes,\n    );",
-              "final result = await FilePicker.saveFile(\n      dialogTitle: 'Save decrypted attachment',\n      fileName: message.fileName ?? 'attachment',\n      bytes: bytes,\n      mimeType: message.mimeType ?? 'application/octet-stream',\n    );",
-          )
-          patch(
-              'lib/features/messages/presentation/conversation_pane.dart',
-              "final result = await FilePicker.platform.pickFiles(\n      allowMultiple: false,\n      withData: true,\n    );\n    if (result == null || result.files.isEmpty) return;\n    final file = result.files.single;\n    final bytes = file.bytes;\n    if (bytes == null) {\n      if (!context.mounted) return;\n      ScaffoldMessenger.of(context).showSnackBar(\n        const SnackBar(content: Text('Unable to read the selected file.')),\n      );\n      return;\n    }",
-              "final file = await FilePicker.pickFile();\n    if (file == null) return;\n    final bytes = await file.readAsBytes();",
-          )
-
-          for path in ('test/chat_screen_test.dart', 'test/product_identity_test.dart'):
-              patch(path, 'overrides: <Override>[', 'overrides: [')
-          PY
-      - name: Normalize formatting
-        run: dart format lib test
-      - name: Commit compatibility fixes
-        if: github.event_name == 'push'
-        working-directory: .
-        run: |
-          if git diff --quiet -- flutter/lib flutter/test; then
-            exit 0
-          fi
-          git config user.name "ChatNU CI"
-          git config user.email "ci@chatnu.invalid"
-          git add flutter/lib flutter/test
-          git commit -m "Fix full-stack Flutter analyzer compatibility"
-          git push
+          grep -q 'applicationId = "ir.devnu.chatnu"' android/app/build.gradle.kts
+          grep -q 'android:label="ChatNU"' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:icon="@drawable/ic_chatnu"' android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/res/drawable/ic_chatnu.xml
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test
       - name: Analyze
         run: flutter analyze --fatal-infos
       - name: Test
         run: flutter test
-      - name: Build Android debug APK
-        run: flutter build apk --debug
+      - name: Prepare ChatNU release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "ANDROID_KEYSTORE_BASE64 is required" >&2; exit 1; }
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "ANDROID_KEYSTORE_PASSWORD is required" >&2; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "ANDROID_KEY_ALIAS is required" >&2; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "ANDROID_KEY_PASSWORD is required" >&2; exit 1; }
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/chatnu-release.jks"
+          chmod 600 "$RUNNER_TEMP/chatnu-release.jks"
+      - name: Build signed Android release APK
+        env:
+          CHATNU_KEYSTORE_PATH: ${{ runner.temp }}/chatnu-release.jks
+          CHATNU_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CHATNU_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CHATNU_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: flutter build apk --release
+      - name: Verify APK signature
+        run: |
+          APKSIGNER="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose build/app/outputs/flutter-apk/app-release.apk
+      - name: Stage ChatNU APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk ChatNU-1.2.0-release.apk
+      - name: Upload ChatNU release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChatNU-Flutter-Android-APK
+          path: flutter/ChatNU-1.2.0-release.apk
+          if-no-files-found: error
+          retention-days: 30

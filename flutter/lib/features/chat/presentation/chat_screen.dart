@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chatnu/app/routing/app_router.dart';
 import 'package:chatnu/core/responsive/chatnu_breakpoints.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
@@ -36,10 +38,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _scrollToLatest() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: ChatNuMotion.component,
-        curve: ChatNuMotion.standard,
+      unawaited(
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: ChatNuMotion.component,
+          curve: ChatNuMotion.standard,
+        ),
       );
     });
   }
@@ -47,7 +51,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showSearchHint() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Search is route-ready; indexing arrives with the backend migration.'),
+        content: Text(
+          'Search is route-ready; indexing arrives with the backend migration.',
+        ),
         duration: Duration(seconds: 2),
       ),
     );
@@ -56,7 +62,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showAttachmentHint() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Attachment UI is ready. Encrypted transfer stays disabled until API integration.'),
+        content: Text(
+          'Attachment UI is ready. Encrypted transfer stays disabled until API integration.',
+        ),
         duration: Duration(seconds: 2),
       ),
     );
@@ -70,18 +78,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       backgroundColor: palette.backgroundPrimary,
       body: CallbackShortcuts(
         bindings: <ShortcutActivator, VoidCallback>{
-          const SingleActivator(LogicalKeyboardKey.keyN, control: true): _newChat,
-          const SingleActivator(LogicalKeyboardKey.keyK, control: true): _showSearchHint,
-          SingleActivator(LogicalKeyboardKey.comma, control: true):
-              () => context.go(ChatNuRoutes.settings),
+          const SingleActivator(
+            LogicalKeyboardKey.keyN,
+            control: true,
+          ): _newChat,
+          const SingleActivator(
+            LogicalKeyboardKey.keyK,
+            control: true,
+          ): _showSearchHint,
+          SingleActivator(
+            LogicalKeyboardKey.comma,
+            control: true,
+          ): () => context.go(ChatNuRoutes.settings),
         },
         child: Focus(
           autofocus: true,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final windowClass = ChatNuBreakpoints.fromWidth(constraints.maxWidth);
+              final windowClass = ChatNuBreakpoints.fromWidth(
+                constraints.maxWidth,
+              );
               final showSidebar = windowClass != ChatNuWindowClass.phone;
-              final sidebarCollapsed = windowClass == ChatNuWindowClass.tablet || _sidebarCollapsed;
+              final sidebarCollapsed =
+                  windowClass == ChatNuWindowClass.tablet || _sidebarCollapsed;
               return Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
@@ -94,7 +113,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             collapsed: sidebarCollapsed,
                             onToggle: () {
                               if (windowClass == ChatNuWindowClass.desktop) {
-                                setState(() => _sidebarCollapsed = !_sidebarCollapsed);
+                                setState(
+                                  () => _sidebarCollapsed = !_sidebarCollapsed,
+                                );
                               }
                             },
                             onNewChat: _newChat,
@@ -103,7 +124,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.fromLTRB(
-                              showSidebar ? ChatNuSpacing.sm : ChatNuSpacing.md,
+                              showSidebar
+                                  ? ChatNuSpacing.sm
+                                  : ChatNuSpacing.md,
                               ChatNuSpacing.sm,
                               ChatNuSpacing.md,
                               ChatNuSpacing.sm,
@@ -118,7 +141,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     onNewChat: _newChat,
                                     onRoute: context.go,
                                   ),
-                                  onModelPressed: () => showModelSelector(context),
+                                  onModelPressed: () =>
+                                      showModelSelector(context),
                                 ),
                                 const SizedBox(height: ChatNuSpacing.xs),
                                 Expanded(
@@ -138,11 +162,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                         child: Center(
                                           child: ConstrainedBox(
                                             constraints: const BoxConstraints(
-                                              maxWidth: ChatNuBreakpoints.conversationMaxWidth,
+                                              maxWidth: ChatNuBreakpoints
+                                                  .conversationMaxWidth,
                                             ),
                                             child: ChatComposer(
                                               onSent: _scrollToLatest,
-                                              onAttachmentPressed: _showAttachmentHint,
+                                              onAttachmentPressed:
+                                                  _showAttachmentHint,
                                             ),
                                           ),
                                         ),

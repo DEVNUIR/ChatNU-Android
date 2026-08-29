@@ -15,7 +15,8 @@ class GlassEffectController extends Notifier<GlassEffectLevel> {
   void setLevel(GlassEffectLevel level) => state = level;
 }
 
-final glassEffectLevelProvider =
+final NotifierProvider<GlassEffectController, GlassEffectLevel>
+glassEffectLevelProvider =
     NotifierProvider<GlassEffectController, GlassEffectLevel>(
       GlassEffectController.new,
     );
@@ -65,7 +66,10 @@ class GlassSurface extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: <Color>[
-            base.withValues(alpha: (base.a + 0.06).clamp(0.0, 1.0)),
+            Color.alphaBlend(
+              palette.borderHighlight.withValues(alpha: 0.06),
+              base,
+            ),
             base,
           ],
         ),
@@ -77,7 +81,9 @@ class GlassSurface extends ConsumerWidget {
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withValues(
-              alpha: Theme.of(context).brightness == Brightness.dark ? 0.22 : 0.08,
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.22
+                  : 0.08,
             ),
             blurRadius: variant == GlassVariant.strong ? 24 : 14,
             offset: const Offset(0, 10),
@@ -152,7 +158,9 @@ class _GlassIconButtonState extends State<GlassIconButton> {
             onTap: widget.onPressed,
             onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
             onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-            onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+            onTapCancel: enabled
+                ? () => setState(() => _pressed = false)
+                : null,
             child: AnimatedScale(
               scale: _pressed ? 0.94 : 1,
               duration: ChatNuMotion.micro,
@@ -164,9 +172,7 @@ class _GlassIconButtonState extends State<GlassIconButton> {
                 height: widget.size,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(ChatNuRadii.md),
-                  color: active
-                      ? palette.glassMedium
-                      : Colors.transparent,
+                  color: active ? palette.glassMedium : Colors.transparent,
                   border: Border.all(
                     color: active
                         ? palette.borderHighlight

@@ -52,10 +52,13 @@ object ServerEndpoint {
         if (isEmergencyTls()) "$base · pinned" else base
     } ?: selectedApiUrl
 
-    /** Namespace cryptographic account aliases so the same username on two servers is distinct. */
+    /**
+     * E2EE identity belongs to the ChatNU origin, not to its current transport certificate.
+     * Switching the same origin between public-CA and emergency-pinned TLS must not rotate the
+     * Android Keystore identity or make old message history undecryptable.
+     */
     fun identityNamespace(): String = selectedApiUrl.toHttpUrlOrNull()?.let { url ->
-        val trustNamespace = selectedTlsCaPin ?: "system-ca"
-        "${url.scheme}://${url.host}:${url.port}|$trustNamespace"
+        "${url.scheme}://${url.host}:${url.port}"
     } ?: selectedApiUrl
 
     fun configure(context: Context, rawValue: String): Result<String> {

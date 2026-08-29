@@ -31,6 +31,7 @@ from pathlib import Path
 
 path = Path('android/app/build.gradle.kts')
 text = path.read_text()
+text = text.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 37')
 text = text.replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
 
 if 'val chatNuKeystorePath = System.getenv("CHATNU_KEYSTORE_PATH")' not in text:
@@ -52,6 +53,13 @@ text = text.replace(
     'signingConfig = signingConfigs.findByName("chatnuRelease") ?: signingConfigs.getByName("debug")',
 )
 path.write_text(text)
+
+gradle_properties = Path('android/gradle.properties')
+properties = gradle_properties.read_text() if gradle_properties.exists() else ''
+setting = 'android.suppressUnsupportedCompileSdk=37'
+if setting not in properties.splitlines():
+    properties = properties.rstrip() + f'\n{setting}\n'
+    gradle_properties.write_text(properties)
 PY
 fi
 

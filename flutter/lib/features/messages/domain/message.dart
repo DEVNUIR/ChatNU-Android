@@ -85,8 +85,7 @@ class ChatNuMessage {
       fileName: fileName ?? this.fileName,
       mimeType: mimeType ?? this.mimeType,
       sizeBytes: sizeBytes ?? this.sizeBytes,
-      attachmentKeyBase64:
-          attachmentKeyBase64 ?? this.attachmentKeyBase64,
+      attachmentKeyBase64: attachmentKeyBase64 ?? this.attachmentKeyBase64,
       attachmentNonceBase64:
           attachmentNonceBase64 ?? this.attachmentNonceBase64,
     );

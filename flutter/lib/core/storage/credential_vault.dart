@@ -97,9 +97,11 @@ class StoredSession {
 }
 
 class CredentialVault {
-  CredentialVault({required SecretStore store, required ChatNuNativeBridge bridge})
-    : _store = store,
-      _bridge = bridge;
+  CredentialVault({
+    required SecretStore store,
+    required ChatNuNativeBridge bridge,
+  }) : _store = store,
+       _bridge = bridge;
 
   static const _sessionKey = 'chatnu.session.v1';
 

@@ -6,9 +6,8 @@ const _pinPrefix = 'chatnu-ca=';
 class ChatNuServerEndpoint {
   const ChatNuServerEndpoint({required this.restUri, this.tlsCaPin});
 
-  factory ChatNuServerEndpoint.production() => ChatNuServerEndpoint.parse(
-    _defaultRestUrl,
-  );
+  factory ChatNuServerEndpoint.production() =>
+      ChatNuServerEndpoint.parse(_defaultRestUrl);
 
   factory ChatNuServerEndpoint.parse(String rawValue) {
     var raw = rawValue.trim();
@@ -24,10 +23,14 @@ class ChatNuServerEndpoint {
       throw const FormatException('Only HTTP and HTTPS servers are supported.');
     }
     if (parsed.userInfo.isNotEmpty || parsed.hasQuery) {
-      throw const FormatException('Server URLs cannot contain credentials or query parameters.');
+      throw const FormatException(
+        'Server URLs cannot contain credentials or query parameters.',
+      );
     }
     if (parsed.path.isNotEmpty && parsed.path != '/') {
-      throw const FormatException('Use the server origin only, for example https://chat.example.com.');
+      throw const FormatException(
+        'Use the server origin only, for example https://chat.example.com.',
+      );
     }
 
     String? pin;
@@ -40,7 +43,9 @@ class ChatNuServerEndpoint {
         throw const FormatException('Invalid ChatNU emergency CA pin.');
       }
       if (parsed.scheme != 'https') {
-        throw const FormatException('Emergency pinned enrollment requires HTTPS.');
+        throw const FormatException(
+          'Emergency pinned enrollment requires HTTPS.',
+        );
       }
     }
 
@@ -82,9 +87,8 @@ class ChatNuServerEndpoint {
     return tlsCaPin == null ? host : '$host · pinned';
   }
 
-  String get enrollmentValue => tlsCaPin == null
-      ? restBaseUrl
-      : '$restBaseUrl#$_pinPrefix$tlsCaPin';
+  String get enrollmentValue =>
+      tlsCaPin == null ? restBaseUrl : '$restBaseUrl#$_pinPrefix$tlsCaPin';
 
   bool get usesEmergencyTls => tlsCaPin != null;
 

@@ -104,8 +104,8 @@ class _PhoneShell extends ConsumerWidget {
         MessengerDestination.chats => ConversationListPane(
           onSelected: controller.selectConversation,
         ),
-        MessengerDestination.contacts || MessengerDestination.settings =>
-          _DestinationContent(state.destination),
+        MessengerDestination.contacts ||
+        MessengerDestination.settings => _DestinationContent(state.destination),
       },
       bottomNavigationBar: _PhoneNavigation(destination: state.destination),
     );

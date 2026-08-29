@@ -119,7 +119,9 @@ class DeviceE2ee {
       }
     }
     if (wrappedKey == null || wrappedKey.isEmpty) {
-      throw StateError('This message was not encrypted for the current device.');
+      throw StateError(
+        'This message was not encrypted for the current device.',
+      );
     }
 
     Uint8List contentKey;
@@ -189,7 +191,8 @@ class DeviceE2ee {
   }
 
   Uint8List _wrapContentKey(RSAPublicKey key, Uint8List contentKey) {
-    final cipher = OAEPEncoding.withSHA256(RSAEngine())..mgf1Hash = SHA1Digest();
+    final cipher = OAEPEncoding.withSHA256(RSAEngine())
+      ..mgf1Hash = SHA1Digest();
     cipher.init(
       true,
       ParametersWithRandom(
@@ -201,7 +204,8 @@ class DeviceE2ee {
   }
 
   Uint8List _unwrapContentKey(RSAPrivateKey key, Uint8List wrappedKey) {
-    final cipher = OAEPEncoding.withSHA256(RSAEngine())..mgf1Hash = SHA1Digest();
+    final cipher = OAEPEncoding.withSHA256(RSAEngine())
+      ..mgf1Hash = SHA1Digest();
     cipher.init(false, PrivateKeyParameter<RSAPrivateKey>(key));
     return cipher.process(wrappedKey);
   }

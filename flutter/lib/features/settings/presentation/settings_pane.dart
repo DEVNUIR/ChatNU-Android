@@ -41,8 +41,13 @@ class SettingsPane extends ConsumerWidget {
                   children: <Widget>[
                     ListTile(
                       leading: const Icon(Icons.person_outline_rounded),
-                      title: Text(session.user?.displayName ?? state.currentUser.displayName),
-                      subtitle: Text('@${session.user?.username ?? state.currentUser.username}'),
+                      title: Text(
+                        session.user?.displayName ??
+                            state.currentUser.displayName,
+                      ),
+                      subtitle: Text(
+                        '@${session.user?.username ?? state.currentUser.username}',
+                      ),
                     ),
                     if (session.offline)
                       const ListTile(
@@ -67,10 +72,10 @@ class SettingsPane extends ConsumerWidget {
                         onPressed: isDemo
                             ? null
                             : () => unawaited(
-                                  ref
-                                      .read(messengerDemoProvider.notifier)
-                                      .refreshConversations(),
-                                ),
+                                ref
+                                    .read(messengerDemoProvider.notifier)
+                                    .refreshConversations(),
+                              ),
                         icon: const Icon(Icons.refresh_rounded),
                       ),
                     ),
@@ -118,9 +123,8 @@ class SettingsPane extends ConsumerWidget {
                 if (!isDemo)
                   OutlinedButton.icon(
                     key: const Key('logout-button'),
-                    onPressed: () => unawaited(
-                      ref.read(sessionProvider.notifier).logout(),
-                    ),
+                    onPressed: () =>
+                        unawaited(ref.read(sessionProvider.notifier).logout()),
                     icon: const Icon(Icons.logout_rounded),
                     label: const Text('Log out'),
                   ),
@@ -169,10 +173,7 @@ class _SettingsSection extends StatelessWidget {
               ChatNuSpacing.md,
               ChatNuSpacing.xs,
             ),
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
           ),
           ...children,
         ],

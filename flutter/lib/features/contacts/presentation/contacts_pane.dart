@@ -92,7 +92,8 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
                           )
                         : ListView.separated(
                             itemCount: state.contactResults.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 6),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 6),
                             itemBuilder: (context, index) {
                               final user = state.contactResults[index];
                               return _ContactTile(
@@ -165,14 +166,16 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
       ),
     );
     if (result == true && mounted) {
-      await ref.read(messengerDemoProvider.notifier).createGroup(
-        title: title.text,
-        usernames: usernames.text
-            .split(',')
-            .map((value) => value.trim())
-            .where((value) => value.isNotEmpty)
-            .toList(growable: false),
-      );
+      await ref
+          .read(messengerDemoProvider.notifier)
+          .createGroup(
+            title: title.text,
+            usernames: usernames.text
+                .split(',')
+                .map((value) => value.trim())
+                .where((value) => value.isNotEmpty)
+                .toList(growable: false),
+          );
     }
     title.dispose();
     usernames.dispose();

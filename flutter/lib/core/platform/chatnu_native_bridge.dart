@@ -32,10 +32,7 @@ class ChatNuNativeBridge {
     if (!isAndroid) return null;
     final value = await _channel.invokeMethod<Uint8List>(
       'unwrapContentKey',
-      <String, Object?>{
-        'account': account,
-        'wrappedKey': wrappedKeyBase64,
-      },
+      <String, Object?>{'account': account, 'wrappedKey': wrappedKeyBase64},
     );
     return value?.toList(growable: false);
   }

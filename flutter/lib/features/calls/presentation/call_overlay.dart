@@ -60,7 +60,8 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
               child: hasRemoteVideo
                   ? RTCVideoView(
                       _remoteRenderer,
-                      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                      objectFit:
+                          RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                     )
                   : Center(
                       child: Column(
@@ -90,9 +91,7 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                               child: Text(
                                 state.error!,
                                 textAlign: TextAlign.center,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(color: palette.destructive),
                               ),
                             ),
@@ -136,7 +135,9 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                             IconButton.filled(
                               tooltip: 'Accept',
                               onPressed: () => unawaited(
-                                ref.read(callControllerProvider.notifier).accept(),
+                                ref
+                                    .read(callControllerProvider.notifier)
+                                    .accept(),
                               ),
                               icon: const Icon(Icons.call_rounded),
                             ),
@@ -144,7 +145,9 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                             IconButton.filledTonal(
                               tooltip: 'Reject',
                               onPressed: () => unawaited(
-                                ref.read(callControllerProvider.notifier).reject(),
+                                ref
+                                    .read(callControllerProvider.notifier)
+                                    .reject(),
                               ),
                               icon: const Icon(Icons.call_end_rounded),
                             ),
@@ -159,7 +162,9 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                                   .read(callControllerProvider.notifier)
                                   .toggleMute,
                               icon: Icon(
-                                state.muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                                state.muted
+                                    ? Icons.mic_off_rounded
+                                    : Icons.mic_rounded,
                               ),
                             ),
                             if (state.video)
@@ -196,7 +201,8 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
   }
 
   String _statusLabel(ChatNuCallStatus status, bool video) => switch (status) {
-    ChatNuCallStatus.incoming => video ? 'Incoming video call' : 'Incoming voice call',
+    ChatNuCallStatus.incoming =>
+      video ? 'Incoming video call' : 'Incoming voice call',
     ChatNuCallStatus.outgoing => 'Calling…',
     ChatNuCallStatus.connecting => 'Connecting…',
     ChatNuCallStatus.connected => 'Connected',

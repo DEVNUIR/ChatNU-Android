@@ -218,7 +218,8 @@ class MessengerRepository {
           : ConversationKind.direct,
       members: dto.members.map(_userFromDto).toList(growable: false),
       lastMessagePreview: preview,
-      lastActivityAt: activity?.toLocal() ?? DateTime.fromMillisecondsSinceEpoch(0),
+      lastActivityAt:
+          activity?.toLocal() ?? DateTime.fromMillisecondsSinceEpoch(0),
       avatarUrl: dto.avatarUrl,
       unreadCount: dto.unreadCount,
       isPinned: dto.isPinned,

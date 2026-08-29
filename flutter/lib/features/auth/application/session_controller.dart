@@ -110,12 +110,14 @@ class SessionController extends Notifier<ChatNuSessionState> {
       final publicKey = await ref
           .read(deviceE2eeProvider)
           .publicKeyBase64(account);
-      final response = await ref.read(apiClientProvider).login(
-        username: normalized,
-        password: password,
-        deviceName: _deviceName(),
-        identityPublicKey: publicKey,
-      );
+      final response = await ref
+          .read(apiClientProvider)
+          .login(
+            username: normalized,
+            password: password,
+            deviceName: _deviceName(),
+            identityPublicKey: publicKey,
+          );
       final stored = _storedSession(response, account);
       await ref.read(credentialVaultProvider).persist(stored);
       state = ChatNuSessionState.authenticated(stored.user);
@@ -145,13 +147,15 @@ class SessionController extends Notifier<ChatNuSessionState> {
       final publicKey = await ref
           .read(deviceE2eeProvider)
           .publicKeyBase64(account);
-      final response = await ref.read(apiClientProvider).register(
-        username: normalized,
-        password: password,
-        displayName: displayName.trim(),
-        deviceName: _deviceName(),
-        identityPublicKey: publicKey,
-      );
+      final response = await ref
+          .read(apiClientProvider)
+          .register(
+            username: normalized,
+            password: password,
+            displayName: displayName.trim(),
+            deviceName: _deviceName(),
+            identityPublicKey: publicKey,
+          );
       final stored = _storedSession(response, account);
       await ref.read(credentialVaultProvider).persist(stored);
       state = ChatNuSessionState.authenticated(
@@ -172,15 +176,19 @@ class SessionController extends Notifier<ChatNuSessionState> {
     required String newPassword,
   }) async {
     final normalized = username.trim().toLowerCase();
-    if (normalized.isEmpty || recoveryCode.trim().isEmpty || newPassword.isEmpty) {
+    if (normalized.isEmpty ||
+        recoveryCode.trim().isEmpty ||
+        newPassword.isEmpty) {
       return 'Username, recovery code, and new password are required.';
     }
     try {
-      await ref.read(apiClientProvider).recover(
-        username: normalized,
-        recoveryCode: recoveryCode.trim(),
-        newPassword: newPassword,
-      );
+      await ref
+          .read(apiClientProvider)
+          .recover(
+            username: normalized,
+            recoveryCode: recoveryCode.trim(),
+            newPassword: newPassword,
+          );
       await ref.read(credentialVaultProvider).clear();
       state = const ChatNuSessionState.unauthenticated();
       return null;

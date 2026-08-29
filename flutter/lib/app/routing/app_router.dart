@@ -50,10 +50,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: ChatNuRoutes.splash,
         builder: (_, _) => const _SplashScreen(),
       ),
-      GoRoute(
-        path: ChatNuRoutes.login,
-        builder: (_, _) => const AuthScreen(),
-      ),
+      GoRoute(path: ChatNuRoutes.login, builder: (_, _) => const AuthScreen()),
       GoRoute(
         path: ChatNuRoutes.onboarding,
         redirect: (_, _) => ChatNuRoutes.login,

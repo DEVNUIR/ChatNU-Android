@@ -116,7 +116,8 @@ class _DerReader {
     if (offset >= data.length || data[offset++] != expectedTag) {
       throw const FormatException('Unexpected DER tag.');
     }
-    if (offset >= data.length) throw const FormatException('Missing DER length.');
+    if (offset >= data.length)
+      throw const FormatException('Missing DER length.');
     var length = data[offset++];
     if ((length & 0x80) != 0) {
       final count = length & 0x7f;

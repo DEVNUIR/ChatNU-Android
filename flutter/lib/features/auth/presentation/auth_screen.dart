@@ -190,9 +190,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         Text(
                           _error!,
                           key: const Key('auth-error'),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: palette.destructive,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: palette.destructive),
                         ),
                       ],
                       const SizedBox(height: ChatNuSpacing.md),
@@ -202,7 +201,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         icon: _busy
                             ? const SizedBox.square(
                                 dimension: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Icon(_submitIcon),
                         label: Text(_submitLabel),
@@ -243,19 +244,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       final controller = ref.read(sessionProvider.notifier);
       final error = switch (_mode) {
         AuthMode.login => await controller.login(
-            username: _username.text,
-            password: _password.text,
-          ),
+          username: _username.text,
+          password: _password.text,
+        ),
         AuthMode.register => await controller.register(
-            username: _username.text,
-            password: _password.text,
-            displayName: _displayName.text,
-          ),
+          username: _username.text,
+          password: _password.text,
+          displayName: _displayName.text,
+        ),
         AuthMode.recover => await controller.recover(
-            username: _username.text,
-            recoveryCode: _recoveryCode.text,
-            newPassword: _password.text,
-          ),
+          username: _username.text,
+          recoveryCode: _recoveryCode.text,
+          newPassword: _password.text,
+        ),
       };
       if (mounted) setState(() => _error = error);
     } on FormatException catch (error) {
@@ -273,8 +274,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   String get _subtitle => switch (_mode) {
     AuthMode.login => 'Sign in to continue to your encrypted conversations.',
-    AuthMode.register => 'A device identity key is created locally before registration.',
-    AuthMode.recover => 'Recovery changes the password and revokes existing devices.',
+    AuthMode.register =>
+      'A device identity key is created locally before registration.',
+    AuthMode.recover =>
+      'Recovery changes the password and revokes existing devices.',
   };
 
   String get _submitLabel => switch (_mode) {

@@ -100,7 +100,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     if (mode == ChatNuAppMode.demo) return _demoState();
 
     final session = ref.watch(sessionProvider);
-    final user = session.user ??
+    final user =
+        session.user ??
         const ChatNuUser(
           id: 'session-pending',
           username: 'session-pending',
@@ -239,8 +240,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     final repository = _repository;
     if (repository == null) return;
 
-    final failedMatch = state.messagesByConversation[conversationId]
-        .orEmpty
+    final failedMatch = state.messagesByConversation[conversationId].orEmpty
         .lastWhereOrNull(
           (message) =>
               message.senderId == state.currentUser.id &&
@@ -433,7 +433,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       state = state.copyWith(
         conversations: state.conversations
             .map(
-              (conversation) => conversation.id == conversationId &&
+              (conversation) =>
+                  conversation.id == conversationId &&
                       conversation.unreadCount == 0
                   ? conversation.copyWith(unreadCount: previousUnread)
                   : conversation,
@@ -478,19 +479,21 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     if (repository == null) return;
     try {
       final message = await repository.messageFromRealtime(raw);
-      final existing = state.messagesByConversation[message.conversationId]
-          .orEmpty;
+      final existing =
+          state.messagesByConversation[message.conversationId].orEmpty;
       final duplicate = existing.any(
         (item) =>
             item.id == message.id ||
             (message.clientId != null &&
-                (item.clientId == message.clientId || item.id == message.clientId)),
+                (item.clientId == message.clientId ||
+                    item.id == message.clientId)),
       );
       if (!duplicate) {
         _appendMessage(message);
       } else if (message.clientId != null) {
         final local = existing.lastWhereOrNull(
-          (item) => item.clientId == message.clientId || item.id == message.clientId,
+          (item) =>
+              item.clientId == message.clientId || item.id == message.clientId,
         );
         if (local != null) {
           _replaceMessage(message.conversationId, local.id, message);
@@ -521,8 +524,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     final map = Map<String, List<ChatNuMessage>>.from(
       state.messagesByConversation,
     );
-    map[conversationId] = map[conversationId]
-        .orEmpty
+    map[conversationId] = map[conversationId].orEmpty
         .map((message) => message.id == oldId ? replacement : message)
         .toList(growable: false);
     state = state.copyWith(messagesByConversation: map);
@@ -538,9 +540,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     );
     var conversations = state.conversations
         .map(
-          (conversation) => conversation.id == replacement.id
-              ? replacement
-              : conversation,
+          (conversation) =>
+              conversation.id == replacement.id ? replacement : conversation,
         )
         .toList(growable: true);
     if (!exists && insertIfMissing) conversations.insert(0, replacement);

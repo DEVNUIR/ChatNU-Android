@@ -132,9 +132,8 @@ class ChatNuApiClient {
     await _postJson('auth/logout', const <String, dynamic>{});
   }
 
-  Future<SessionResponse> session() async => SessionResponse.fromJson(
-    await _getJson('session'),
-  );
+  Future<SessionResponse> session() async =>
+      SessionResponse.fromJson(await _getJson('session'));
 
   Future<UserDto> me() async {
     final json = await _getJson('me');
@@ -157,9 +156,9 @@ class ChatNuApiClient {
       'users/search',
       queryParameters: <String, dynamic>{'q': query},
     );
-    return _list(json['users'])
-        .map((item) => UserDto.fromJson(_map(item)))
-        .toList(growable: false);
+    return _list(
+      json['users'],
+    ).map((item) => UserDto.fromJson(_map(item))).toList(growable: false);
   }
 
   Future<List<ConversationDto>> conversations() async {
@@ -221,9 +220,9 @@ class ChatNuApiClient {
         'limit': limit,
       },
     );
-    return _list(json['messages'])
-        .map((item) => MessageDto.fromJson(_map(item)))
-        .toList(growable: false);
+    return _list(
+      json['messages'],
+    ).map((item) => MessageDto.fromJson(_map(item))).toList(growable: false);
   }
 
   Future<MessageDto> sendMessage({
@@ -290,9 +289,8 @@ class ChatNuApiClient {
     }
   }
 
-  Future<RtcConfigResponse> rtcConfig() async => RtcConfigResponse.fromJson(
-    await _getJson('rtc/config'),
-  );
+  Future<RtcConfigResponse> rtcConfig() async =>
+      RtcConfigResponse.fromJson(await _getJson('rtc/config'));
 
   Future<List<PendingCallDto>> pendingCalls() async {
     final json = await _getJson('calls/pending');

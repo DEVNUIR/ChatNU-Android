@@ -46,7 +46,8 @@ class ChatNuCallState {
   final MediaStream? remoteStream;
   final String? error;
 
-  bool get active => status != ChatNuCallStatus.idle && status != ChatNuCallStatus.ended;
+  bool get active =>
+      status != ChatNuCallStatus.idle && status != ChatNuCallStatus.ended;
 
   ChatNuCallState copyWith({
     ChatNuCallStatus? status,
@@ -90,7 +91,9 @@ class CallController extends Notifier<ChatNuCallState> {
   ChatNuCallState build() {
     final mode = ref.watch(appModeProvider);
     final session = ref.watch(sessionProvider);
-    if (mode == ChatNuAppMode.production && session.isAuthenticated && !_attached) {
+    if (mode == ChatNuAppMode.production &&
+        session.isAuthenticated &&
+        !_attached) {
       _attached = true;
       Future<void>.microtask(_attachRealtime);
     }
@@ -206,7 +209,8 @@ class CallController extends Notifier<ChatNuCallState> {
 
   void toggleMute() {
     final next = !state.muted;
-    for (final track in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
+    for (final track
+        in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
       track.enabled = !next;
     }
     state = state.copyWith(muted: next);
@@ -215,7 +219,8 @@ class CallController extends Notifier<ChatNuCallState> {
   void toggleCamera() {
     if (!state.video) return;
     final next = !state.cameraEnabled;
-    for (final track in _localStream?.getVideoTracks() ?? <MediaStreamTrack>[]) {
+    for (final track
+        in _localStream?.getVideoTracks() ?? <MediaStreamTrack>[]) {
       track.enabled = next;
     }
     state = state.copyWith(cameraEnabled: next);
@@ -256,7 +261,8 @@ class CallController extends Notifier<ChatNuCallState> {
       state = state.copyWith(remoteStream: _remoteStream);
     };
     peer.onConnectionState = (connectionState) {
-      if (connectionState == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+      if (connectionState ==
+          RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         state = state.copyWith(status: ChatNuCallStatus.connected);
       } else if (connectionState ==
               RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
@@ -268,9 +274,7 @@ class CallController extends Notifier<ChatNuCallState> {
 
     final stream = await navigator.mediaDevices.getUserMedia(<String, dynamic>{
       'audio': true,
-      'video': video
-          ? <String, dynamic>{'facingMode': 'user'}
-          : false,
+      'video': video ? <String, dynamic>{'facingMode': 'user'} : false,
     });
     _localStream = stream;
     for (final track in stream.getTracks()) {
@@ -309,7 +313,9 @@ class CallController extends Notifier<ChatNuCallState> {
     final candidate = event['candidate']?.toString();
     if (candidate == null || _peer == null) return;
     final rawIndex = event['sdpMLineIndex'];
-    final index = rawIndex is num ? rawIndex.toInt() : int.tryParse('$rawIndex');
+    final index = rawIndex is num
+        ? rawIndex.toInt()
+        : int.tryParse('$rawIndex');
     await _peer!.addCandidate(
       RTCIceCandidate(candidate, event['sdpMid']?.toString(), index),
     );
@@ -320,7 +326,10 @@ class CallController extends Notifier<ChatNuCallState> {
     final conversationId = event['conversationId']?.toString();
     final fromUserId = event['fromUserId']?.toString();
     final sdp = event['sdp']?.toString();
-    if (callId == null || conversationId == null || fromUserId == null || sdp == null) {
+    if (callId == null ||
+        conversationId == null ||
+        fromUserId == null ||
+        sdp == null) {
       return;
     }
     _pendingOffer = event;
@@ -392,9 +401,8 @@ class CallController extends Notifier<ChatNuCallState> {
   }
 }
 
-final callControllerProvider = NotifierProvider<CallController, ChatNuCallState>(
-  CallController.new,
-);
+final callControllerProvider =
+    NotifierProvider<CallController, ChatNuCallState>(CallController.new);
 
 extension<T> on Iterable<T> {
   T? get firstOrNull {

@@ -180,12 +180,14 @@ class _ConversationHeader extends ConsumerWidget {
                 onPressed: demo
                     ? null
                     : () => unawaited(
-                          ref.read(callControllerProvider.notifier).startCall(
-                                conversation: conversation,
-                                currentUserId: currentUser.id,
-                                video: false,
-                              ),
-                        ),
+                        ref
+                            .read(callControllerProvider.notifier)
+                            .startCall(
+                              conversation: conversation,
+                              currentUserId: currentUser.id,
+                              video: false,
+                            ),
+                      ),
               ),
               GlassIconButton(
                 icon: Icons.videocam_outlined,
@@ -193,12 +195,14 @@ class _ConversationHeader extends ConsumerWidget {
                 onPressed: demo
                     ? null
                     : () => unawaited(
-                          ref.read(callControllerProvider.notifier).startCall(
-                                conversation: conversation,
-                                currentUserId: currentUser.id,
-                                video: true,
-                              ),
-                        ),
+                        ref
+                            .read(callControllerProvider.notifier)
+                            .startCall(
+                              conversation: conversation,
+                              currentUserId: currentUser.id,
+                              video: true,
+                            ),
+                      ),
               ),
             ],
           ],
@@ -261,7 +265,8 @@ class _MessageBubble extends ConsumerWidget {
                   ),
                 ),
               ),
-            if (message.type == ChatNuMessageType.text || !message.hasAttachment)
+            if (message.type == ChatNuMessageType.text ||
+                !message.hasAttachment)
               Directionality(
                 textDirection: directionForText(message.body),
                 child: Text(
@@ -361,10 +366,10 @@ class _AttachmentContent extends ConsumerWidget {
   }
 
   static IconData _attachmentIcon(ChatNuMessageType type) => switch (type) {
-    ChatNuMessageType.image || ChatNuMessageType.viewOnceImage =>
-      Icons.image_outlined,
-    ChatNuMessageType.video || ChatNuMessageType.viewOnceVideo =>
-      Icons.video_file_outlined,
+    ChatNuMessageType.image ||
+    ChatNuMessageType.viewOnceImage => Icons.image_outlined,
+    ChatNuMessageType.video ||
+    ChatNuMessageType.viewOnceVideo => Icons.video_file_outlined,
     ChatNuMessageType.voice => Icons.audio_file_outlined,
     _ => Icons.insert_drive_file_outlined,
   };
@@ -497,7 +502,8 @@ class _Composer extends ConsumerWidget {
       );
       return;
     }
-    final mimeType = lookupMimeType(file.name, headerBytes: bytes) ??
+    final mimeType =
+        lookupMimeType(file.name, headerBytes: bytes) ??
         'application/octet-stream';
     final type = mimeType.startsWith('image/')
         ? ChatNuMessageType.image
@@ -506,13 +512,15 @@ class _Composer extends ConsumerWidget {
         : mimeType.startsWith('audio/')
         ? ChatNuMessageType.voice
         : ChatNuMessageType.file;
-    await ref.read(messengerDemoProvider.notifier).sendAttachment(
-      conversationId: conversationId,
-      bytes: bytes,
-      fileName: file.name,
-      mimeType: mimeType,
-      type: type,
-    );
+    await ref
+        .read(messengerDemoProvider.notifier)
+        .sendAttachment(
+          conversationId: conversationId,
+          bytes: bytes,
+          fileName: file.name,
+          mimeType: mimeType,
+          type: type,
+        );
   }
 }
 

@@ -63,11 +63,12 @@ class RefreshResponse {
   final String refreshToken;
   final int expiresIn;
 
-  factory RefreshResponse.fromJson(Map<String, dynamic> json) => RefreshResponse(
-    accessToken: _string(json, 'accessToken'),
-    refreshToken: _string(json, 'refreshToken'),
-    expiresIn: _integer(json['expiresIn']),
-  );
+  factory RefreshResponse.fromJson(Map<String, dynamic> json) =>
+      RefreshResponse(
+        accessToken: _string(json, 'accessToken'),
+        refreshToken: _string(json, 'refreshToken'),
+        expiresIn: _integer(json['expiresIn']),
+      );
 }
 
 class SessionResponse {
@@ -85,13 +86,14 @@ class SessionResponse {
   final bool hasIdentityKey;
   final bool pushConfigured;
 
-  factory SessionResponse.fromJson(Map<String, dynamic> json) => SessionResponse(
-    deviceId: _string(json, 'deviceId'),
-    userId: _string(json, 'userId'),
-    deviceName: _string(json, 'deviceName'),
-    hasIdentityKey: json['hasIdentityKey'] == true,
-    pushConfigured: json['pushConfigured'] == true,
-  );
+  factory SessionResponse.fromJson(Map<String, dynamic> json) =>
+      SessionResponse(
+        deviceId: _string(json, 'deviceId'),
+        userId: _string(json, 'userId'),
+        deviceName: _string(json, 'deviceName'),
+        hasIdentityKey: json['hasIdentityKey'] == true,
+        pushConfigured: json['pushConfigured'] == true,
+      );
 }
 
 class ConversationDto {
@@ -119,22 +121,23 @@ class ConversationDto {
   final String? updatedAt;
   final MessageDto? lastMessage;
 
-  factory ConversationDto.fromJson(Map<String, dynamic> json) => ConversationDto(
-    id: _string(json, 'id'),
-    type: _string(json, 'type'),
-    title: _string(json, 'title'),
-    avatarUrl: _nullableString(json['avatarUrl']),
-    members: _list(json['members'])
-        .map((item) => UserDto.fromJson(_map(item)))
-        .toList(growable: false),
-    isPinned: json['isPinned'] == true,
-    isMuted: json['isMuted'] == true,
-    unreadCount: _integer(json['unreadCount']),
-    updatedAt: _nullableString(json['updatedAt']),
-    lastMessage: json['lastMessage'] is Map
-        ? MessageDto.fromJson(_map(json['lastMessage']))
-        : null,
-  );
+  factory ConversationDto.fromJson(Map<String, dynamic> json) =>
+      ConversationDto(
+        id: _string(json, 'id'),
+        type: _string(json, 'type'),
+        title: _string(json, 'title'),
+        avatarUrl: _nullableString(json['avatarUrl']),
+        members: _list(
+          json['members'],
+        ).map((item) => UserDto.fromJson(_map(item))).toList(growable: false),
+        isPinned: json['isPinned'] == true,
+        isMuted: json['isMuted'] == true,
+        unreadCount: _integer(json['unreadCount']),
+        updatedAt: _nullableString(json['updatedAt']),
+        lastMessage: json['lastMessage'] is Map
+            ? MessageDto.fromJson(_map(json['lastMessage']))
+            : null,
+      );
 }
 
 class DeviceKeyDto {
@@ -169,9 +172,9 @@ class ConversationKeysResponse {
         devices: _list(json['devices'])
             .map((item) => DeviceKeyDto.fromJson(_map(item)))
             .toList(growable: false),
-        missingUserIds: _list(json['missingUserIds'])
-            .map((item) => item.toString())
-            .toList(growable: false),
+        missingUserIds: _list(
+          json['missingUserIds'],
+        ).map((item) => item.toString()).toList(growable: false),
       );
 }
 

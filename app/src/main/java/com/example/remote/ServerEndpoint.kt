@@ -43,6 +43,10 @@ object ServerEndpoint {
 
     fun isEmergencyTls(): Boolean = selectedTlsCaPin != null
 
+    /** Safe to display/copy: the fragment is local client enrollment data and is never sent in HTTP. */
+    fun enrollmentValue(): String = selectedTlsCaPin?.let { "$selectedApiUrl#$PIN_FRAGMENT_PREFIX$it" }
+        ?: selectedApiUrl
+
     fun hostLabel(): String = selectedApiUrl.toHttpUrlOrNull()?.let { url ->
         val base = if (url.port == url.defaultPort()) url.host else "${url.host}:${url.port}"
         if (isEmergencyTls()) "$base · pinned" else base

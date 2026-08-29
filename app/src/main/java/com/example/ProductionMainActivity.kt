@@ -29,11 +29,12 @@ import com.example.remote.CallPhase
 import com.example.remote.ChatNuMessagingService
 import com.example.remote.EnhancedProductionConversationScreen
 import com.example.remote.EnhancedProductionSettingsScreen
-import com.example.remote.ProductionAuthScreen
-import com.example.remote.ProductionHomeScreen
 import com.example.remote.PushRegistration
 import com.example.remote.RemoteAuthRepository
 import com.example.remote.RemoteChatRepository
+import com.example.remote.ServerAwareAuthScreen
+import com.example.remote.ServerEndpoint
+import com.example.remote.TelegramHomeScreen
 import com.example.remote.TokenStore
 import com.example.remote.WebRtcCallManager
 import com.example.ui.theme.MyApplicationTheme
@@ -53,6 +54,7 @@ class ProductionMainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        ServerEndpoint.initialize(applicationContext)
         val tokenStore = TokenStore(applicationContext)
         val apiClient = ApiClient(tokenStore)
         val deviceE2ee = DeviceE2ee()
@@ -261,7 +263,13 @@ class ProductionMainActivity : ComponentActivity() {
                 }
 
                 when (screen) {
-                    ProductionScreen.AUTH -> ProductionAuthScreen(
+                    ProductionScreen.AUTH -> ServerAwareAuthScreen(
+                        initialServerUrl = ServerEndpoint.apiUrl(),
+                        onChangeServer = { raw ->
+                            chatRepository.closeRealtime()
+                            authRepository.forceLogout()
+                            ServerEndpoint.configure(applicationContext, raw)
+                        },
                         onLogin = authRepository::login,
                         onRegister = authRepository::register,
                         onAuthSuccess = {
@@ -270,7 +278,7 @@ class ProductionMainActivity : ComponentActivity() {
                         }
                     )
 
-                    ProductionScreen.HOME -> ProductionHomeScreen(
+                    ProductionScreen.HOME -> TelegramHomeScreen(
                         user = currentUser,
                         conversations = conversations,
                         realtimeStatus = realtimeStatus,

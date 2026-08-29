@@ -1,8 +1,15 @@
 package com.example.ui.chatnu2026
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -45,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -134,12 +142,19 @@ fun ChatNuFolderTabs(
             items(ChatNuFolder.entries, key = { it.name }) { folder ->
                 val active = selected == folder
                 val background by animateColorAsState(
-                    targetValue = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
+                    targetValue = if (active) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f) else Color.Transparent,
+                    animationSpec = tween(ChatNuMotion.quickMs),
                     label = "folder-color"
                 )
                 val horizontalPadding by animateDpAsState(
                     targetValue = if (active) 15.dp else 12.dp,
+                    animationSpec = tween(ChatNuMotion.quickMs),
                     label = "folder-padding"
+                )
+                val scale by animateFloatAsState(
+                    targetValue = if (active) 1f else 0.97f,
+                    animationSpec = ChatNuMotion.responsiveSpring(),
+                    label = "folder-scale"
                 )
                 val badge = when (folder) {
                     ChatNuFolder.UNREAD -> unreadCount
@@ -151,15 +166,16 @@ fun ChatNuFolderTabs(
                         if (!active) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onSelect(folder)
                     },
+                    modifier = Modifier.scale(scale),
                     shape = RoundedCornerShape(ChatNuRadius.pill),
                     color = background,
-                    contentColor = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    contentColor = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                 ) {
                     Row(
                         modifier = Modifier
                             .defaultMinSize(minHeight = 40.dp)
                             .padding(horizontal = horizontalPadding, vertical = 8.dp)
-                            .animateContentSize(),
+                            .animateContentSize(animationSpec = ChatNuMotion.responsiveSpring()),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -168,7 +184,11 @@ fun ChatNuFolderTabs(
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (active) FontWeight.Bold else FontWeight.Medium
                         )
-                        if (badge > 0) {
+                        AnimatedVisibility(
+                            visible = badge > 0,
+                            enter = fadeIn(tween(ChatNuMotion.quickMs)) + expandHorizontally(),
+                            exit = fadeOut(tween(ChatNuMotion.quickMs)) + shrinkHorizontally()
+                        ) {
                             Badge(containerColor = MaterialTheme.colorScheme.primary) {
                                 Text(if (badge > 99) "99+" else badge.toString())
                             }
@@ -203,21 +223,34 @@ fun ChatNuFloatingNav(
             ChatNuPrimaryDestination.entries.forEach { destination ->
                 val active = selected == destination
                 val tint by animateColorAsState(
-                    if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    animationSpec = tween(ChatNuMotion.quickMs),
                     label = "nav-tint"
+                )
+                val container by animateColorAsState(
+                    if (active) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.82f) else Color.Transparent,
+                    animationSpec = tween(ChatNuMotion.quickMs),
+                    label = "nav-container"
+                )
+                val scale by animateFloatAsState(
+                    if (active) 1f else 0.96f,
+                    animationSpec = ChatNuMotion.responsiveSpring(),
+                    label = "nav-scale"
                 )
                 Surface(
                     onClick = {
                         if (!active) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onSelect(destination)
                     },
-                    color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.13f) else Color.Transparent,
+                    modifier = Modifier.scale(scale),
+                    color = container,
                     shape = RoundedCornerShape(ChatNuRadius.pill)
                 ) {
                     Row(
                         modifier = Modifier
                             .defaultMinSize(minWidth = ChatNuTouchTarget.comfortable, minHeight = ChatNuTouchTarget.minimum)
-                            .padding(horizontal = if (active) 14.dp else 12.dp),
+                            .padding(horizontal = 12.dp)
+                            .animateContentSize(animationSpec = ChatNuMotion.responsiveSpring()),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -231,14 +264,20 @@ fun ChatNuFloatingNav(
                             tint = tint,
                             modifier = Modifier.size(ChatNuIconSize.standard)
                         )
-                        if (active) {
-                            Spacer(Modifier.width(7.dp))
-                            Text(
-                                destination.label,
-                                color = tint,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                        AnimatedVisibility(
+                            visible = active,
+                            enter = fadeIn(tween(ChatNuMotion.quickMs)) + expandHorizontally(),
+                            exit = fadeOut(tween(ChatNuMotion.quickMs)) + shrinkHorizontally()
+                        ) {
+                            Row {
+                                Spacer(Modifier.width(7.dp))
+                                Text(
+                                    destination.label,
+                                    color = tint,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -345,10 +384,16 @@ fun ChatNuConversationRow(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                if (conversation.unreadCount > 0) {
-                    Spacer(Modifier.width(8.dp))
-                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                        Text(if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString())
+                AnimatedVisibility(
+                    visible = conversation.unreadCount > 0,
+                    enter = fadeIn(tween(ChatNuMotion.quickMs)),
+                    exit = fadeOut(tween(ChatNuMotion.quickMs))
+                ) {
+                    Row {
+                        Spacer(Modifier.width(8.dp))
+                        Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                            Text(if (conversation.unreadCount > 99) "99+" else conversation.unreadCount.toString())
+                        }
                     }
                 }
             }

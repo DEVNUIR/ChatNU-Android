@@ -99,6 +99,9 @@ dependencies {
     implementation("androidx.room:room-runtime:2.7.0")
     implementation("androidx.room:room-ktx:2.7.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // Haze 0.9.0-beta03 targets Jetpack Compose 1.7.x, matching the project's pinned BOM.
+    // It provides true background blur on Android 12+ and a controlled scrim fallback below 12.
+    implementation("dev.chrisbanes.haze:haze:0.9.0-beta03")
     implementation("com.squareup.retrofit2:retrofit:2.12.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.12.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.2")

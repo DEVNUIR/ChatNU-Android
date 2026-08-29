@@ -64,8 +64,7 @@ class ChatNuMessage {
   final bool isVideoNote;
 
   bool get hasAttachment => attachmentId != null;
-  bool get hasLocation =>
-      locationLatitude != null && locationLongitude != null;
+  bool get hasLocation => locationLatitude != null && locationLongitude != null;
   bool get isPlayableAudio =>
       type == ChatNuMessageType.voice ||
       (mimeType?.toLowerCase().startsWith('audio/') ?? false);

@@ -142,7 +142,10 @@ class MessengerRepository {
     required double longitude,
     String? label,
   }) {
-    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    if (latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
       throw ArgumentError('Invalid location coordinates.');
     }
     return _sendEncryptedPayload(

@@ -60,6 +60,11 @@ const upload = multer({
     fieldSize: 256,
   },
 });
+const avatarRoot = join(env.ATTACHMENT_DIR, "avatars");
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 0, parts: 1 },
+});
 
 const allowedOrigins = env.CORS_ORIGIN === "*"
   ? true
@@ -607,6 +612,67 @@ app.post("/auth/recover", authLimiter, async (req, res) => {
 app.get("/me", requireAuth, async (req: AuthedRequest, res) => {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: req.auth!.userId } });
   res.json({ user: publicUser(user) });
+});
+
+app.patch("/me", requireAuth, async (req: AuthedRequest, res) => {
+  const input = z
+    .object({
+      displayName: z.string().trim().min(1).max(80).optional(),
+      bio: z.string().trim().max(160).nullable().optional(),
+    })
+    .refine((value) => value.displayName !== undefined || value.bio !== undefined)
+    .parse(req.body);
+  const user = await prisma.user.update({
+    where: { id: req.auth!.userId },
+    data: input,
+  });
+  res.json({ user: publicUser(user) });
+});
+
+app.post("/me/avatar", requireAuth, avatarUpload.single("file"), async (req: AuthedRequest, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: "AVATAR_REQUIRED" });
+  const extension = file.mimetype === "image/png"
+    ? "png"
+    : file.mimetype === "image/jpeg"
+      ? "jpg"
+      : file.mimetype === "image/webp"
+        ? "webp"
+        : null;
+  if (!extension) return res.status(415).json({ error: "UNSUPPORTED_AVATAR_TYPE" });
+  await mkdir(avatarRoot, { recursive: true });
+  const key = `${req.auth!.userId}-${randomUUID()}.${extension}`;
+  await writeFile(join(avatarRoot, key), file.buffer);
+  const user = await prisma.user.update({
+    where: { id: req.auth!.userId },
+    data: { avatarUrl: `/avatars/${key}` },
+  });
+  res.status(201).json({ user: publicUser(user) });
+});
+
+app.delete("/me/avatar", requireAuth, async (req: AuthedRequest, res) => {
+  const user = await prisma.user.update({
+    where: { id: req.auth!.userId },
+    data: { avatarUrl: null },
+  });
+  res.json({ user: publicUser(user) });
+});
+
+app.get("/avatars/:key", (req, res) => {
+  const key = z.string().regex(/^[A-Za-z0-9._-]{1,220}$/).parse(req.params.key);
+  const type = key.endsWith(".png")
+    ? "image/png"
+    : key.endsWith(".webp")
+      ? "image/webp"
+      : "image/jpeg";
+  res.setHeader("Content-Type", type);
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  const stream = createReadStream(join(avatarRoot, key));
+  stream.on("error", () => {
+    if (!res.headersSent) res.status(404).end();
+    else res.destroy();
+  });
+  stream.pipe(res);
 });
 
 app.get("/session", requireAuth, async (req: AuthedRequest, res) => {

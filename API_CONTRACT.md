@@ -68,6 +68,10 @@ Returns active member devices that have an identity public key. Only a conversat
 ## Users
 
 - `GET /me`
+- `PATCH /me` — authenticated display-name/bio update; username remains immutable because it participates in the device E2EE account namespace
+- `POST /me/avatar` — authenticated PNG/JPEG/WebP avatar upload, max 5 MiB
+- `DELETE /me/avatar` — remove the current avatar
+- `GET /avatars/:key` — public cacheable avatar bytes; keys are server-generated and path traversal is rejected
 - `GET /users/search?q=<query>`
 
 ## Conversations

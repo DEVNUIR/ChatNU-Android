@@ -98,7 +98,7 @@ class ChatNuApiClient {
       'deviceName': deviceName,
       'identityPublicKey': identityPublicKey,
     });
-    return AuthResponse.fromJson(json);
+    return _authResponse(json);
   }
 
   Future<AuthResponse> login({
@@ -113,7 +113,7 @@ class ChatNuApiClient {
       'deviceName': deviceName,
       'identityPublicKey': identityPublicKey,
     });
-    return AuthResponse.fromJson(json);
+    return _authResponse(json);
   }
 
   Future<void> recover({
@@ -138,7 +138,42 @@ class ChatNuApiClient {
   Future<UserDto> me() async {
     final json = await _getJson('me');
     final value = json['user'];
-    return UserDto.fromJson(value is Map ? _map(value) : json);
+    return _normalizeUser(UserDto.fromJson(value is Map ? _map(value) : json));
+  }
+
+  Future<UserDto> updateProfile({
+    required String displayName,
+    required String? bio,
+  }) async {
+    final json = await _patchJson('me', <String, dynamic>{
+      'displayName': displayName,
+      'bio': bio,
+    });
+    return _normalizeUser(UserDto.fromJson(_map(json['user'])));
+  }
+
+  Future<UserDto> uploadAvatar({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    _ensureTransportAllowed();
+    try {
+      final response = await _dio.post<dynamic>(
+        'me/avatar',
+        data: FormData.fromMap(<String, dynamic>{
+          'file': MultipartFile.fromBytes(bytes, filename: fileName),
+        }),
+      );
+      final json = _map(response.data);
+      return _normalizeUser(UserDto.fromJson(_map(json['user'])));
+    } on DioException catch (error) {
+      throw _apiException(error);
+    }
+  }
+
+  Future<UserDto> removeAvatar() async {
+    final json = await _deleteJson('me/avatar');
+    return _normalizeUser(UserDto.fromJson(_map(json['user'])));
   }
 
   Future<void> updateIdentityKey(String identityPublicKey) async {
@@ -156,15 +191,18 @@ class ChatNuApiClient {
       'users/search',
       queryParameters: <String, dynamic>{'q': query},
     );
-    return _list(
-      json['users'],
-    ).map((item) => UserDto.fromJson(_map(item))).toList(growable: false);
+    return _list(json['users'])
+        .map((item) => _normalizeUser(UserDto.fromJson(_map(item))))
+        .toList(growable: false);
   }
 
   Future<List<ConversationDto>> conversations() async {
     final json = await _getJson('conversations');
     return _list(json['conversations'])
-        .map((item) => ConversationDto.fromJson(_map(item)))
+        .map(
+          (item) =>
+              _normalizeConversation(ConversationDto.fromJson(_map(item))),
+        )
         .toList(growable: false);
   }
 
@@ -172,7 +210,9 @@ class ChatNuApiClient {
     final json = await _postJson('conversations/direct', <String, dynamic>{
       'username': username,
     });
-    return ConversationDto.fromJson(_map(json['conversation']));
+    return _normalizeConversation(
+      ConversationDto.fromJson(_map(json['conversation'])),
+    );
   }
 
   Future<ConversationDto> createGroup({
@@ -183,7 +223,9 @@ class ChatNuApiClient {
       'title': title,
       'usernames': usernames,
     });
-    return ConversationDto.fromJson(_map(json['conversation']));
+    return _normalizeConversation(
+      ConversationDto.fromJson(_map(json['conversation'])),
+    );
   }
 
   Future<void> updateConversationPreferences(
@@ -337,6 +379,17 @@ class ChatNuApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> _deleteJson(String path) async {
+    _ensureTransportAllowed();
+    try {
+      final response = await _dio.delete<dynamic>(path);
+      final body = response.data;
+      return body is Map ? _map(body) : <String, dynamic>{};
+    } on DioException catch (error) {
+      throw _apiException(error);
+    }
+  }
+
   Future<String?> _refreshAccessToken() {
     final active = _refreshing;
     if (active != null) return active.future;
@@ -368,6 +421,49 @@ class ChatNuApiClient {
       }
     }();
     return completer.future;
+  }
+
+  AuthResponse _authResponse(Map<String, dynamic> json) {
+    final response = AuthResponse.fromJson(json);
+    return AuthResponse(
+      user: _normalizeUser(response.user),
+      deviceId: response.deviceId,
+      accessToken: response.accessToken,
+      refreshToken: response.refreshToken,
+      expiresIn: response.expiresIn,
+      recoveryCode: response.recoveryCode,
+    );
+  }
+
+  UserDto _normalizeUser(UserDto user) => UserDto(
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    avatarUrl: _normalizePublicUrl(user.avatarUrl),
+    bio: user.bio,
+    lastSeenAt: user.lastSeenAt,
+  );
+
+  ConversationDto _normalizeConversation(ConversationDto dto) =>
+      ConversationDto(
+        id: dto.id,
+        type: dto.type,
+        title: dto.title,
+        avatarUrl: _normalizePublicUrl(dto.avatarUrl),
+        members: dto.members.map(_normalizeUser).toList(growable: false),
+        isPinned: dto.isPinned,
+        isMuted: dto.isMuted,
+        unreadCount: dto.unreadCount,
+        updatedAt: dto.updatedAt,
+        lastMessage: dto.lastMessage,
+      );
+
+  String? _normalizePublicUrl(String? value) {
+    final raw = value?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    final parsed = Uri.tryParse(raw);
+    if (parsed != null && parsed.hasScheme) return parsed.toString();
+    return _endpoint.restUri.resolve(raw).toString();
   }
 
   void _ensureTransportAllowed() {

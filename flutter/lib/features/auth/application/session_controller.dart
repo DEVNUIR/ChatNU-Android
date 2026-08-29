@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:chatnu/core/config/server_endpoint.dart';
 import 'package:chatnu/core/di/app_providers.dart';
 import 'package:chatnu/core/network/api_models.dart';
 import 'package:chatnu/core/network/chatnu_api_client.dart';
@@ -207,6 +209,99 @@ class SessionController extends Notifier<ChatNuSessionState> {
     }
   }
 
+  Future<String?> updateProfile({
+    required String displayName,
+    required String? bio,
+  }) async {
+    final cleanName = displayName.trim();
+    final cleanBio = bio?.trim();
+    if (cleanName.isEmpty || cleanName.length > 80) {
+      return 'Display name must be between 1 and 80 characters.';
+    }
+    if ((cleanBio?.length ?? 0) > 160) {
+      return 'Bio must be 160 characters or fewer.';
+    }
+    try {
+      final user = await ref
+          .read(apiClientProvider)
+          .updateProfile(
+            displayName: cleanName,
+            bio: cleanBio?.isEmpty == true ? null : cleanBio,
+          );
+      await _applyUser(user);
+      return null;
+    } on ChatNuApiException catch (error) {
+      return error.message;
+    } catch (error) {
+      return error.toString();
+    }
+  }
+
+  Future<String?> uploadAvatar({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    if (bytes.isEmpty || bytes.length > 5 * 1024 * 1024) {
+      return 'Avatar must be a non-empty image up to 5 MiB.';
+    }
+    try {
+      final user = await ref
+          .read(apiClientProvider)
+          .uploadAvatar(bytes: bytes, fileName: fileName);
+      await _applyUser(user);
+      return null;
+    } on ChatNuApiException catch (error) {
+      return error.message;
+    } catch (error) {
+      return error.toString();
+    }
+  }
+
+  Future<String?> removeAvatar() async {
+    try {
+      final user = await ref.read(apiClientProvider).removeAvatar();
+      await _applyUser(user);
+      return null;
+    } on ChatNuApiException catch (error) {
+      return error.message;
+    } catch (error) {
+      return error.toString();
+    }
+  }
+
+  Future<String?> switchServer(String rawValue) async {
+    try {
+      ChatNuServerEndpoint.parse(rawValue);
+    } on FormatException catch (error) {
+      return error.message;
+    }
+    try {
+      await ref.read(apiClientProvider).logout();
+    } catch (_) {
+      // Server switching must still clear the local token if the old server is down.
+    }
+    await ref.read(credentialVaultProvider).clear();
+    try {
+      await ref.read(serverEndpointProvider.notifier).configure(rawValue);
+      state = const ChatNuSessionState.unauthenticated();
+      return null;
+    } on FormatException catch (error) {
+      return error.message;
+    } catch (error) {
+      return error.toString();
+    }
+  }
+
+  Future<String?> resetServer() async {
+    try {
+      await ref.read(apiClientProvider).logout();
+    } catch (_) {}
+    await ref.read(credentialVaultProvider).clear();
+    await ref.read(serverEndpointProvider.notifier).reset();
+    state = const ChatNuSessionState.unauthenticated();
+    return null;
+  }
+
   Future<void> logout() async {
     try {
       await ref.read(apiClientProvider).logout();
@@ -215,6 +310,18 @@ class SessionController extends Notifier<ChatNuSessionState> {
     }
     await ref.read(credentialVaultProvider).clear();
     state = const ChatNuSessionState.unauthenticated();
+  }
+
+  Future<void> _applyUser(UserDto dto) async {
+    final user = ChatNuUser(
+      id: dto.id,
+      username: dto.username,
+      displayName: dto.displayName,
+      avatarUrl: dto.avatarUrl,
+      bio: dto.bio,
+    );
+    await ref.read(credentialVaultProvider).updateUser(user);
+    state = ChatNuSessionState.authenticated(user, offline: state.offline);
   }
 
   Future<void> _ensureDeviceIdentity(StoredSession stored) async {

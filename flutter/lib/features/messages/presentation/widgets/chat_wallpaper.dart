@@ -82,7 +82,11 @@ class _ChatWallpaperState extends ConsumerState<ChatWallpaper>
               children: <Widget>[
                 ColoredBox(
                   color: style == ChatWallpaperStyle.midnight
-                      ? Color.lerp(base, const Color(0xFF09101F), dark ? 0.48 : 0.72)!
+                      ? Color.lerp(
+                          base,
+                          const Color(0xFF09101F),
+                          dark ? 0.48 : 0.72,
+                        )!
                       : base,
                 ),
                 if (style != ChatWallpaperStyle.softGrid) ...<Widget>[

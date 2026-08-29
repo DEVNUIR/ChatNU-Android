@@ -275,6 +275,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     required String fileName,
     required String mimeType,
     required ChatNuMessageType type,
+    Map<String, dynamic> privateMetadata = const <String, dynamic>{},
   }) async {
     final repository = _repository;
     if (_isDemo || repository == null) return;
@@ -292,6 +293,10 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       fileName: fileName,
       mimeType: mimeType,
       sizeBytes: bytes.length,
+      mediaDurationMs: privateMetadata['durationMs'] is num
+          ? (privateMetadata['durationMs'] as num).toInt()
+          : null,
+      isVideoNote: privateMetadata['videoNote'] == true,
     );
     _appendMessage(optimistic);
     _updateConversationPreview(conversationId, fileName, optimistic.sentAt);
@@ -303,6 +308,53 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
         fileName: fileName,
         mimeType: mimeType,
         type: type,
+        privateMetadata: privateMetadata,
+      );
+      _replaceMessage(conversationId, clientId, sent);
+      await refreshConversations();
+    } catch (error) {
+      _replaceMessage(
+        conversationId,
+        clientId,
+        optimistic.copyWith(deliveryState: MessageDeliveryState.failed),
+      );
+      state = state.copyWith(error: _readableError(error));
+    }
+  }
+
+  Future<void> sendLocation({
+    required String conversationId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final repository = _repository;
+    if (_isDemo || repository == null) return;
+    final clientId = repository.newClientId();
+    final optimistic = ChatNuMessage(
+      id: clientId,
+      clientId: clientId,
+      conversationId: conversationId,
+      senderId: state.currentUser.id,
+      senderName: state.currentUser.displayName,
+      body: 'Shared location',
+      sentAt: DateTime.now(),
+      type: ChatNuMessageType.location,
+      deliveryState: MessageDeliveryState.sending,
+      locationLatitude: latitude,
+      locationLongitude: longitude,
+    );
+    _appendMessage(optimistic);
+    _updateConversationPreview(
+      conversationId,
+      'Shared location',
+      optimistic.sentAt,
+    );
+    try {
+      final sent = await repository.sendLocation(
+        conversationId: conversationId,
+        clientId: clientId,
+        latitude: latitude,
+        longitude: longitude,
       );
       _replaceMessage(conversationId, clientId, sent);
       await refreshConversations();

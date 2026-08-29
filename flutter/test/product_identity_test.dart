@@ -1,3 +1,4 @@
+import 'package:chatnu/core/di/app_providers.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/features/home/presentation/messenger_shell.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,9 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: <Override>[
+          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
+        ],
         child: MaterialApp(
           locale: const Locale('fa'),
           supportedLocales: const <Locale>[Locale('en'), Locale('fa')],

@@ -76,6 +76,35 @@ jobs:
           git commit -m "Record Flutter analyzer diagnostics"
           git push
       - name: Test
-        run: flutter test
+        id: test
+        shell: bash
+        run: |
+          set +e
+          flutter test 2>&1 | tee /tmp/chatnu-test.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            {
+              echo "# Flutter validation"
+              echo
+              echo "Widget/unit test output from the latest migration check:"
+              echo
+              echo '```text'
+              cat /tmp/chatnu-test.log
+              echo '```'
+            } > VALIDATION.md
+          fi
+          exit "$status"
+      - name: Commit test diagnostics
+        if: failure() && steps.analyze.outcome == 'success' && github.event_name == 'push'
+        working-directory: .
+        run: |
+          if [ ! -f flutter/VALIDATION.md ]; then
+            exit 0
+          fi
+          git config user.name "ChatNU CI"
+          git config user.email "ci@chatnu.invalid"
+          git add flutter/VALIDATION.md
+          git commit -m "Record Flutter test diagnostics"
+          git push
       - name: Build Android debug APK
         run: flutter build apk --debug

@@ -8,7 +8,7 @@ on:
       - ".github/workflows/flutter-format-artifact.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
@@ -21,7 +21,18 @@ jobs:
           channel: stable
           cache: true
       - name: Format Flutter sources
-        run: dart format flutter/lib flutter/test
+        run: |
+          cd flutter
+          dart format lib test
+      - name: Commit canonical formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter/lib flutter/test
+          if ! git diff --cached --quiet; then
+            git commit -m "style(flutter): apply canonical Dart formatting"
+            git push
+          fi
       - name: Archive formatted sources
         uses: actions/upload-artifact@v4
         with:

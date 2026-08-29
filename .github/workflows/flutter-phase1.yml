@@ -45,7 +45,36 @@ jobs:
           git commit -m "Normalize Flutter messenger sources"
           git push
       - name: Analyze
-        run: flutter analyze --fatal-infos
+        id: analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --fatal-infos 2>&1 | tee /tmp/chatnu-analyze.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            {
+              echo "# Flutter validation"
+              echo
+              echo "Analyzer output from the latest migration check:"
+              echo
+              echo '```text'
+              cat /tmp/chatnu-analyze.log
+              echo '```'
+            } > VALIDATION.md
+          fi
+          exit "$status"
+      - name: Commit analyzer diagnostics
+        if: failure() && github.event_name == 'push'
+        working-directory: .
+        run: |
+          if [ ! -f flutter/VALIDATION.md ]; then
+            exit 0
+          fi
+          git config user.name "ChatNU CI"
+          git config user.email "ci@chatnu.invalid"
+          git add flutter/VALIDATION.md
+          git commit -m "Record Flutter analyzer diagnostics"
+          git push
       - name: Test
         run: flutter test
       - name: Build Android debug APK

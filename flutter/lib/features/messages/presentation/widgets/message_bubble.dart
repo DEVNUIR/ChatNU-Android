@@ -97,7 +97,7 @@ class MessageBubble extends ConsumerWidget {
                   !message.hasAttachment)
                 Directionality(
                   textDirection: directionForText(message.body),
-                  child: SelectableText(
+                  child: Text(
                     message.body,
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),

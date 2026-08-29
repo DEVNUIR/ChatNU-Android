@@ -1,5 +1,6 @@
 package com.example.remote
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,17 +11,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -46,6 +53,9 @@ import androidx.compose.ui.unit.dp
 import com.example.BuildConfig
 import com.example.crypto.DeviceE2ee
 import com.example.model.User
+import com.example.ui.theme.ThemeManager
+import com.example.ui.theme.ThemeMode
+import com.example.ui.theme.ThemePreset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,34 +93,36 @@ fun EnhancedProductionSettingsScreen(
                 body = user?.username?.let { "@$it" } ?: "Signed in"
             )
 
+            ThemeSettingsCard()
+
             SettingsCard(
                 icon = { Icon(Icons.Default.Lock, contentDescription = null) },
                 title = "End-to-end encryption",
-                body = "New messages and attachments use ${DeviceE2ee.PROTOCOL_VERSION}. A fresh AES-256-GCM content key is wrapped separately for every active member device; private identity keys stay in Android Keystore."
+                body = "New messages and attachments use ${DeviceE2ee.PROTOCOL_VERSION}. Plaintext is encrypted on the phone before upload and private identity keys stay in Android Keystore."
             )
 
             SettingsCard(
                 icon = { Icon(Icons.Default.Security, contentDescription = null) },
                 title = "Security boundary",
-                body = "This is real client-side E2EE, but it is not Signal Protocol or Double Ratchet and does not claim Signal-grade forward secrecy, deniability, or an external security audit. Legacy messages can still use the older compatibility format."
+                body = "The current envelope protects message content from passive network sniffing and a database dump, but it is not Signal Protocol/Double Ratchet and is not independently audited. Forward secrecy, post-compromise security and safety-number verification are P0 work."
             )
 
             SettingsCard(
                 icon = { Icon(Icons.Default.Key, contentDescription = null) },
-                title = "Device history",
-                body = "Encryption is device-bound. A newly added device can read messages encrypted for that device from then on; historical E2EE messages are not silently rewrapped to a new device."
+                title = "Device identities",
+                body = "Encryption is device-bound. Historical messages are not silently rewrapped for newly-added devices. Unexpected verified identity changes will become a blocking warning in the hardened protocol milestone."
             )
 
             SettingsCard(
                 icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
-                title = "Private push notifications",
-                body = "When Firebase push is configured, the notification payload contains routing IDs only. Message plaintext and attachment keys are never placed in push data."
+                title = "Private push",
+                body = "Push contains routing IDs only. Message plaintext, media plaintext and attachment keys are not put in notification payloads."
             )
 
             SettingsCard(
                 icon = { Icon(Icons.Default.Cloud, contentDescription = null) },
                 title = "Connection",
-                body = "Realtime: ${realtimeStatus.name.lowercase()}\nAPI: ${BuildConfig.CHATNU_API_URL}\nCalls use authenticated signaling and WebRTC DTLS-SRTP; TURN relays encrypted media when configured."
+                body = "Realtime: ${realtimeStatus.name.lowercase()}\nServer: ${ServerEndpoint.hostLabel()}\nCalls use authenticated signaling plus WebRTC DTLS-SRTP. TURN relays encrypted media but can still observe network metadata."
             )
 
             SettingsCard(
@@ -140,18 +152,76 @@ fun EnhancedProductionSettingsScreen(
         AlertDialog(
             onDismissRequest = { confirmLogout = false },
             title = { Text("Log out of this device?") },
-            text = {
-                Text("This revokes the current server session and removes protected session tokens from this device. The device encryption identity remains in Android Keystore so previously encrypted local history is not deliberately destroyed.")
-            },
+            text = { Text("The current server session will be revoked and protected session tokens removed from this device.") },
             confirmButton = {
                 TextButton(onClick = { confirmLogout = false; onLogout() }) {
                     Text("Log out", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { confirmLogout = false }) { Text("Cancel") }
-            }
+            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun ThemeSettingsCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(Icons.Default.Palette, contentDescription = null)
+                Column {
+                    Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Instant theme switching", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ThemeMode.entries.forEach { mode ->
+                    val selected = ThemeManager.themeMode == mode
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.weight(1f).clickable { ThemeManager.setMode(mode) }
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(vertical = 11.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = when (mode) {
+                                    ThemeMode.SYSTEM -> Icons.Default.SettingsBrightness
+                                    ThemeMode.LIGHT -> Icons.Default.LightMode
+                                    ThemeMode.DARK -> Icons.Default.DarkMode
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(19.dp)
+                            )
+                            Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            ThemePreset.entries.forEach { preset ->
+                val selected = ThemeManager.currentPreset == preset
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { ThemeManager.setPreset(preset) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(shape = CircleShape, color = preset.primary, modifier = Modifier.size(28.dp)) {}
+                    Spacer(Modifier.size(12.dp))
+                    Text(preset.title, modifier = Modifier.weight(1f), fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                    if (selected) Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
 }
 

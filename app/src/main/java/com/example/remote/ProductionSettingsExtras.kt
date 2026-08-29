@@ -1,6 +1,11 @@
 package com.example.remote
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,8 +24,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
@@ -46,6 +54,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -69,10 +79,12 @@ fun EnhancedProductionSettingsScreen(
     onLogout: () -> Unit
 ) {
     var confirmLogout by remember { mutableStateOf(false) }
+    var securityExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -81,19 +93,25 @@ fun EnhancedProductionSettingsScreen(
                 .fillMaxWidth()
                 .padding(horizontal = ChatNuSpacing.sm, vertical = ChatNuSpacing.sm),
             shape = RoundedCornerShape(ChatNuRadius.floating),
-            elevation = 8.dp,
+            elevation = 7.dp,
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 3.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
-                Text(
-                    "Settings",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Settings",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Appearance, privacy and this device",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -105,6 +123,7 @@ fun EnhancedProductionSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(ChatNuSpacing.lg)
         ) {
             AccountHeader2026(user)
+
             SettingsSectionTitle("Appearance")
             AppearanceSection2026()
 
@@ -113,38 +132,75 @@ fun EnhancedProductionSettingsScreen(
                 rows = listOf(
                     SettingsRowData(
                         Icons.Default.Lock,
-                        "End-to-end encryption",
-                        "New messages and attachments use ${DeviceE2ee.PROTOCOL_VERSION}. Plaintext is encrypted on-device before upload and private identity keys remain in Android Keystore."
-                    ),
-                    SettingsRowData(
-                        Icons.Default.Security,
-                        "Security boundary",
-                        "The current envelope is not Signal Protocol/Double Ratchet and is not independently audited. Forward secrecy, post-compromise security and safety-number verification remain protocol hardening work."
-                    ),
-                    SettingsRowData(
-                        Icons.Default.Key,
-                        "Device identities",
-                        "Encryption is device-bound. Historical messages are not silently rewrapped for newly added devices."
+                        "Encrypted messaging",
+                        "New message text and attachments are encrypted on this device before upload."
                     ),
                     SettingsRowData(
                         Icons.Default.Notifications,
-                        "Private push",
-                        "Push contains routing IDs only; plaintext messages, media plaintext and attachment keys are excluded."
+                        "Private notifications",
+                        "Push payloads carry routing identifiers, not message plaintext or attachment keys."
                     )
                 )
             )
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { securityExpanded = !securityExpanded },
+                shape = RoundedCornerShape(ChatNuRadius.lg),
+                color = MaterialTheme.colorScheme.surfaceContainerLow
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(ChatNuSpacing.lg)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.tertiary
+                        ) {
+                            Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.padding(9.dp).size(19.dp))
+                        }
+                        Spacer(Modifier.size(ChatNuSpacing.md))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Protocol details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "What the current E2EE design does and does not guarantee",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            if (securityExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (securityExpanded) "Collapse" else "Expand"
+                        )
+                    }
+                    AnimatedVisibility(visible = securityExpanded) {
+                        Column(modifier = Modifier.padding(top = ChatNuSpacing.md), verticalArrangement = Arrangement.spacedBy(ChatNuSpacing.sm)) {
+                            SecurityDetail(
+                                Icons.Default.Security,
+                                "Security boundary",
+                                "The current envelope is ${DeviceE2ee.PROTOCOL_VERSION}; it is not Signal Protocol/Double Ratchet and has not been independently audited. Forward secrecy, post-compromise security and safety-number verification remain protocol hardening work."
+                            )
+                            SecurityDetail(
+                                Icons.Default.Key,
+                                "Device identities",
+                                "Private identity keys stay in Android Keystore. Encryption is device-bound, and historical messages are not silently rewrapped for newly added devices."
+                            )
+                        }
+                    }
+                }
+            }
 
             SettingsSectionTitle("Connection & app")
             SettingsRows2026(
                 rows = listOf(
                     SettingsRowData(
                         Icons.Default.Cloud,
-                        "Connection",
-                        "Realtime: ${realtimeStatus.name.lowercase()} · ${ServerEndpoint.hostLabel()}\nCalls use authenticated signaling and WebRTC DTLS-SRTP."
+                        "Server",
+                        "${ServerEndpoint.hostLabel()} · ${realtimeStatus.name.lowercase()}"
                     ),
                     SettingsRowData(
                         Icons.Default.PhoneAndroid,
-                        "ChatNU",
+                        "ChatNU for Android",
                         "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
                     )
                 )
@@ -224,19 +280,30 @@ private fun AppearanceSection2026() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.size(ChatNuSpacing.sm))
-                Text("Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Column {
+                    Text("Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Mode and accent are applied across the complete color system.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             Spacer(Modifier.height(ChatNuSpacing.md))
+
             Row(horizontalArrangement = Arrangement.spacedBy(ChatNuSpacing.sm)) {
                 ThemeMode.entries.forEach { mode ->
                     val selected = ThemeManager.themeMode == mode
+                    val scale by animateFloatAsState(if (selected) 1f else 0.97f, label = "theme-mode-scale")
+                    val container by animateColorAsState(
+                        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        label = "theme-mode-color"
+                    )
                     Surface(
+                        onClick = { ThemeManager.setMode(mode) },
                         shape = RoundedCornerShape(ChatNuRadius.pill),
-                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.weight(1f).clickable { ThemeManager.setMode(mode) }
+                        color = container,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f).scale(scale)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 11.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 11.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -259,24 +326,36 @@ private fun AppearanceSection2026() {
                     }
                 }
             }
-            Spacer(Modifier.height(ChatNuSpacing.md))
-            ThemePreset.entries.forEach { preset ->
-                val selected = ThemeManager.currentPreset == preset
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { ThemeManager.setPreset(preset) }
-                        .padding(vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(shape = CircleShape, color = preset.primary, modifier = Modifier.size(30.dp)) {}
-                    Spacer(Modifier.size(ChatNuSpacing.md))
-                    Text(
-                        preset.title,
-                        modifier = Modifier.weight(1f),
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                    )
-                    if (selected) Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black)
+
+            Spacer(Modifier.height(ChatNuSpacing.lg))
+            Text("Accent", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(ChatNuSpacing.sm))
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ThemePreset.entries.forEach { preset ->
+                    val selected = ThemeManager.currentPreset == preset
+                    val scale by animateFloatAsState(if (selected) 1.08f else 1f, label = "preset-scale")
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clickable { ThemeManager.setPreset(preset) }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = preset.primary,
+                            modifier = Modifier.size(42.dp).scale(scale),
+                            shadowElevation = if (selected) 5.dp else 0.dp
+                        ) {
+                            if (selected) {
+                                Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color.White, modifier = Modifier.padding(10.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(preset.title, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    }
                 }
             }
         }
@@ -315,8 +394,8 @@ private fun SettingsRows2026(rows: List<SettingsRowData>) {
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                        contentColor = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ) {
                         Icon(row.icon, contentDescription = null, modifier = Modifier.padding(9.dp).size(19.dp))
                     }
@@ -328,6 +407,18 @@ private fun SettingsRows2026(rows: List<SettingsRowData>) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SecurityDetail(icon: ImageVector, title: String, body: String) {
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.size(ChatNuSpacing.sm))
+        Column {
+            Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

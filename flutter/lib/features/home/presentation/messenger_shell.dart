@@ -3,9 +3,11 @@ import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/responsive/chatnu_breakpoints.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
+import 'package:chatnu/features/contacts/presentation/contacts_pane.dart';
 import 'package:chatnu/features/conversations/presentation/conversation_list_pane.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
 import 'package:chatnu/features/messages/presentation/conversation_pane.dart';
+import 'package:chatnu/features/settings/presentation/settings_pane.dart';
 import 'package:chatnu/shared/widgets/chatnu_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,11 +70,11 @@ class _WideShell extends ConsumerWidget {
             VerticalDivider(width: 1, color: palette.borderSubtle),
             Expanded(
               child: selectedId == null
-                  ? const _NoConversationSelected()
+                  ? _NoConversationSelected(loading: state.isLoading)
                   : ConversationPane(conversationId: selectedId!),
             ),
           ] else
-            Expanded(child: _DestinationPlaceholder(state.destination)),
+            Expanded(child: _DestinationContent(state.destination)),
         ],
       ),
     );
@@ -103,7 +105,7 @@ class _PhoneShell extends ConsumerWidget {
           onSelected: controller.selectConversation,
         ),
         MessengerDestination.contacts || MessengerDestination.settings =>
-          _DestinationPlaceholder(state.destination),
+          _DestinationContent(state.destination),
       },
       bottomNavigationBar: _PhoneNavigation(destination: state.destination),
     );
@@ -217,71 +219,37 @@ class _PhoneNavigation extends ConsumerWidget {
   }
 }
 
-class _DestinationPlaceholder extends StatelessWidget {
-  const _DestinationPlaceholder(this.destination);
+class _DestinationContent extends StatelessWidget {
+  const _DestinationContent(this.destination);
 
   final MessengerDestination destination;
 
   @override
-  Widget build(BuildContext context) {
-    final strings = ChatNuStrings.of(context);
-    final palette = context.chatNu;
-    final isContacts = destination == MessengerDestination.contacts;
-    return ColoredBox(
-      color: palette.backgroundPrimary,
-      child: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Padding(
-              padding: const EdgeInsets.all(ChatNuSpacing.xl),
-              child: GlassSurface(
-                variant: GlassVariant.medium,
-                borderRadius: ChatNuRadii.xl,
-                padding: const EdgeInsets.all(ChatNuSpacing.xl),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      isContacts
-                          ? Icons.people_outline_rounded
-                          : Icons.settings_outlined,
-                      size: 42,
-                      color: palette.accentPrimary,
-                    ),
-                    const SizedBox(height: ChatNuSpacing.md),
-                    Text(
-                      isContacts ? strings.contacts : strings.settings,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: ChatNuSpacing.xs),
-                    Text(
-                      isContacts ? strings.contactsSoon : strings.settingsSoon,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => switch (destination) {
+    MessengerDestination.contacts => const ContactsPane(),
+    MessengerDestination.settings => const SettingsPane(),
+    MessengerDestination.chats => const SizedBox.shrink(),
+  };
 }
 
 class _NoConversationSelected extends StatelessWidget {
-  const _NoConversationSelected();
+  const _NoConversationSelected({required this.loading});
+
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     final strings = ChatNuStrings.of(context);
     return Center(
-      child: Text(
-        strings.noConversation,
-        style: Theme.of(context).textTheme.bodyLarge,
-      ),
+      child: loading
+          ? const SizedBox.square(
+              dimension: 28,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(
+              strings.noConversation,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
     );
   }
 }

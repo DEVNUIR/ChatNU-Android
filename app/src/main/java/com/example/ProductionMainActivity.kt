@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,6 +27,8 @@ import com.example.model.MessageType
 import com.example.remote.ApiClient
 import com.example.remote.CallForegroundService
 import com.example.remote.CallPhase
+import com.example.remote.ChatNuConversationScreen2026
+import com.example.remote.ChatNuHomeScreen2026
 import com.example.remote.ChatNuMessagingService
 import com.example.remote.EnhancedProductionSettingsScreen
 import com.example.remote.PushRegistration
@@ -33,8 +36,6 @@ import com.example.remote.RemoteAuthRepository
 import com.example.remote.RemoteChatRepository
 import com.example.remote.ServerAwareAuthScreen
 import com.example.remote.ServerEndpoint
-import com.example.remote.TelegramConversationScreenV2
-import com.example.remote.TelegramHomeScreen
 import com.example.remote.TokenStore
 import com.example.remote.WebRtcCallManager
 import com.example.ui.theme.MyApplicationTheme
@@ -79,6 +80,7 @@ class ProductionMainActivity : ComponentActivity() {
                 val messagesMap by chatRepository.messagesMap.collectAsState()
                 val realtimeStatus by chatRepository.realtimeStatus.collectAsState()
                 val callState by callManager.state.collectAsState()
+                val drafts = remember { mutableStateMapOf<String, String>() }
 
                 var screen by remember {
                     mutableStateOf(if (isLoggedIn) ProductionScreen.HOME else ProductionScreen.AUTH)
@@ -210,6 +212,7 @@ class ProductionMainActivity : ComponentActivity() {
                         }
                         activeConversation = null
                         conversationError = null
+                        drafts.clear()
                         screen = ProductionScreen.AUTH
                     }
                 }
@@ -280,15 +283,17 @@ class ProductionMainActivity : ComponentActivity() {
                         }
                     )
 
-                    ProductionScreen.HOME -> TelegramHomeScreen(
+                    ProductionScreen.HOME -> ChatNuHomeScreen2026(
                         user = currentUser,
                         conversations = conversations,
                         realtimeStatus = realtimeStatus,
                         isRefreshing = isRefreshing,
                         errorMessage = homeError,
+                        drafts = drafts,
                         onRefresh = ::refreshHome,
                         onSelectConversation = ::loadConversation,
                         onTogglePinConversation = chatRepository::togglePinConversation,
+                        onMarkReadConversation = chatRepository::markRead,
                         onOpenSettings = { screen = ProductionScreen.SETTINGS },
                         onOpenDirect = { username ->
                             runCatching {
@@ -305,7 +310,8 @@ class ProductionMainActivity : ComponentActivity() {
                                 conversationError = null
                                 screen = ProductionScreen.CONVERSATION
                             }
-                        }
+                        },
+                        onSearchUsers = chatRepository::searchUsers
                     )
 
                     ProductionScreen.CONVERSATION -> {
@@ -313,7 +319,7 @@ class ProductionMainActivity : ComponentActivity() {
                         if (conversation == null) {
                             screen = ProductionScreen.HOME
                         } else {
-                            TelegramConversationScreenV2(
+                            ChatNuConversationScreen2026(
                                 conversation = conversation,
                                 messages = messagesMap[conversation.id].orEmpty(),
                                 currentUserId = currentUser?.id,
@@ -321,6 +327,11 @@ class ProductionMainActivity : ComponentActivity() {
                                 errorMessage = conversationError,
                                 callState = callState,
                                 callManager = callManager,
+                                initialDraft = drafts[conversation.id].orEmpty(),
+                                onDraftChanged = { value ->
+                                    if (value.isBlank()) drafts.remove(conversation.id)
+                                    else drafts[conversation.id] = value
+                                },
                                 onBack = {
                                     if (callState.phase == CallPhase.IDLE) {
                                         screen = ProductionScreen.HOME

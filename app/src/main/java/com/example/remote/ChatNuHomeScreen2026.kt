@@ -1,0 +1,661 @@
+package com.example.remote
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.MarkChatRead
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PeopleOutline
+import androidx.compose.material.icons.filled.PersonAddAlt
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.example.model.Conversation
+import com.example.model.ConversationType
+import com.example.model.User
+import com.example.ui.chatnu2026.ChatNuAvatar
+import com.example.ui.chatnu2026.ChatNuAvatarSize
+import com.example.ui.chatnu2026.ChatNuConversationRow
+import com.example.ui.chatnu2026.ChatNuFloatingNav
+import com.example.ui.chatnu2026.ChatNuFolder
+import com.example.ui.chatnu2026.ChatNuFolderTabs
+import com.example.ui.chatnu2026.ChatNuGlassSurface
+import com.example.ui.chatnu2026.ChatNuIconSize
+import com.example.ui.chatnu2026.ChatNuPrimaryDestination
+import com.example.ui.chatnu2026.ChatNuRadius
+import com.example.ui.chatnu2026.ChatNuSpacing
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatNuHomeScreen2026(
+    user: User?,
+    conversations: List<Conversation>,
+    realtimeStatus: RealtimeStatus,
+    isRefreshing: Boolean,
+    errorMessage: String?,
+    drafts: Map<String, String>,
+    onRefresh: () -> Unit,
+    onSelectConversation: (Conversation) -> Unit,
+    onTogglePinConversation: (String) -> Unit,
+    onMarkReadConversation: (String) -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenDirect: suspend (String) -> Result<Unit>,
+    onCreateGroup: suspend (String, List<String>) -> Result<Unit>,
+    onSearchUsers: suspend (String) -> List<User>
+) {
+    var folder by remember { mutableStateOf(ChatNuFolder.ALL) }
+    var destination by remember { mutableStateOf(ChatNuPrimaryDestination.CHATS) }
+    var searchOpen by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var showCreateSheet by remember { mutableStateOf(false) }
+    var contextConversation by remember { mutableStateOf<Conversation?>(null) }
+
+    if (destination == ChatNuPrimaryDestination.SETTINGS) {
+        LaunchedEffect(Unit) {
+            destination = ChatNuPrimaryDestination.CHATS
+            onOpenSettings()
+        }
+    }
+
+    val foldered = remember(conversations, folder, searchQuery) {
+        conversations
+            .filter { conversation ->
+                when (folder) {
+                    ChatNuFolder.ALL -> true
+                    ChatNuFolder.UNREAD -> conversation.unreadCount > 0
+                    ChatNuFolder.PERSONAL -> conversation.type == ConversationType.DIRECT
+                    ChatNuFolder.GROUPS -> conversation.type == ConversationType.GROUP
+                }
+            }
+            .filter { conversation ->
+                val needle = searchQuery.trim()
+                needle.isBlank() ||
+                    conversation.title.contains(needle, ignoreCase = true) ||
+                    conversation.lastMessageText.contains(needle, ignoreCase = true) ||
+                    drafts[conversation.id].orEmpty().contains(needle, ignoreCase = true)
+            }
+            .sortedWith(compareByDescending<Conversation> { it.isPinned }.thenByDescending { it.lastMessageTime })
+    }
+    val unread = conversations.sumOf { it.unreadCount }
+    val groupUnread = conversations.filter { it.type == ConversationType.GROUP }.sumOf { it.unreadCount }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        val expanded = maxWidth >= 720.dp
+        Row(modifier = Modifier.fillMaxSize()) {
+            if (expanded) {
+                ChatNuDesktopRail(
+                    selected = destination,
+                    onSelected = { target ->
+                        if (target == ChatNuPrimaryDestination.SETTINGS) onOpenSettings()
+                        else destination = target
+                    },
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .statusBarsPadding()
+                        .padding(start = ChatNuSpacing.md, top = ChatNuSpacing.md, bottom = ChatNuSpacing.md)
+                )
+                Spacer(Modifier.width(ChatNuSpacing.md))
+            }
+
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    ChatNuHomeTopBar(
+                        user = user,
+                        realtimeStatus = realtimeStatus,
+                        searchOpen = searchOpen,
+                        searchQuery = searchQuery,
+                        onSearchToggle = {
+                            searchOpen = !searchOpen
+                            if (!searchOpen) searchQuery = ""
+                        },
+                        onSearchQuery = { searchQuery = it },
+                        onRefresh = onRefresh,
+                        isRefreshing = isRefreshing
+                    )
+
+                    if (destination == ChatNuPrimaryDestination.CHATS) {
+                        ChatNuFolderTabs(
+                            selected = folder,
+                            unreadCount = unread,
+                            groupUnreadCount = groupUnread,
+                            onSelect = { folder = it },
+                            modifier = Modifier.padding(horizontal = ChatNuSpacing.md, vertical = ChatNuSpacing.xs)
+                        )
+                    }
+
+                    errorMessage?.let { ChatNuConnectionError(it, onRefresh) }
+
+                    when (destination) {
+                        ChatNuPrimaryDestination.CHATS -> ChatNuConversationList(
+                            conversations = foldered,
+                            query = searchQuery,
+                            drafts = drafts,
+                            onSelectConversation = onSelectConversation,
+                            onTogglePinConversation = onTogglePinConversation,
+                            onMarkReadConversation = onMarkReadConversation,
+                            onLongPress = { contextConversation = it },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ChatNuPrimaryDestination.CONTACTS -> ChatNuContactsPanel(
+                            onSearchUsers = onSearchUsers,
+                            onOpenDirect = onOpenDirect,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ChatNuPrimaryDestination.SETTINGS -> Spacer(Modifier.weight(1f))
+                    }
+                }
+
+                if (!expanded) {
+                    ChatNuFloatingNav(
+                        selected = destination,
+                        onSelect = { target ->
+                            if (target == ChatNuPrimaryDestination.SETTINGS) onOpenSettings()
+                            else destination = target
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = ChatNuSpacing.sm)
+                    )
+                }
+
+                if (destination == ChatNuPrimaryDestination.CHATS) {
+                    FilledIconButton(
+                        onClick = { showCreateSheet = true },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .navigationBarsPadding()
+                            .padding(end = ChatNuSpacing.lg, bottom = if (expanded) ChatNuSpacing.xl else 80.dp)
+                            .size(56.dp),
+                        shape = CircleShape
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "New conversation", modifier = Modifier.size(ChatNuIconSize.prominent))
+                    }
+                }
+            }
+        }
+    }
+
+    if (showCreateSheet) {
+        ChatNuCreateConversationSheet(
+            onDismiss = { showCreateSheet = false },
+            onOpenDirect = onOpenDirect,
+            onCreateGroup = onCreateGroup
+        )
+    }
+
+    contextConversation?.let { conversation ->
+        ModalBottomSheet(onDismissRequest = { contextConversation = null }) {
+            Text(
+                conversation.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = ChatNuSpacing.xl, vertical = ChatNuSpacing.sm)
+            )
+            ListItem(
+                headlineContent = { Text(if (conversation.isPinned) "Unpin chat" else "Pin chat") },
+                leadingContent = { Icon(Icons.Default.PushPin, contentDescription = null) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            TextButton(
+                onClick = {
+                    onTogglePinConversation(conversation.id)
+                    contextConversation = null
+                },
+                modifier = Modifier.padding(horizontal = ChatNuSpacing.md)
+            ) { Text(if (conversation.isPinned) "Unpin" else "Pin") }
+            if (conversation.unreadCount > 0) {
+                ListItem(
+                    headlineContent = { Text("Mark as read") },
+                    leadingContent = { Icon(Icons.Default.MarkChatRead, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(
+                    onClick = {
+                        onMarkReadConversation(conversation.id)
+                        contextConversation = null
+                    },
+                    modifier = Modifier.padding(horizontal = ChatNuSpacing.md)
+                ) { Text("Mark read") }
+            }
+            Text(
+                "Archive is hidden until the server supports an archive preference.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(ChatNuSpacing.xl)
+            )
+            Spacer(Modifier.height(ChatNuSpacing.xl))
+        }
+    }
+}
+
+@Composable
+private fun ChatNuHomeTopBar(
+    user: User?,
+    realtimeStatus: RealtimeStatus,
+    searchOpen: Boolean,
+    searchQuery: String,
+    onSearchToggle: () -> Unit,
+    onSearchQuery: (String) -> Unit,
+    onRefresh: () -> Unit,
+    isRefreshing: Boolean
+) {
+    Column(modifier = Modifier.statusBarsPadding().padding(horizontal = ChatNuSpacing.md, vertical = ChatNuSpacing.sm)) {
+        ChatNuGlassSurface(
+            shape = RoundedCornerShape(ChatNuRadius.floating),
+            modifier = Modifier.fillMaxWidth(),
+            elevation = 6.dp,
+            contentPadding = PaddingValues(horizontal = ChatNuSpacing.sm, vertical = 6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ChatNuAvatar(user?.displayName ?: "ChatNU", user?.avatarUrl, size = 38.dp)
+                Spacer(Modifier.width(ChatNuSpacing.sm))
+                AnimatedVisibility(visible = !searchOpen, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.weight(1f)) {
+                    Column {
+                        Text("ChatNU", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(
+                            when (realtimeStatus) {
+                                RealtimeStatus.CONNECTED -> "Connected"
+                                RealtimeStatus.CONNECTING -> "Connecting…"
+                                RealtimeStatus.DISCONNECTED -> "Offline"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (realtimeStatus == RealtimeStatus.CONNECTED) MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                AnimatedVisibility(visible = searchOpen, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQuery,
+                        placeholder = { Text("Search chats") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(ChatNuRadius.pill),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                IconButton(onClick = onSearchToggle) {
+                    Icon(if (searchOpen) Icons.Default.Close else Icons.Default.Search, contentDescription = if (searchOpen) "Close search" else "Search")
+                }
+                if (!searchOpen) {
+                    IconButton(onClick = onRefresh, enabled = !isRefreshing) {
+                        if (isRefreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        else Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatNuConversationList(
+    conversations: List<Conversation>,
+    query: String,
+    drafts: Map<String, String>,
+    onSelectConversation: (Conversation) -> Unit,
+    onTogglePinConversation: (String) -> Unit,
+    onMarkReadConversation: (String) -> Unit,
+    onLongPress: (Conversation) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (conversations.isEmpty()) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(36.dp)) {
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(72.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(if (query.isBlank()) Icons.Default.ChatBubbleOutline else Icons.Default.Search, contentDescription = null, modifier = Modifier.size(30.dp))
+                    }
+                }
+                Spacer(Modifier.height(ChatNuSpacing.lg))
+                Text(if (query.isBlank()) "No conversations yet" else "No matching chats", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    if (query.isBlank()) "Start a private chat or create a group." else "Try a different name or message preview.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 104.dp)
+    ) {
+        items(conversations, key = { it.id }) { conversation ->
+            val dismissState = rememberSwipeToDismissBoxState(
+                confirmValueChange = { value ->
+                    when (value) {
+                        SwipeToDismissBoxValue.StartToEnd -> if (conversation.unreadCount > 0) onMarkReadConversation(conversation.id)
+                        SwipeToDismissBoxValue.EndToStart -> onTogglePinConversation(conversation.id)
+                        SwipeToDismissBoxValue.Settled -> Unit
+                    }
+                    false
+                }
+            )
+            SwipeToDismissBox(
+                state = dismissState,
+                backgroundContent = {
+                    val towardEnd = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+                    Row(
+                        modifier = Modifier.fillMaxSize().background(
+                            if (towardEnd) MaterialTheme.colorScheme.tertiaryContainer
+                            else MaterialTheme.colorScheme.primaryContainer
+                        ).padding(horizontal = ChatNuSpacing.xl),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = if (towardEnd) Arrangement.Start else Arrangement.End
+                    ) {
+                        Icon(
+                            if (towardEnd) Icons.Default.MarkChatRead else Icons.Default.PushPin,
+                            contentDescription = null
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (towardEnd) "Read" else if (conversation.isPinned) "Unpin" else "Pin", fontWeight = FontWeight.Bold)
+                    }
+                },
+                content = {
+                    Surface(color = MaterialTheme.colorScheme.background) {
+                        ChatNuConversationRow(
+                            conversation = conversation,
+                            draft = drafts[conversation.id],
+                            onClick = { onSelectConversation(conversation) },
+                            onLongClick = { onLongPress(conversation) }
+                        )
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatNuConnectionError(message: String, onRefresh: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(horizontal = ChatNuSpacing.lg, vertical = ChatNuSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(message, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onErrorContainer)
+            TextButton(onClick = onRefresh) { Text("Retry") }
+        }
+    }
+}
+
+@Composable
+private fun ChatNuDesktopRail(
+    selected: ChatNuPrimaryDestination,
+    onSelected: (ChatNuPrimaryDestination) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ChatNuGlassSurface(
+        modifier = modifier.width(76.dp),
+        shape = RoundedCornerShape(ChatNuRadius.floating),
+        elevation = 8.dp,
+        contentPadding = PaddingValues(vertical = ChatNuSpacing.sm)
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ChatNuSpacing.md)) {
+            ChatNuPrimaryDestination.entries.forEach { destination ->
+                IconButton(onClick = { onSelected(destination) }, modifier = Modifier.size(52.dp)) {
+                    Icon(
+                        when (destination) {
+                            ChatNuPrimaryDestination.CHATS -> Icons.Default.ChatBubbleOutline
+                            ChatNuPrimaryDestination.CONTACTS -> Icons.Default.PeopleOutline
+                            ChatNuPrimaryDestination.SETTINGS -> Icons.Default.Settings
+                        },
+                        contentDescription = destination.label,
+                        tint = if (selected == destination) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatNuContactsPanel(
+    onSearchUsers: suspend (String) -> List<User>,
+    onOpenDirect: suspend (String) -> Result<Unit>,
+    modifier: Modifier = Modifier
+) {
+    var query by remember { mutableStateOf("") }
+    var users by remember { mutableStateOf<List<User>>(emptyList()) }
+    var searching by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(query) {
+        val clean = query.trim().removePrefix("@")
+        if (clean.length < 2) {
+            users = emptyList()
+            searching = false
+            return@LaunchedEffect
+        }
+        delay(250)
+        searching = true
+        error = null
+        runCatching { onSearchUsers(clean) }
+            .onSuccess { users = it }
+            .onFailure { error = it.message ?: "Could not search contacts." }
+        searching = false
+    }
+
+    Column(modifier = modifier.fillMaxSize().padding(horizontal = ChatNuSpacing.lg)) {
+        Text("Contacts", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = ChatNuSpacing.md, bottom = ChatNuSpacing.sm))
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            placeholder = { Text("Search people by username") },
+            trailingIcon = { if (searching) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) },
+            singleLine = true,
+            shape = RoundedCornerShape(ChatNuRadius.floating),
+            modifier = Modifier.fillMaxWidth()
+        )
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(ChatNuSpacing.sm)) }
+        if (query.trim().length < 2) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Type at least 2 characters to find people on this server.", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            }
+        } else if (!searching && users.isEmpty() && error == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No people found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            LazyColumn(contentPadding = PaddingValues(bottom = 100.dp)) {
+                items(users, key = { it.id }) { person ->
+                    ListItem(
+                        headlineContent = { Text(person.displayName, fontWeight = FontWeight.SemiBold) },
+                        supportingContent = { Text("@${person.username}") },
+                        leadingContent = { ChatNuAvatar(person.displayName, person.avatarUrl) },
+                        trailingContent = {
+                            IconButton(onClick = {
+                                scope.launch { onOpenDirect(person.username) }
+                            }) { Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Message ${person.displayName}") }
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatNuCreateConversationSheet(
+    onDismiss: () -> Unit,
+    onOpenDirect: suspend (String) -> Result<Unit>,
+    onCreateGroup: suspend (String, List<String>) -> Result<Unit>
+) {
+    var mode by remember { mutableStateOf<String?>(null) }
+    var username by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
+    var members by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = ChatNuSpacing.xl, vertical = ChatNuSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (mode != null) {
+                IconButton(onClick = { mode = null; error = null }) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
+            }
+            Text(
+                when (mode) {
+                    "direct" -> "New private chat"
+                    "group" -> "New group"
+                    else -> "New conversation"
+                },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        when (mode) {
+            null -> {
+                ListItem(
+                    headlineContent = { Text("Private chat", fontWeight = FontWeight.SemiBold) },
+                    supportingContent = { Text("Start an end-to-end encrypted conversation") },
+                    leadingContent = { Icon(Icons.Default.PersonAddAlt, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(onClick = { mode = "direct" }, modifier = Modifier.padding(horizontal = ChatNuSpacing.xl)) { Text("Choose") }
+                HorizontalDivider(Modifier.padding(horizontal = ChatNuSpacing.xl))
+                ListItem(
+                    headlineContent = { Text("New group", fontWeight = FontWeight.SemiBold) },
+                    supportingContent = { Text("Create an encrypted group with server users") },
+                    leadingContent = { Icon(Icons.Default.Group, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(onClick = { mode = "group" }, modifier = Modifier.padding(horizontal = ChatNuSpacing.xl)) { Text("Create") }
+            }
+            "direct" -> {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it; error = null },
+                    label = { Text("Username") },
+                    prefix = { Text("@") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(ChatNuRadius.lg),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = ChatNuSpacing.xl)
+                )
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = ChatNuSpacing.xl, vertical = ChatNuSpacing.sm)) }
+                TextButton(
+                    enabled = !busy && username.trim().removePrefix("@").length >= 3,
+                    onClick = {
+                        scope.launch {
+                            busy = true
+                            onOpenDirect(username.trim().removePrefix("@"))
+                                .onSuccess { onDismiss() }
+                                .onFailure { error = it.message ?: "Could not open this chat." }
+                            busy = false
+                        }
+                    },
+                    modifier = Modifier.padding(ChatNuSpacing.xl)
+                ) { Text(if (busy) "Opening…" else "Open chat") }
+            }
+            "group" -> {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it; error = null },
+                    label = { Text("Group name") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(ChatNuRadius.lg),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = ChatNuSpacing.xl)
+                )
+                Spacer(Modifier.height(ChatNuSpacing.md))
+                OutlinedTextField(
+                    value = members,
+                    onValueChange = { members = it; error = null },
+                    label = { Text("Usernames") },
+                    supportingText = { Text("Comma-separated usernames") },
+                    shape = RoundedCornerShape(ChatNuRadius.lg),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = ChatNuSpacing.xl)
+                )
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = ChatNuSpacing.xl, vertical = ChatNuSpacing.sm)) }
+                TextButton(
+                    enabled = !busy && title.trim().isNotBlank(),
+                    onClick = {
+                        scope.launch {
+                            val usernames = members.split(',').map { it.trim().removePrefix("@").lowercase() }.filter { it.isNotBlank() }.distinct()
+                            busy = true
+                            onCreateGroup(title.trim(), usernames)
+                                .onSuccess { onDismiss() }
+                                .onFailure { error = it.message ?: "Could not create group." }
+                            busy = false
+                        }
+                    },
+                    modifier = Modifier.padding(ChatNuSpacing.xl)
+                ) { Text(if (busy) "Creating…" else "Create group") }
+            }
+        }
+        Spacer(Modifier.height(ChatNuSpacing.xxl))
+    }
+}

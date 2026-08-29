@@ -9,7 +9,6 @@ import okhttp3.Interceptor
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody
 import okhttp3.Route
@@ -99,15 +98,39 @@ interface ChatNuApi {
 
     @GET("calls/pending")
     suspend fun pendingCalls(): PendingCallsResponse
+
+    @GET("server-info")
+    suspend fun serverInfo(): ServerInfoResponse
 }
 
 class ApiClient(private val tokenStore: TokenStore) {
     private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
 
+    /**
+     * Retrofit and the WebSocket code still build requests from BuildConfig placeholders.
+     * This interceptor swaps only the origin at request time, preserving paths such as
+     * /auth/login and /realtime. That makes one APK work with any user-selected instance.
+     */
+    private val serverRoutingInterceptor = Interceptor { chain ->
+        val target = okhttp3.HttpUrl.get(ServerEndpoint.apiUrl())
+        val original = chain.request()
+        val rewrittenUrl = original.url.newBuilder()
+            .scheme(target.scheme)
+            .host(target.host)
+            .port(target.port)
+            .build()
+        chain.proceed(original.newBuilder().url(rewrittenUrl).build())
+    }
+
     private val refreshApi: ChatNuApi by lazy {
         Retrofit.Builder()
             .baseUrl(BuildConfig.CHATNU_API_URL)
-            .client(OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build())
+            .client(
+                OkHttpClient.Builder()
+                    .addInterceptor(serverRoutingInterceptor)
+                    .callTimeout(20, TimeUnit.SECONDS)
+                    .build()
+            )
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(ChatNuApi::class.java)
@@ -147,6 +170,7 @@ class ApiClient(private val tokenStore: TokenStore) {
     }
 
     val httpClient: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(serverRoutingInterceptor)
         .addInterceptor(authInterceptor)
         .authenticator(authenticator)
         .connectTimeout(15, TimeUnit.SECONDS)

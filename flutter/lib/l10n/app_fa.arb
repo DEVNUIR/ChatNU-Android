@@ -1,0 +1,18 @@
+{
+  "@@locale": "fa",
+  "appName": "ChatNU",
+  "chats": "گفت‌وگوها",
+  "contacts": "مخاطبان",
+  "settings": "تنظیمات",
+  "searchConversations": "جست‌وجوی گفت‌وگوها",
+  "all": "همه",
+  "unread": "خوانده‌نشده",
+  "personal": "شخصی",
+  "groups": "گروه‌ها",
+  "newConversation": "گفت‌وگوی جدید",
+  "newGroup": "گروه جدید",
+  "messageHint": "پیام",
+  "send": "ارسال",
+  "attach": "پیوست",
+  "encrypted": "رمزگذاری سرتاسری"
+}

@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   flutter:
@@ -30,19 +30,8 @@ jobs:
           cache: true
       - name: Bootstrap Android platform
         run: ./tool/bootstrap_android.sh
-      - name: Format Flutter sources
-        run: dart format lib test
-      - name: Commit formatted Flutter sources
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          if ! git diff --quiet -- lib test; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add lib test
-            git commit -m "Format Flutter Phase 1 sources"
-            git push
-          fi
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test
       - name: Analyze
         run: flutter analyze --fatal-infos
       - name: Test

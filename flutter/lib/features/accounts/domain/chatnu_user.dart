@@ -16,7 +16,8 @@ class ChatNuUser {
   String get initials {
     final words = displayName.trim().split(RegExp(r'\s+'));
     if (words.isEmpty || words.first.isEmpty) return '?';
-    if (words.length == 1) return words.first.characters.first.toUpperCase();
-    return '${words.first.characters.first}${words.last.characters.first}'.toUpperCase();
+    String firstCharacter(String value) => value.substring(0, 1).toUpperCase();
+    if (words.length == 1) return firstCharacter(words.first);
+    return '${firstCharacter(words.first)}${firstCharacter(words.last)}';
   }
 }

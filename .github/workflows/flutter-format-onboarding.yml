@@ -1,0 +1,35 @@
+name: Flutter onboarding formatter
+
+on:
+  push:
+    branches:
+      - refactor/flutter-liquid-glass-2026
+    paths:
+      - ".github/workflows/flutter-format-onboarding.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Format onboarding sources
+        run: |
+          cd flutter
+          dart format lib/features/auth/presentation/auth_screen.dart test/appearance_and_states_test.dart
+      - name: Commit canonical formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter/lib/features/auth/presentation/auth_screen.dart flutter/test/appearance_and_states_test.dart
+          if ! git diff --cached --quiet; then
+            git commit -m "style(flutter): format onboarding flow"
+            git push
+          fi

@@ -250,7 +250,7 @@ fun ChatNuHomeScreen2026(
                         )
                     }
 
-                    AnimatedVisibility(
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = errorMessage != null,
                         enter = fadeIn(),
                         exit = fadeOut(),
@@ -368,7 +368,7 @@ private fun ChatNuHomeTopBar(
                 Spacer(Modifier.width(ChatNuSpacing.sm))
                 if (destination == ChatNuPrimaryDestination.CHATS) {
                     Box(modifier = Modifier.weight(1f)) {
-                        AnimatedVisibility(visible = !searchOpen, enter = fadeIn(), exit = fadeOut()) {
+                        androidx.compose.animation.AnimatedVisibility(visible = !searchOpen, enter = fadeIn(), exit = fadeOut()) {
                             Column {
                                 Text("Chats", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 Text(
@@ -383,7 +383,7 @@ private fun ChatNuHomeTopBar(
                                 )
                             }
                         }
-                        AnimatedVisibility(visible = searchOpen, enter = fadeIn(), exit = fadeOut()) {
+                        androidx.compose.animation.AnimatedVisibility(visible = searchOpen, enter = fadeIn(), exit = fadeOut()) {
                             OutlinedTextField(
                                 value = searchQuery,
                                 onValueChange = onSearchQuery,

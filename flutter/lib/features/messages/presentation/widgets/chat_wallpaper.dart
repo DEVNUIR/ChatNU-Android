@@ -64,7 +64,9 @@ class _ChatWallpaperState extends State<ChatWallpaper>
                     -0.62 + math.cos(phase * 0.7) * 0.07,
                   ),
                   sizeFactor: 1.15,
-                  color: palette.accent.withValues(alpha: dark ? 0.11 : 0.08),
+                  color: palette.accentPrimary.withValues(
+                    alpha: dark ? 0.11 : 0.08,
+                  ),
                 ),
                 _Orb(
                   alignment: Alignment(
@@ -72,7 +74,7 @@ class _ChatWallpaperState extends State<ChatWallpaper>
                     0.34 + math.sin(phase * 0.6) * 0.08,
                   ),
                   sizeFactor: 1.35,
-                  color: palette.secondary.withValues(
+                  color: palette.accentCyan.withValues(
                     alpha: dark ? 0.09 : 0.065,
                   ),
                 ),
@@ -91,7 +93,7 @@ class _ChatWallpaperState extends State<ChatWallpaper>
                     grid: palette.textPrimary.withValues(
                       alpha: dark ? 0.025 : 0.022,
                     ),
-                    line: palette.accent.withValues(
+                    line: palette.accentPrimary.withValues(
                       alpha: dark ? 0.055 : 0.035,
                     ),
                   ),

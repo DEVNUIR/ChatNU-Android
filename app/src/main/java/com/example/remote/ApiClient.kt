@@ -1,5 +1,6 @@
 package com.example.remote
 
+import android.util.Base64
 import com.example.BuildConfig
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -26,7 +27,13 @@ import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
+import java.security.MessageDigest
+import java.security.cert.CertificateException
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 
 interface ChatNuApi {
     @POST("auth/register")
@@ -104,6 +111,10 @@ interface ChatNuApi {
 
 class ApiClient(private val tokenStore: TokenStore) {
     private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
+    private val trustManager = ChatNuTrustManager(systemTrustManager())
+    private val sslContext = SSLContext.getInstance("TLS").apply {
+        init(null, arrayOf(trustManager), null)
+    }
 
     /**
      * Retrofit and the WebSocket code still build requests from BuildConfig placeholders.
@@ -121,12 +132,15 @@ class ApiClient(private val tokenStore: TokenStore) {
         chain.proceed(original.newBuilder().url(rewrittenUrl).build())
     }
 
+    private fun baseClientBuilder(): OkHttpClient.Builder = OkHttpClient.Builder()
+        .sslSocketFactory(sslContext.socketFactory, trustManager)
+        .addInterceptor(serverRoutingInterceptor)
+
     private val refreshApi: ChatNuApi by lazy {
         Retrofit.Builder()
             .baseUrl(BuildConfig.CHATNU_API_URL)
             .client(
-                OkHttpClient.Builder()
-                    .addInterceptor(serverRoutingInterceptor)
+                baseClientBuilder()
                     .callTimeout(20, TimeUnit.SECONDS)
                     .build()
             )
@@ -168,8 +182,7 @@ class ApiClient(private val tokenStore: TokenStore) {
         }
     }
 
-    val httpClient: OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor(serverRoutingInterceptor)
+    val httpClient: OkHttpClient = baseClientBuilder()
         .addInterceptor(authInterceptor)
         .authenticator(authenticator)
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -199,4 +212,60 @@ class ApiClient(private val tokenStore: TokenStore) {
         }
         return count
     }
+
+    private fun systemTrustManager(): X509TrustManager {
+        val factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        factory.init(null as java.security.KeyStore?)
+        return factory.trustManagers.filterIsInstance<X509TrustManager>().firstOrNull()
+            ?: error("No system X509 trust manager is available")
+    }
+}
+
+/**
+ * Uses the normal Android trust store unless the selected server was enrolled with ChatNU's
+ * emergency CA pin. The emergency path verifies certificate validity, each signature in the chain,
+ * a self-signed root, and the SHA-256 SPKI pin of that root. OkHttp still performs hostname/SAN
+ * verification after this trust decision.
+ */
+private class ChatNuTrustManager(
+    private val system: X509TrustManager
+) : X509TrustManager {
+    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+        @Suppress("UNCHECKED_CAST")
+        system.checkClientTrusted(chain as Array<X509Certificate>?, authType)
+    }
+
+    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+        val expectedPin = ServerEndpoint.tlsCaPin()
+        if (expectedPin == null) {
+            @Suppress("UNCHECKED_CAST")
+            system.checkServerTrusted(chain as Array<X509Certificate>?, authType)
+            return
+        }
+
+        val certs = chain?.toList().orEmpty()
+        if (certs.isEmpty()) throw CertificateException("Emergency TLS server did not provide a certificate chain")
+
+        try {
+            certs.forEach { it.checkValidity() }
+            for (index in 0 until certs.lastIndex) {
+                certs[index].verify(certs[index + 1].publicKey)
+            }
+            val root = certs.last()
+            root.verify(root.publicKey)
+            val actualPin = "sha256/" + Base64.encodeToString(
+                MessageDigest.getInstance("SHA-256").digest(root.publicKey.encoded),
+                Base64.NO_WRAP
+            )
+            if (!MessageDigest.isEqual(actualPin.toByteArray(), expectedPin.toByteArray())) {
+                throw CertificateException("Emergency ChatNU CA pin does not match this server")
+            }
+        } catch (error: CertificateException) {
+            throw error
+        } catch (error: Exception) {
+            throw CertificateException("Emergency ChatNU certificate verification failed", error)
+        }
+    }
+
+    override fun getAcceptedIssuers(): Array<X509Certificate> = system.acceptedIssuers
 }

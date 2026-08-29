@@ -22,8 +22,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +57,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
@@ -62,8 +65,10 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -80,6 +85,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -120,13 +126,17 @@ import com.example.ui.chatnu2026.ChatNuRadius
 import com.example.ui.chatnu2026.ChatNuRichMessageBubble
 import com.example.ui.chatnu2026.ChatNuSemantic
 import com.example.ui.chatnu2026.ChatNuSpacing
+import com.example.ui.chatnu2026.LocalChatNuHazeState
 import com.example.ui.chatnu2026.MessageGroupPosition
 import com.example.ui.chatnu2026.parseCoordinates
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.Locale
 import java.util.UUID
@@ -158,6 +168,7 @@ fun ChatNuConversationScreen2026(
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val hazeState = remember { HazeState() }
     val recorder = remember { ChatNuVoiceRecorder2026(context) }
     val audioPlayer = remember { ChatNuVoicePlayer2026() }
 
@@ -224,7 +235,7 @@ fun ChatNuConversationScreen2026(
     fun startLocation(mode: LocationShareMode2026) {
         if (mode == LocationShareMode2026.ONCE) {
             scope.launch {
-                currentLocation2026(context)?.let { location ->
+                withTimeoutOrNull(LOCATION_FIX_TIMEOUT_2026) { currentLocation2026(context) }?.let { location ->
                     onSendTypedMessage(locationPayload2026(location, live = false), MessageType.LOCATION)
                 }
             }
@@ -233,7 +244,7 @@ fun ChatNuConversationScreen2026(
             liveLocationEndsAt = System.currentTimeMillis() + LIVE_LOCATION_DURATION_2026
             liveLocationJob = scope.launch {
                 while (isActive && System.currentTimeMillis() < liveLocationEndsAt) {
-                    currentLocation2026(context)?.let { location ->
+                    withTimeoutOrNull(LOCATION_FIX_TIMEOUT_2026) { currentLocation2026(context) }?.let { location ->
                         onSendTypedMessage(locationPayload2026(location, live = true), MessageType.LIVE_LOCATION)
                     }
                     delay(LIVE_LOCATION_INTERVAL_2026)
@@ -313,7 +324,14 @@ fun ChatNuConversationScreen2026(
 
     LaunchedEffect(input) { onDraftChanged(input) }
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty() && !searchOpen) listState.animateScrollToItem(messages.lastIndex)
+        if (messages.isEmpty() || searchOpen) return@LaunchedEffect
+        val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        val initialLayout = listState.layoutInfo.totalItemsCount == 0
+        val nearBottom = lastVisible >= messages.lastIndex - 2
+        val newestIsMine = messages.lastOrNull()?.senderId == currentUserId
+        if (initialLayout || nearBottom || newestIsMine) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
     }
     LaunchedEffect(searchQuery, searchOpen, messages) {
         if (!searchOpen || searchQuery.isBlank()) return@LaunchedEffect
@@ -334,164 +352,190 @@ fun ChatNuConversationScreen2026(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = ChatNuSpacing.md,
-                end = ChatNuSpacing.md,
-                top = 94.dp,
-                bottom = 116.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            if (isLoading && messages.isEmpty()) {
-                item("loading") {
-                    Box(Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-            } else if (errorMessage != null && messages.isEmpty()) {
-                item("error") {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(top = 80.dp, start = 28.dp, end = 28.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(34.dp))
-                        Spacer(Modifier.height(10.dp))
-                        Text("Couldn’t load this conversation", fontWeight = FontWeight.Bold)
-                        Text(errorMessage, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(10.dp))
-                        OutlinedButton(onClick = onRetry) { Text("Try again") }
-                    }
-                }
-            } else if (messages.isEmpty()) {
-                item("empty") {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(top = 72.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.size(62.dp)) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        Text("Start the conversation", fontWeight = FontWeight.Bold)
-                        Text("Messages in this chat are end-to-end encrypted.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-
-            itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
-                val mine = message.senderId == currentUserId
-                val previous = messages.getOrNull(index - 1)
-                val next = messages.getOrNull(index + 1)
-                val groupedWithPrevious = previous != null && canGroup(previous, message)
-                val groupedWithNext = next != null && canGroup(message, next)
-                val position = when {
-                    !groupedWithPrevious && !groupedWithNext -> MessageGroupPosition.SINGLE
-                    !groupedWithPrevious && groupedWithNext -> MessageGroupPosition.FIRST
-                    groupedWithPrevious && groupedWithNext -> MessageGroupPosition.MIDDLE
-                    else -> MessageGroupPosition.LAST
-                }
-                val showSender = conversation.type == ConversationType.GROUP && !groupedWithPrevious
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = if (groupedWithPrevious) 0.dp else 5.dp)
-                        .combinedClickable(
-                            onClick = {},
-                            onLongClick = {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                selectedMessage = message
-                            }
-                        )
-                ) {
-                    ChatNuRichMessageBubble(
-                        message = message,
-                        mine = mine,
-                        groupPosition = position,
-                        showSender = showSender,
-                        playing = playingMessageId == message.id,
-                        onPlayVoice = { playVoice(message) },
-                        onOpenAttachment = { onOpenAttachment(message) },
-                        onOpenLocation = { lat, lon, live -> selectedLocation = Triple(lat, lon, live) },
-                        onRetryFailed = if (mine && message.status.toDeliveryState() == MessageDeliveryState.FAILED) {
-                            {
-                                if (!message.localUri.isNullOrBlank()) onSendAttachment(Uri.parse(message.localUri))
-                                else onSendTypedMessage(message.text, message.type)
-                            }
-                        } else null
-                    )
-                }
-            }
-        }
-
-        ChatNuConversationTopBar2026(
-            conversation = conversation,
-            searchOpen = searchOpen,
-            searchQuery = searchQuery,
-            onSearchQuery = { searchQuery = it },
-            onSearchToggle = {
-                searchOpen = !searchOpen
-                if (!searchOpen) searchQuery = ""
-            },
-            onBack = onBack,
-            onProfile = { showProfileSheet = true },
-            onVoiceCall = { beginCall(false) },
-            onVideoCall = { beginCall(true) },
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
-
-        AnimatedVisibility(
-            visible = liveLocationJob?.isActive == true,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 84.dp)
-        ) {
-            ChatNuGlassSurface(
-                shape = RoundedCornerShape(ChatNuRadius.pill),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+    CompositionLocalProvider(LocalChatNuHazeState provides hazeState) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .haze(hazeState),
+                contentPadding = PaddingValues(
+                    start = ChatNuSpacing.md,
+                    end = ChatNuSpacing.md,
+                    top = 94.dp,
+                    bottom = 116.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.MyLocation, contentDescription = null, tint = ChatNuSemantic.Error, modifier = Modifier.size(17.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Live location sharing", style = MaterialTheme.typography.labelMedium)
-                    TextButton(onClick = {
-                        liveLocationJob?.cancel()
-                        liveLocationJob = null
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }) { Text("Stop") }
+                if (isLoading && messages.isEmpty()) {
+                    item("loading") {
+                        Box(Modifier.fillMaxWidth().padding(top = 80.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                } else if (errorMessage != null && messages.isEmpty()) {
+                    item("error") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(top = 80.dp, start = 28.dp, end = 28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(34.dp))
+                            Spacer(Modifier.height(10.dp))
+                            Text("Couldn’t load this conversation", fontWeight = FontWeight.Bold)
+                            Text(errorMessage, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(10.dp))
+                            OutlinedButton(onClick = onRetry) { Text("Try again") }
+                        }
+                    }
+                } else if (messages.isEmpty()) {
+                    item("empty") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(top = 72.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            androidx.compose.material3.Surface(shape = CircleShape, color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.size(62.dp)) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Text("Start the conversation", fontWeight = FontWeight.Bold)
+                            Text("Messages in this chat are end-to-end encrypted.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+
+                itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+                    val mine = message.senderId == currentUserId
+                    val previous = messages.getOrNull(index - 1)
+                    val next = messages.getOrNull(index + 1)
+                    val groupedWithPrevious = previous != null && canGroup(previous, message)
+                    val groupedWithNext = next != null && canGroup(message, next)
+                    val position = when {
+                        !groupedWithPrevious && !groupedWithNext -> MessageGroupPosition.SINGLE
+                        !groupedWithPrevious && groupedWithNext -> MessageGroupPosition.FIRST
+                        groupedWithPrevious && groupedWithNext -> MessageGroupPosition.MIDDLE
+                        else -> MessageGroupPosition.LAST
+                    }
+                    val showSender = conversation.type == ConversationType.GROUP && !groupedWithPrevious
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = if (groupedWithPrevious) 0.dp else 5.dp)
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    selectedMessage = message
+                                }
+                            )
+                    ) {
+                        ChatNuRichMessageBubble(
+                            message = message,
+                            mine = mine,
+                            groupPosition = position,
+                            showSender = showSender,
+                            playing = playingMessageId == message.id,
+                            onPlayVoice = { playVoice(message) },
+                            onOpenAttachment = { onOpenAttachment(message) },
+                            onOpenLocation = { lat, lon, live -> selectedLocation = Triple(lat, lon, live) },
+                            onRetryFailed = if (mine && message.status.toDeliveryState() == MessageDeliveryState.FAILED) {
+                                {
+                                    if (!message.localUri.isNullOrBlank()) onSendAttachment(Uri.parse(message.localUri))
+                                    else onSendTypedMessage(message.text, message.type)
+                                }
+                            } else null
+                        )
+                    }
                 }
             }
-        }
 
-        ChatNuComposer2026(
-            input = input,
-            onInput = { input = it },
-            recording = recording,
-            recordingSeconds = recordingSeconds,
-            emojiTrayVisible = showEmojiTray,
-            onToggleEmoji = { showEmojiTray = !showEmojiTray },
-            onEmoji = { emoji -> input += emoji },
-            onAttachment = { showAttachSheet = true },
-            onCamera = {
-                createCaptureUri2026(context, "photo", "jpg").also { uri ->
-                    pendingCapture = uri
-                    photoCapture.launch(uri)
+            ChatNuConversationTopBar2026(
+                conversation = conversation,
+                searchOpen = searchOpen,
+                searchQuery = searchQuery,
+                onSearchQuery = { searchQuery = it },
+                onSearchToggle = {
+                    searchOpen = !searchOpen
+                    if (!searchOpen) searchQuery = ""
+                },
+                onBack = onBack,
+                onProfile = { showProfileSheet = true },
+                onVoiceCall = { beginCall(false) },
+                onVideoCall = { beginCall(true) },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+
+            AnimatedVisibility(
+                visible = errorMessage != null && messages.isNotEmpty(),
+                enter = fadeIn(tween(ChatNuMotion.quickMs)) + scaleIn(initialScale = 0.96f),
+                exit = fadeOut(tween(ChatNuMotion.quickMs)) + scaleOut(targetScale = 0.96f),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 84.dp, start = ChatNuSpacing.lg, end = ChatNuSpacing.lg)
+            ) {
+                ChatNuGlassSurface(
+                    shape = RoundedCornerShape(ChatNuRadius.lg),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text(errorMessage.orEmpty(), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                        TextButton(onClick = onRetry) { Text("Retry") }
+                    }
                 }
-            },
-            onSend = ::sendCurrentText,
-            onRecord = {
-                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startRecording()
-                else voicePermission.launch(Manifest.permission.RECORD_AUDIO)
-            },
-            onCancelRecording = { finishRecording(false) },
-            onSendRecording = { finishRecording(true) },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            }
+
+            AnimatedVisibility(
+                visible = liveLocationJob?.isActive == true,
+                enter = fadeIn(tween(ChatNuMotion.quickMs)) + scaleIn(initialScale = 0.95f),
+                exit = fadeOut(tween(ChatNuMotion.quickMs)) + scaleOut(targetScale = 0.95f),
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = if (errorMessage != null && messages.isNotEmpty()) 136.dp else 84.dp)
+            ) {
+                ChatNuGlassSurface(
+                    shape = RoundedCornerShape(ChatNuRadius.pill),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.MyLocation, contentDescription = null, tint = ChatNuSemantic.Error, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Live location sharing", style = MaterialTheme.typography.labelMedium)
+                        TextButton(onClick = {
+                            liveLocationJob?.cancel()
+                            liveLocationJob = null
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }) { Text("Stop") }
+                    }
+                }
+            }
+
+            ChatNuComposer2026(
+                input = input,
+                onInput = { input = it },
+                recording = recording,
+                recordingSeconds = recordingSeconds,
+                emojiTrayVisible = showEmojiTray,
+                onToggleEmoji = { showEmojiTray = !showEmojiTray },
+                onEmoji = { emoji -> input += emoji },
+                onAttachment = { showAttachSheet = true },
+                onCamera = {
+                    createCaptureUri2026(context, "photo", "jpg").also { uri ->
+                        pendingCapture = uri
+                        photoCapture.launch(uri)
+                    }
+                },
+                onSend = ::sendCurrentText,
+                onRecord = {
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startRecording()
+                    else voicePermission.launch(Manifest.permission.RECORD_AUDIO)
+                },
+                onCancelRecording = { finishRecording(false) },
+                onSendRecording = { finishRecording(true) },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
     }
 
     if (showAttachSheet) {
@@ -528,12 +572,13 @@ fun ChatNuConversationScreen2026(
             if (message.type == MessageType.TEXT && message.text.isNotBlank()) {
                 ListItem(
                     headlineContent = { Text("Copy text") },
-                    leadingContent = { Icon(Icons.Default.ContentCopy, contentDescription = null) }
+                    supportingContent = { Text("Copy this message to the clipboard") },
+                    leadingContent = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        clipboard.setText(AnnotatedString(message.text))
+                        selectedMessage = null
+                    }
                 )
-                TextButton(onClick = {
-                    clipboard.setText(AnnotatedString(message.text))
-                    selectedMessage = null
-                }, modifier = Modifier.padding(horizontal = 16.dp)) { Text("Copy") }
             }
             ListItem(
                 headlineContent = { Text("Message details") },
@@ -544,11 +589,16 @@ fun ChatNuConversationScreen2026(
                 leadingContent = { Icon(Icons.Default.Info, contentDescription = null) }
             )
             if (message.senderId == currentUserId && message.status.toDeliveryState() == MessageDeliveryState.FAILED) {
-                TextButton(onClick = {
-                    if (!message.localUri.isNullOrBlank()) onSendAttachment(Uri.parse(message.localUri))
-                    else onSendTypedMessage(message.text, message.type)
-                    selectedMessage = null
-                }, modifier = Modifier.padding(horizontal = 16.dp)) { Text("Retry send") }
+                ListItem(
+                    headlineContent = { Text("Retry send") },
+                    supportingContent = { Text("Create a new send attempt for this failed message") },
+                    leadingContent = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        if (!message.localUri.isNullOrBlank()) onSendAttachment(Uri.parse(message.localUri))
+                        else onSendTypedMessage(message.text, message.type)
+                        selectedMessage = null
+                    }
+                )
             }
             Spacer(Modifier.height(20.dp))
         }
@@ -660,7 +710,11 @@ private fun ChatNuComposer2026(
             .navigationBarsPadding()
             .padding(horizontal = ChatNuSpacing.sm, vertical = ChatNuSpacing.sm)
     ) {
-        AnimatedVisibility(visible = emojiTrayVisible && !recording, enter = fadeIn(), exit = fadeOut()) {
+        AnimatedVisibility(
+            visible = emojiTrayVisible && !recording,
+            enter = fadeIn(tween(ChatNuMotion.quickMs)) + scaleIn(initialScale = 0.97f),
+            exit = fadeOut(tween(ChatNuMotion.quickMs)) + scaleOut(targetScale = 0.97f)
+        ) {
             ChatNuGlassSurface(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                 shape = RoundedCornerShape(ChatNuRadius.lg),
@@ -683,7 +737,8 @@ private fun ChatNuComposer2026(
             AnimatedContent(
                 targetState = recording,
                 transitionSpec = {
-                    (fadeIn() + scaleIn(initialScale = 0.98f)) togetherWith (fadeOut() + scaleOut(targetScale = 0.98f))
+                    (fadeIn(tween(ChatNuMotion.quickMs)) + scaleIn(animationSpec = ChatNuMotion.expressiveSpring(), initialScale = 0.94f)) togetherWith
+                        (fadeOut(tween(ChatNuMotion.quickMs)) + scaleOut(targetScale = 0.96f))
                 },
                 label = "composer-mode"
             ) { isRecording ->
@@ -732,7 +787,8 @@ private fun ChatNuComposer2026(
                         AnimatedContent(
                             targetState = input.isNotBlank(),
                             transitionSpec = {
-                                (fadeIn() + scaleIn(initialScale = 0.82f)) togetherWith (fadeOut() + scaleOut(targetScale = 0.82f))
+                                (fadeIn(tween(ChatNuMotion.quickMs)) + scaleIn(animationSpec = ChatNuMotion.responsiveSpring(), initialScale = 0.76f)) togetherWith
+                                    (fadeOut(tween(ChatNuMotion.quickMs)) + scaleOut(targetScale = 0.76f))
                             },
                             label = "send-mic"
                         ) { hasText ->
@@ -787,18 +843,20 @@ private fun ChatNuAttachmentSheet2026(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text("Share", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = ChatNuSpacing.xl, vertical = ChatNuSpacing.sm))
-        Column(modifier = Modifier.padding(horizontal = ChatNuSpacing.lg), verticalArrangement = Arrangement.spacedBy(ChatNuSpacing.sm)) {
+        Column(modifier = Modifier.padding(horizontal = ChatNuSpacing.lg), verticalArrangement = Arrangement.spacedBy(ChatNuSpacing.md)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 AttachmentAction2026(Icons.Default.Image, "Gallery", onGallery)
                 AttachmentAction2026(Icons.Default.CameraAlt, "Camera", onCamera)
-                AttachmentAction2026(Icons.Default.Videocam, "Video", onVideo)
+                AttachmentAction2026(Icons.Default.VideoLibrary, "Video", onVideo)
                 AttachmentAction2026(Icons.Default.Description, "File", onFile)
             }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                AttachmentAction2026(Icons.Default.Videocam, "Record", onVideoCapture)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally)
+            ) {
+                AttachmentAction2026(Icons.Default.FiberManualRecord, "Record", onVideoCapture)
                 AttachmentAction2026(Icons.Default.LocationOn, "Location", onLocation)
                 AttachmentAction2026(Icons.Default.MyLocation, "Live", onLiveLocation)
-                Spacer(Modifier.width(68.dp))
             }
         }
         Text(
@@ -817,11 +875,11 @@ private fun AttachmentAction2026(
     label: String,
     onClick: () -> Unit
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(68.dp)) {
-        FilledIconButton(onClick = onClick, modifier = Modifier.size(54.dp)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
+        FilledIconButton(onClick = onClick, modifier = Modifier.size(56.dp)) {
             Icon(icon, contentDescription = label, modifier = Modifier.size(ChatNuIconSize.standard))
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(5.dp))
         Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
     }
 }
@@ -853,7 +911,7 @@ private fun ChatNuConversationProfileSheet2026(
             Spacer(Modifier.height(18.dp))
             ListItem(
                 headlineContent = { Text("End-to-end encryption") },
-                supportingContent = { Text("Security details are available without cluttering the chat header.") },
+                supportingContent = { Text("Security details are available in Settings.") },
                 leadingContent = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) }
             )
             if (conversation.type == ConversationType.GROUP) {
@@ -1018,5 +1076,6 @@ private suspend fun currentLocation2026(context: Context): Location? = suspendCa
     }
 }
 
+private const val LOCATION_FIX_TIMEOUT_2026 = 8_000L
 private const val LIVE_LOCATION_DURATION_2026 = 15L * 60L * 1000L
 private const val LIVE_LOCATION_INTERVAL_2026 = 30L * 1000L

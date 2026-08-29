@@ -14,6 +14,13 @@ void main() {
     (widget) => widget is TextField && widget.key == Key(key),
   );
 
+  Future<void> usePhoneViewport(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   test('appearance controller persists theme selection', () async {
     final store = MemorySecretStore();
     final container = ProviderContainer(
@@ -31,6 +38,7 @@ void main() {
   });
 
   testWidgets('signup is a focused staged onboarding journey', (tester) async {
+    await usePhoneViewport(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [secretStoreProvider.overrideWithValue(MemorySecretStore())],
@@ -78,6 +86,7 @@ void main() {
   });
 
   testWidgets('login is separate from account creation', (tester) async {
+    await usePhoneViewport(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [secretStoreProvider.overrideWithValue(MemorySecretStore())],

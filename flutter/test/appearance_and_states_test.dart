@@ -31,13 +31,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          secretStoreProvider.overrideWithValue(MemorySecretStore()),
-        ],
-        child: MaterialApp(
-          theme: ChatNuTheme.light,
-          home: const AuthScreen(),
-        ),
+        overrides: [secretStoreProvider.overrideWithValue(MemorySecretStore())],
+        child: MaterialApp(theme: ChatNuTheme.light, home: const AuthScreen()),
       ),
     );
     await tester.pump();

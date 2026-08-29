@@ -1,10 +1,11 @@
 import 'package:chatnu/app/chatnu_app.dart';
+import 'package:chatnu/core/di/app_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('desktop renders the real messenger shell and sends locally', (
+  testWidgets('desktop renders the messenger shell and sends in demo mode', (
     tester,
   ) async {
     tester.view
@@ -15,7 +16,14 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(const ProviderScope(child: ChatNuApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
+        ],
+        child: const ChatNuApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('ChatNU'), findsOneWidget);
@@ -51,7 +59,14 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(const ProviderScope(child: ChatNuApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
+        ],
+        child: const ChatNuApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('conversation-list')), findsOneWidget);

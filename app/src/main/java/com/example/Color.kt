@@ -3,46 +3,46 @@ package com.example.ui.theme
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-val ChatNuAccent = Color(0xFF6366F1) // Indigo accent
-val ChatNuAccentLight = Color(0xFF818CF8)
-val ChatNuAccentDark = Color(0xFF4F46E5)
+// ChatNU keeps indigo as its recognizable accent, but 2026 surfaces are calmer and more neutral.
+val ChatNuAccent = Color(0xFF5B63E8)
+val ChatNuAccentLight = Color(0xFF7C83F3)
+val ChatNuAccentDark = Color(0xFF4850CF)
 
-val ChatNuGlassAccentStart = Color(0xFF6366F1)
-val ChatNuGlassAccentEnd = Color(0xFF8B5CF6)
+val ChatNuGlassAccentStart = Color(0xFF5B63E8)
+val ChatNuGlassAccentEnd = Color(0xFF7B61D9)
 
-val ChatNuDarkBg = Color(0xFF090D16)
-val ChatNuDarkSurface = Color(0xFF111827)
-val ChatNuDarkCard = Color(0xFF1F2937)
+// Deep neutral navy-charcoal: softer than pure black and better for layered translucent controls.
+val ChatNuDarkBg = Color(0xFF0B0E14)
+val ChatNuDarkSurface = Color(0xFF121720)
+val ChatNuDarkCard = Color(0xFF1A202B)
 
-val ChatNuLightBg = Color(0xFFF1F5F9)
-val ChatNuLightSurface = Color(0xFFFFFFFF)
-val ChatNuLightCard = Color(0xFFE2E8F0)
+// Warm-neutral light surfaces avoid the washed-out blue-gray look of the previous UI.
+val ChatNuLightBg = Color(0xFFF8F7F4)
+val ChatNuLightSurface = Color(0xFFFFFEFC)
+val ChatNuLightCard = Color(0xFFF0EEE9)
 
-val ChatNuEncryptedGreen = Color(0xFF10B981)
-val ChatNuViewOnceOrange = Color(0xFFF59E0B)
-val ChatNuDestructiveRed = Color(0xFFEF4444)
+val ChatNuEncryptedGreen = Color(0xFF2DA66E)
+val ChatNuViewOnceOrange = Color(0xFFE59A2E)
+val ChatNuDestructiveRed = Color(0xFFE0525B)
 
-// Glassmorphism specific colors
-val GlassBorderLight = Color(0x33FFFFFF)
-val GlassBorderDark = Color(0x1FFFFFFF)
-val GlassSurfaceDark = Color(0xCC111827)
-val GlassSurfaceLight = Color(0xCCFFFFFF)
+// Functional-layer translucency. These values are intentionally not used behind every message.
+val GlassBorderLight = Color(0x66FFFFFF)
+val GlassBorderDark = Color(0x2FFFFFFF)
+val GlassSurfaceDark = Color(0xB8121720)
+val GlassSurfaceLight = Color(0xD9FFFEFC)
 
-val GlassBubbleOutgoingStart = Color(0xE66366F1)
-val GlassBubbleOutgoingEnd = Color(0xE68B5CF6)
+val GlassBubbleOutgoingStart = Color(0xF05B63E8)
+val GlassBubbleOutgoingEnd = Color(0xF06F65D9)
+val GlassBubbleIncomingDark = Color(0xF01A202B)
+val GlassBubbleIncomingLight = Color(0xF7FFFEFC)
 
-val GlassBubbleIncomingDark = Color(0xD91F2937)
-val GlassBubbleIncomingLight = Color(0xECF8FAFC)
-
-val GlassSystemPillBg = Color(0x990F172A)
-val GlassSystemPillBorder = Color(0x40818CF8)
+val GlassSystemPillBg = Color(0xB30B0E14)
+val GlassSystemPillBorder = Color(0x407C83F3)
 
 val GlassLinearGradient = Brush.linearGradient(
     colors = listOf(
-        Color(0x286366F1),
-        Color(0x108B5CF6),
-        Color(0x05000000)
+        Color(0x245B63E8),
+        Color(0x107B61D9),
+        Color.Transparent
     )
 )
-
-

@@ -62,7 +62,11 @@ fun ServerAwareAuthScreen(
             title = { Text("Choose ChatNU server") },
             text = {
                 androidx.compose.foundation.layout.Column {
-                    Text("Use any ChatNU instance you trust or run yourself. HTTPS is recommended on the public internet.")
+                    Text(
+                        "Paste your normal HTTPS server address. During an Internet blackout, " +
+                            "you can instead paste the full emergency enrollment link printed by ./scripts/chatnu.sh. " +
+                            "ChatNU pins that server's local CA instead of disabling TLS verification."
+                    )
                     OutlinedTextField(
                         value = draftServer,
                         onValueChange = {
@@ -73,6 +77,13 @@ fun ServerAwareAuthScreen(
                         singleLine = true,
                         modifier = Modifier.padding(top = 12.dp)
                     )
+                    if (ServerEndpoint.isEmergencyTls()) {
+                        Text(
+                            text = "Emergency CA pin is active for this server.",
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
                     serverError?.let {
                         Text(
                             text = it,

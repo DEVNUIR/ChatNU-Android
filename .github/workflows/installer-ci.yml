@@ -1,0 +1,30 @@
+name: Installer CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Bash syntax
+        run: bash -n scripts/chatnu.sh
+      - name: Validate base Compose stack
+        run: docker compose config >/dev/null
+      - name: Validate emergency edge overlay
+        run: docker compose -f docker-compose.yml -f docker-compose.edge.yml config >/dev/null
+      - name: Confirm emergency proxy has no direct API exposure
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.edge.yml config > /tmp/chatnu-compose.txt
+          grep -q '127.0.0.1' /tmp/chatnu-compose.txt
+          grep -q '0.0.0.0' /tmp/chatnu-compose.txt
+          grep -q 'nginx:1.27-alpine' /tmp/chatnu-compose.txt

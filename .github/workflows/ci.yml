@@ -1,0 +1,334 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install dependencies
+        run: npm install
+      - name: Audit production dependencies
+        run: npm run audit:prod
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Validate Prisma schema
+        run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://chatnu:chatnu@localhost:5432/chatnu?schema=public
+      - name: TypeScript build
+        run: npm run build
+
+  server-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Start full Docker stack
+        env:
+          POSTGRES_PASSWORD: ci-postgres-password
+          JWT_SECRET: ci-jwt-secret-that-is-definitely-longer-than-thirty-two-characters
+          TURN_HOST: 127.0.0.1
+          TURN_SHARED_SECRET: ci-turn-shared-secret-for-smoke-tests
+          TURN_DETECT_EXTERNAL_IP: 'no'
+        run: docker compose up -d --build
+      - name: Exercise auth, E2EE discovery, realtime, calls, messages and attachments
+        run: |
+          docker compose exec -T api node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import WebSocket from 'ws';
+
+          const BASE = 'http://127.0.0.1:3000';
+          const suffix = Date.now().toString(36);
+          const fakeAliceKey = `MIIB-ALICE-${'A'.repeat(220)}`;
+          const fakeBobKey = `MIIB-BOB-${'B'.repeat(220)}`;
+
+          async function fetchJson(path, { method = 'GET', token, body } = {}) {
+            const headers = {};
+            if (token) headers.Authorization = `Bearer ${token}`;
+            if (body !== undefined) headers['Content-Type'] = 'application/json';
+            const response = await fetch(BASE + path, {
+              method,
+              headers,
+              body: body === undefined ? undefined : JSON.stringify(body),
+            });
+            const text = await response.text();
+            const data = text ? JSON.parse(text) : null;
+            if (!response.ok) {
+              const error = new Error(`${method} ${path} -> ${response.status}: ${text}`);
+              error.status = response.status;
+              throw error;
+            }
+            return { response, data };
+          }
+
+          for (let attempt = 0; attempt < 60; attempt += 1) {
+            try {
+              const response = await fetch(`${BASE}/health`);
+              const health = await response.json();
+              if (response.ok && health.status === 'ok') break;
+            } catch {}
+            if (attempt === 59) throw new Error('ChatNU API never became healthy');
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+
+          const aliceUsername = `ci_alice_${suffix}`;
+          const bobUsername = `ci_bob_${suffix}`;
+          const outsiderUsername = `ci_out_${suffix}`;
+
+          const alice = (await fetchJson('/auth/register', {
+            method: 'POST',
+            body: {
+              username: aliceUsername,
+              password: 'correct-horse-ci-alice',
+              displayName: 'CI Alice',
+              deviceName: 'CI Runner',
+              identityPublicKey: fakeAliceKey,
+            },
+          })).data;
+          const bob = (await fetchJson('/auth/register', {
+            method: 'POST',
+            body: {
+              username: bobUsername,
+              password: 'correct-horse-ci-bob',
+              displayName: 'CI Bob',
+              deviceName: 'CI Runner',
+              identityPublicKey: fakeBobKey,
+            },
+          })).data;
+          const outsider = (await fetchJson('/auth/register', {
+            method: 'POST',
+            body: {
+              username: outsiderUsername,
+              password: 'correct-horse-ci-outsider',
+              displayName: 'CI Outsider',
+              deviceName: 'CI Runner',
+            },
+          })).data;
+
+          assert.ok(alice.accessToken && alice.refreshToken && alice.recoveryCode);
+          assert.ok(bob.accessToken && outsider.accessToken);
+
+          const direct = (await fetchJson('/conversations/direct', {
+            method: 'POST',
+            token: alice.accessToken,
+            body: { username: bobUsername },
+          })).data.conversation;
+
+          const duplicateDirect = (await fetchJson('/conversations/direct', {
+            method: 'POST',
+            token: alice.accessToken,
+            body: { username: bobUsername },
+          })).data.conversation;
+          assert.equal(duplicateDirect.id, direct.id, 'direct conversation must be idempotent');
+
+          const keys = (await fetchJson(`/conversations/${direct.id}/keys`, {
+            token: alice.accessToken,
+          })).data;
+          assert.equal(keys.devices.length, 2, 'both active devices must publish E2EE public keys');
+          assert.deepEqual(keys.missingUserIds, []);
+          assert.ok(keys.devices.some((device) => device.deviceId === alice.deviceId));
+          assert.ok(keys.devices.some((device) => device.deviceId === bob.deviceId));
+
+          const rtc = (await fetchJson('/rtc/config', { token: alice.accessToken })).data;
+          const turnServer = rtc.iceServers.find((entry) => entry.urls.some((url) => url.startsWith('turn:')));
+          assert.ok(turnServer?.username && turnServer?.credential, 'TURN REST credentials must be generated');
+
+          const ws = new WebSocket('ws://127.0.0.1:3000/realtime', {
+            headers: { Authorization: `Bearer ${bob.accessToken}` },
+          });
+          const events = [];
+          const waiters = [];
+          ws.on('message', (raw) => {
+            const text = raw.toString();
+            if (text === 'pong') return;
+            const event = JSON.parse(text);
+            events.push(event);
+            for (const waiter of [...waiters]) {
+              if (waiter.predicate(event)) {
+                waiter.resolve(event);
+                waiters.splice(waiters.indexOf(waiter), 1);
+              }
+            }
+          });
+
+          function waitForEvent(predicate, timeoutMs = 5000) {
+            const existing = events.find(predicate);
+            if (existing) return Promise.resolve(existing);
+            return new Promise((resolve, reject) => {
+              const waiter = { predicate, resolve };
+              waiters.push(waiter);
+              const timer = setTimeout(() => {
+                const index = waiters.indexOf(waiter);
+                if (index >= 0) waiters.splice(index, 1);
+                reject(new Error('Timed out waiting for realtime event'));
+              }, timeoutMs);
+              waiter.resolve = (event) => {
+                clearTimeout(timer);
+                resolve(event);
+              };
+            });
+          }
+
+          await waitForEvent((event) => event.type === 'connected');
+
+          const callId = `ci-call-${suffix}`;
+          ws.send(JSON.stringify({
+            type: 'call.offer',
+            callId,
+            conversationId: direct.id,
+            targetUserId: alice.user.id,
+            sdp: 'v=0\\r\\n',
+            video: true,
+          }));
+
+          let pendingCall = null;
+          for (let attempt = 0; attempt < 20; attempt += 1) {
+            const pending = (await fetchJson('/calls/pending', { token: alice.accessToken })).data.calls;
+            pendingCall = pending.find((call) => call.callId === callId);
+            if (pendingCall) break;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          assert.equal(pendingCall?.fromUserId, bob.user.id, 'offline recipient must recover pending call offer');
+          assert.equal(pendingCall?.video, true);
+
+          const clientId = `ci-message-${suffix}`;
+          const sent = (await fetchJson('/messages', {
+            method: 'POST',
+            token: alice.accessToken,
+            body: {
+              conversationId: direct.id,
+              clientId,
+              type: 'TEXT',
+              ciphertext: 'Y2hhdG51LWNpLXNtb2tl',
+              protocolVersion: 'ci-smoke',
+            },
+          })).data.message;
+
+          const realtimeMessage = await waitForEvent(
+            (event) => event.type === 'message.created' && event.message?.id === sent.id,
+          );
+          assert.equal(realtimeMessage.message.conversationId, direct.id);
+
+          const duplicateMessage = (await fetchJson('/messages', {
+            method: 'POST',
+            token: alice.accessToken,
+            body: {
+              conversationId: direct.id,
+              clientId,
+              type: 'TEXT',
+              ciphertext: 'Y2hhdG51LWNpLXNtb2tl',
+              protocolVersion: 'ci-smoke',
+            },
+          })).data;
+          assert.equal(duplicateMessage.message.id, sent.id, 'message retry must be idempotent');
+          assert.equal(duplicateMessage.duplicate, true);
+
+          const history = (await fetchJson(`/conversations/${direct.id}/messages?limit=20`, {
+            token: bob.accessToken,
+          })).data.messages;
+          assert.ok(history.some((message) => message.id === sent.id));
+
+          const attachmentBytes = new TextEncoder().encode(`chatnu-attachment-${suffix}`);
+          const form = new FormData();
+          form.append('conversationId', direct.id);
+          form.append('file', new Blob([attachmentBytes], { type: 'application/octet-stream' }), 'smoke.enc');
+          const uploadResponse = await fetch(`${BASE}/attachments`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${alice.accessToken}` },
+            body: form,
+          });
+          const uploadBody = await uploadResponse.text();
+          assert.equal(uploadResponse.status, 201, `attachment upload failed: ${uploadBody}`);
+          const attachment = JSON.parse(uploadBody).attachment;
+
+          const downloadResponse = await fetch(`${BASE}/attachments/${attachment.id}/download`, {
+            headers: { Authorization: `Bearer ${bob.accessToken}` },
+          });
+          assert.equal(downloadResponse.status, 200);
+          assert.deepEqual(
+            Buffer.from(await downloadResponse.arrayBuffer()),
+            Buffer.from(attachmentBytes),
+            'authorized peer must receive exact encrypted attachment bytes',
+          );
+          assert.equal(downloadResponse.headers.get('cache-control'), 'private, no-store');
+
+          const forbiddenDownload = await fetch(`${BASE}/attachments/${attachment.id}/download`, {
+            headers: { Authorization: `Bearer ${outsider.accessToken}` },
+          });
+          assert.equal(forbiddenDownload.status, 404, 'non-member must not access attachments');
+
+          await fetchJson(`/conversations/${direct.id}/read`, {
+            method: 'POST',
+            token: bob.accessToken,
+            body: {},
+          });
+
+          const rotated = (await fetchJson('/auth/refresh', {
+            method: 'POST',
+            body: { refreshToken: alice.refreshToken },
+          })).data;
+          assert.notEqual(rotated.refreshToken, alice.refreshToken, 'refresh tokens must rotate');
+          try {
+            await fetchJson('/auth/refresh', {
+              method: 'POST',
+              body: { refreshToken: alice.refreshToken },
+            });
+            assert.fail('old refresh token unexpectedly remained valid');
+          } catch (error) {
+            assert.equal(error.status, 401);
+          }
+
+          ws.close(1000, 'smoke complete');
+          console.log('ChatNU smoke passed: auth -> migrations -> E2EE keys -> TURN -> call signaling -> realtime -> idempotency -> attachments -> authorization -> refresh rotation');
+          NODE
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs --tail=250
+      - name: Stop Docker stack
+        if: always()
+        run: docker compose down -v
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+      - name: Build installable DEVNU debug APK
+        env:
+          CHATNU_API_URL: https://api.devnu.ir/
+          CHATNU_WS_URL: wss://api.devnu.ir/realtime
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatnu-devnu-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7

@@ -1,7 +1,7 @@
 name: chatnu
-description: ChatNU Flutter client.
+description: ChatNU Flutter client - phased cross-platform rebuild.
 publish_to: "none"
-version: 0.2.0+2
+version: 0.1.0+1
 
 environment:
   sdk: ">=3.12.0 <4.0.0"

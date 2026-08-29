@@ -1,23 +1,19 @@
-# Flutter / Dart
-.dart_tool/
-.packages
-.pub/
-.flutter-plugins
-.flutter-plugins-dependencies
-build/
-coverage/
-
-# Generated Android host
-android/
-
-# IDE / OS
 .idea/
-.vscode/
+.gradle/
+**/build/
+local.properties
 *.iml
-.DS_Store
-
-# Backend local state
+.env
+server/.env
 server/node_modules/
 server/dist/
-server/.env
-.env
+*.log
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+*.jks
+*.keystore
+deploy/tls/*
+!deploy/tls/.gitkeep
+chatnu-offline-images*.tar

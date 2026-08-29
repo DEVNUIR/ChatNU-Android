@@ -5,7 +5,6 @@ import 'package:chatnu/core/config/server_endpoint.dart';
 import 'package:chatnu/core/storage/credential_vault.dart';
 import 'package:web_socket_channel/io.dart';
 
-
 enum RealtimeConnectionStatus { disconnected, connecting, connected }
 
 class ChatNuRealtimeClient {
@@ -92,7 +91,7 @@ class ChatNuRealtimeClient {
   }
 
   void _handleDisconnect() {
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel());
     _subscription = null;
     _channel = null;
     _status.add(RealtimeConnectionStatus.disconnected);
@@ -101,9 +100,9 @@ class ChatNuRealtimeClient {
 
   void _scheduleReconnect() {
     if (_stopped || _reconnectTimer != null) return;
-    _attempt = (_attempt + 1).clamp(1, 6);
-    final seconds = 1 << (_attempt - 1);
-    _reconnectTimer = Timer(Duration(seconds: seconds.clamp(3, 30)), () {
+    _attempt = (_attempt + 1).clamp(1, 6).toInt();
+    final seconds = (1 << (_attempt - 1)).clamp(3, 30).toInt();
+    _reconnectTimer = Timer(Duration(seconds: seconds), () {
       _reconnectTimer = null;
       unawaited(_connect());
     });

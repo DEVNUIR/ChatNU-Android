@@ -74,6 +74,15 @@ android {
     }
 }
 
+// The redesigned messenger uses Foundation combined-click gestures for long-press message and
+// conversation actions. Keep the opt-in centralized while the API remains experimental in the
+// Compose BOM pinned by this project.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        optIn.add("androidx.compose.foundation.ExperimentalFoundationApi")
+    }
+}
+
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.09.00"))
     implementation("androidx.core:core-ktx:1.18.0")

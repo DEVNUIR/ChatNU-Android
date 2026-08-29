@@ -30,9 +30,67 @@ jobs:
           cache: true
       - name: Bootstrap Android platform
         run: ./tool/bootstrap_android.sh
+      - name: Apply analyzer compatibility fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def patch(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              if old in text:
+                  file.write_text(text.replace(old, new))
+
+          patch(
+              'lib/features/home/application/demo_messenger_controller.dart',
+              'List<T> get orEmpty => this ?? const <T>[];',
+              'List<T> get orEmpty => this ?? <T>[];',
+          )
+
+          patch(
+              'lib/features/calls/application/call_controller.dart',
+              'final repository = _repository ?? ref.read(messengerRepositoryProvider);',
+              'final MessengerRepository repository = _repository ?? ref.read(messengerRepositoryProvider);',
+          )
+          patch(
+              'lib/features/calls/application/call_controller.dart',
+              "final config = await (_repository ?? ref.read(messengerRepositoryProvider))\n        .rtcConfig();",
+              "final MessengerRepository repository =\n        _repository ?? ref.read(messengerRepositoryProvider);\n    _repository = repository;\n    final config = await repository.rtcConfig();",
+          )
+          patch(
+              'lib/features/calls/application/call_controller.dart',
+              '      track.stop();',
+              '      await track.stop();',
+          )
+
+          patch(
+              'lib/core/network/chatnu_api_client.dart',
+              "        if (isPinned != null) 'isPinned': isPinned,\n        if (isMuted != null) 'isMuted': isMuted,",
+              "        'isPinned': ?isPinned,\n        'isMuted': ?isMuted,",
+          )
+          patch(
+              'lib/core/network/chatnu_api_client.dart',
+              "        if (before != null) 'before': before,",
+              "        'before': ?before,",
+          )
+
+          patch(
+              'lib/features/messages/presentation/conversation_pane.dart',
+              "final result = await FilePicker.platform.saveFile(\n      dialogTitle: 'Save decrypted attachment',\n      fileName: message.fileName ?? 'attachment',\n      bytes: bytes,\n    );",
+              "final result = await FilePicker.saveFile(\n      dialogTitle: 'Save decrypted attachment',\n      fileName: message.fileName ?? 'attachment',\n      bytes: bytes,\n      mimeType: message.mimeType ?? 'application/octet-stream',\n    );",
+          )
+          patch(
+              'lib/features/messages/presentation/conversation_pane.dart',
+              "final result = await FilePicker.platform.pickFiles(\n      allowMultiple: false,\n      withData: true,\n    );\n    if (result == null || result.files.isEmpty) return;\n    final file = result.files.single;\n    final bytes = file.bytes;\n    if (bytes == null) {\n      if (!context.mounted) return;\n      ScaffoldMessenger.of(context).showSnackBar(\n        const SnackBar(content: Text('Unable to read the selected file.')),\n      );\n      return;\n    }",
+              "final file = await FilePicker.pickFile();\n    if (file == null) return;\n    final bytes = await file.readAsBytes();",
+          )
+
+          for path in ('test/chat_screen_test.dart', 'test/product_identity_test.dart'):
+              patch(path, 'overrides: <Override>[', 'overrides: [')
+          PY
       - name: Normalize formatting
         run: dart format lib test
-      - name: Commit normalized Dart sources
+      - name: Commit compatibility fixes
         if: github.event_name == 'push'
         working-directory: .
         run: |
@@ -42,7 +100,7 @@ jobs:
           git config user.name "ChatNU CI"
           git config user.email "ci@chatnu.invalid"
           git add flutter/lib flutter/test
-          git commit -m "Normalize full-stack Flutter migration sources"
+          git commit -m "Fix full-stack Flutter analyzer compatibility"
           git push
       - name: Analyze
         run: flutter analyze --fatal-infos

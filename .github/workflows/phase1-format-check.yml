@@ -1,0 +1,46 @@
+name: Phase 1 formatter
+
+on:
+  push:
+    branches:
+      - chatgpt/phase-1-core-messaging
+
+permissions:
+  contents: write
+
+jobs:
+  format-analyze-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/phase-1-core-messaging
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Bootstrap Android platform
+        run: ./tool/bootstrap_android.sh
+      - name: Format
+        run: dart format lib test
+      - name: Commit canonical formatting
+        working-directory: .
+        run: |
+          if git diff --quiet -- flutter/lib flutter/test; then
+            echo "No formatting changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter/lib flutter/test
+          git commit -m "style: format phase1 Flutter changes"
+          git push origin HEAD:chatgpt/phase-1-core-messaging
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+      - name: Test
+        run: flutter test

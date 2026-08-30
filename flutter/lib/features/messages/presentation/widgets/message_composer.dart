@@ -55,9 +55,6 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
   bool get _finishing =>
       _recordingSession.phase == ChatNuRecordingPhase.finishing;
   bool get _paused => _recordingSession.isPaused;
-  bool get _capturing =>
-      _recordingSession.phase == ChatNuRecordingPhase.holding ||
-      _recordingSession.phase == ChatNuRecordingPhase.locked;
 
   @override
   void initState() {

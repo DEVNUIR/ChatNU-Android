@@ -17,27 +17,30 @@ Legend:
 | Login | Integrated | `SessionController` + `ChatNuApiClient.login` | Focused sign-in journey; no auth mocks |
 | Registration | Integrated | `SessionController.register` + local device identity key | Staged welcome/name/username/security/review flow followed by recovery-code acknowledgement |
 | Account recovery | Integrated | `SessionController.recover` | Staged recovery flow; server revokes existing sessions |
-| Custom server selection | Integrated | `ServerEndpointController` | Trust boundary stays explicit without cluttering the main auth journey |
+| Custom server selection | Integrated | `ServerEndpointController` + `SessionController.switchServer` | Settings can switch the active HTTPS server; current account is signed out and old-server bearer credentials are cleared before the endpoint changes |
 | Server provisioning URI | Partial | `ChatNuProvisioningLink` validates `chatnu://server/add?v=1...` | Versioned HTTPS-only, allow-listed public configuration; scanner/app-link dispatch still to be connected |
 | Emergency pinned TLS enrollment | Partial | Enrollment can be stored; Flutter transport intentionally refuses it until Android verification parity | Never bypass TLS validation |
 | Access/refresh tokens | Integrated | `CredentialVault` + rotating refresh flow | No token logging/query-string transport |
-| Multiple accounts / servers | Not exposed as production switching | Current Flutter vault/session owns one active account; old Kotlin `AccountManager` prototype is mock/random and is not production truth | Requires secure multi-session registry plus per-account realtime/crypto lifecycle before switch UI is enabled |
+| Multiple accounts / saved server registry | Not exposed | Current Flutter vault/session owns one active account and one active endpoint | Active server switching is real, but remembered multi-account/multi-server session switching still requires an isolated secure session registry plus per-account realtime/crypto lifecycle |
 | Per-device E2EE identity | Integrated | `DeviceE2ee` + identity-key registration | Security copy names ChatNU Device Envelope v2 precisely; no Signal Protocol claim |
 | Profile read | Integrated | `/me` + session user | Profile hub shows real display name, username, bio/avatar when provided, and active server |
-| Profile edit | Not exposed by current REST contract | Prisma user already has `displayName`, `avatarUrl`, `bio`, but no authenticated profile-update route is currently published | Do not save fake local-only profile edits; add authenticated update contract first |
+| Profile edit | Integrated in this branch | authenticated `PATCH /me`, `POST /me/avatar`, `DELETE /me/avatar` + persisted session user | Settings edits display name/bio and uploads/removes the real avatar; username stays read-only because E2EE identity namespacing currently depends on it |
 | Text messaging | Integrated | encrypted payload send + stable `clientId` | Reference-style bubbles with delivery/failure states |
 | Realtime messages | Integrated | authenticated WebSocket + reconciliation/deduplication | Connection state only when attention is needed |
 | Conversation read state | Integrated | optimistic local clear + server rollback | Preserve existing semantics |
 | Conversation pin/mute | Integrated | optimistic mutation + rollback | Long-press/right-click sheet contains only supported operations |
-| Contact/user search | Integrated | server-backed username/display-name search | Real directory search; no fabricated address book |
+| Contact/user search | Integrated | server-backed username/display-name search | Real directory search; no fabricated server-side address book |
+| Saved contacts | Partial/local | per-account + per-server secure local contact book | Search results can be saved/removed as contacts without pretending the server has a synchronized contacts resource |
 | Direct conversation creation | Integrated | `openDirect` | Real server-backed result opens immediately |
 | Group creation | Integrated | `createGroup` | Member selection then group details |
 | Recent people strip | UI refactor | recent direct conversations | Real conversation peers; not a fabricated Stories feature |
 | Message attachments | Integrated | encrypt bytes before upload; decrypt after download | File transport remains opaque encrypted bytes |
-| Image messages | Partial | server `MessageType.IMAGE`; Flutter mapper/composer already maps image attachments | Gallery/file selection works through encrypted attachment path; dedicated gallery/camera UX still pending |
-| Video messages | Partial | server `MessageType.VIDEO`; Flutter mapper/composer already maps video attachments | Encrypted video attachment transport exists; capture/thumbnail/player polish pending |
-| Voice messages | Partial | server `MessageType.VOICE`; Flutter mapper/composer already maps audio attachments | Encrypted audio attachment transport exists; recorder/waveform/duration UX pending |
-| Static location messages | Partial | server `MessageType.LOCATION` exists | Needs encrypted location payload schema + permission/map card implementation |
+| Image messages | Integrated transport + playback | server `MessageType.IMAGE`; encrypted attachment path; in-memory decrypted preview | System image selection and inline encrypted-image preview are wired; dedicated in-app camera/photo editor remains separate work |
+| Video messages | Integrated transport + playback | server `MessageType.VIDEO`; encrypted attachment path + `video_player` | Video files play inside the chat after local decryption |
+| Video notes | Integrated in this branch | front-camera capture up to 60 seconds, encrypted `VIDEO` attachment with private `videoNote` metadata | Capture and circular in-chat playback are real; no group/video-story semantics are implied |
+| Voice messages | Integrated in this branch | `voice_note_kit` recorder/player + encrypted `VOICE` attachment path | Voice notes record in-app, encrypt before upload, and play inside the conversation |
+| Audio/music attachments | Integrated in this branch | encrypted attachment + internal audio player | Selected audio/music files are files with internal playback, distinct from recorded voice notes |
+| Static location messages | Integrated in this branch | encrypted location payload + `MessageType.LOCATION` + `flutter_map` renderer | Current coordinates are permission-gated, encrypted in message content, and rendered as a non-interactive OSM-backed map card with attribution |
 | Live location | Partial foundation only | server `MessageType.LIVE_LOCATION` and Kotlin session model exist, but no audited production update/revoke stream yet | Must define expiry/revoke and encrypted realtime-update semantics before live sharing UI |
 | View-once media | Partial foundation only | server enum contains `VIEW_ONCE_IMAGE` / `VIEW_ONCE_VIDEO` | Needs one-view enforcement semantics before UI |
 | Message copy | Local capability | clipboard only | Context action exposed |
@@ -52,15 +55,16 @@ Legend:
 | One-to-one audio calls | Integrated | WebRTC + realtime call signaling | Modern direct-call action + active-call overlay |
 | One-to-one video calls | Integrated | WebRTC + realtime call signaling | Modern video action + active-call overlay |
 | Mute / camera toggle | Integrated | `CallController` | Expose exactly supported controls |
-| Speaker route selector | Not exposed in current controller | No audited UI-safe controller action | Do not fake |
-| Switch camera | Not exposed in current controller | No audited controller action | Do not fake |
-| Group calls | Not supported by current signaling | realtime call schema requires one `targetUserId`; no group room/SFU semantics | Requires multiparty signaling/media architecture before group-call UI |
+| Speaker route | Integrated in this branch | `flutter_webrtc` `Helper.setSpeakerphoneOn` | Active-call overlay exposes speaker on/off and resets routing on teardown |
+| Switch camera | Integrated in this branch | `flutter_webrtc` `Helper.switchCamera` | Video calls expose front/rear camera switching without changing signaling |
+| Group calls / meetings / cast | Not supported by current signaling | realtime call schema requires one `targetUserId`; no group room/SFU/casting semantics | Do not bolt on a third-party meeting button; requires explicit multiparty signaling/media architecture first |
 | Persistent call history | Not exposed | No call-history resource | Do not invent a Calls-history destination |
-| Chat wallpaper | Integrated in this branch | animated local paint only; no network data | Ambient wallpaper under conversations, respects Reduce Motion |
-| Header/navbar blur | Integrated in this branch | presentation-only | Backdrop blur limited to chrome rather than every row/bubble |
+| Chat wallpaper | Integrated in this branch | persisted local appearance preference + lightweight painter | User can choose Ambient, Soft Grid, Midnight, or Solid; animation respects Reduce Motion |
+| Header/navbar/composer glass | Integrated in this branch | `liquid_glass_easy` presentation layer | Full glass quality is the default; blur stays concentrated in chrome and modal surfaces rather than every message row |
 | Pane/navigation motion | Integrated in this branch | presentation-only | eased fade/slide transitions, disabled for reduced-motion preference |
 | Theme mode | Integrated | persisted System/Light/Dark preference | Shared appearance controller |
-| Glass quality | Integrated | persisted Full/Balanced/Reduced level | Depth is concentrated in chrome/surfaces, not per-message blur |
+| Glass quality | Integrated | persisted Full/Balanced/Reduced level | Full is the default; lower modes remain available for performance/accessibility needs |
+| Icon system | Partial rollout | `enefty_icons` dependency plus existing Material icons where no matching replacement has been audited | New/refactored surfaces can use the modern icon family without forcing unsafe mechanical replacement of every icon |
 | Language preference | Integrated in this branch | persisted System/English/فارسی | App-level locale override with EN/FA delegates |
 | English layout | Integrated | Flutter localization delegates | LTR verified in tests |
 | Persian layout | Integrated | Flutter localization delegates | RTL + directional layout APIs |
@@ -79,12 +83,13 @@ repositories for production routes. Demo fixtures may exist only behind the expl
 The server already validates/stores the complete Prisma `MessageType` enum, including
 `IMAGE`, `VIDEO`, `VOICE`, `LOCATION`, `LIVE_LOCATION`, and view-once media. Flutter's
 production encrypted-message mapper already maps these types, and attachment bytes are
-encrypted before upload. New capture/playback/location UX should therefore extend the
-existing encrypted payload format rather than introduce a second plaintext media path.
+encrypted before upload. Capture/playback/location UX extends that existing encrypted
+payload format rather than introducing a second plaintext media path.
 
-Location payload coordinates, voice duration/waveform metadata, media dimensions,
-thumbnail references, and similar content-sensitive metadata should remain inside the
-encrypted message payload wherever routing does not require them.
+Location coordinates, voice/media metadata, media dimensions, thumbnail references, and
+similar content-sensitive metadata should remain inside the encrypted message payload
+wherever routing does not require them. Decrypted media created for playback is written
+only to app temporary storage and is deleted when the media widget is disposed.
 
 ## QR / internal-link boundary
 
@@ -94,11 +99,20 @@ recovery codes, device private keys, attachment keys, session identifiers, or ot
 secrets must never be serialized into QR/deep-link payloads. Unknown fields/actions and
 non-HTTPS server enrollment are rejected.
 
+## Map boundary
+
+Static location cards use `flutter_map`. The current tile source is the standard
+OpenStreetMap endpoint with attribution and a ChatNU user-agent. This is suitable for
+functional validation and light use; a production-scale deployment should use an
+OSM-compatible tile service or self-hosted tile infrastructure rather than treating the
+community tile endpoint as an unlimited application CDN.
+
 ## Performance boundary
 
-Backdrop blur is concentrated in navigation/header chrome and modal surfaces. Message and
-conversation rows remain lightweight; animated wallpaper is isolated in a repaint boundary
-and stops when reduced motion is requested.
+Liquid-glass/blur rendering is concentrated in navigation/header/composer chrome and modal
+surfaces. Message and conversation rows remain lightweight; animated wallpaper is isolated
+in a repaint boundary and stops when reduced motion is requested. Full glass is the default,
+with Balanced and Reduced settings available when the device or user preference needs them.
 
 ## Release verification contract
 

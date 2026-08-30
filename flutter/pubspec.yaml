@@ -26,6 +26,7 @@ dependencies:
   latlong2: ^0.9.1
   liquid_glass_easy: ^4.2.0
   mime: ^2.0.0
+  open_file: ^4.0.0
   path_provider: ^2.1.6
   pointycastle: ^4.0.0
   record: ^6.2.1

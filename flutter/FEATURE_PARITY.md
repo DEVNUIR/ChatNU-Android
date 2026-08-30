@@ -37,14 +37,17 @@ Legend:
 | Direct conversation creation | Integrated | `openDirect` | Real server-backed result opens immediately |
 | Group creation | Integrated | `createGroup` | Member selection then group details |
 | Recent people strip | UI refactor | recent direct conversations | Real conversation peers; not a fabricated Stories feature |
-| Message attachments | Integrated | encrypt bytes before upload; decrypt after download | File transport remains opaque encrypted bytes |
-| Image messages | Integrated transport + playback | server `MessageType.IMAGE`; encrypted attachment path; in-memory decrypted preview | System image selection and inline encrypted-image preview are wired; dedicated in-app camera/photo editor remains separate work |
-| Video messages | Integrated transport + playback | server `MessageType.VIDEO`; encrypted attachment path + `video_player` | Video files play inside the chat after local decryption |
-| Video notes | Integrated in this branch | front-camera capture up to 60 seconds, encrypted `VIDEO` attachment with private `videoNote` metadata | Capture and circular in-chat playback are real; no group/video-story semantics are implied |
-| Voice messages | Integrated in this branch | `voice_note_kit` recorder/player + encrypted `VOICE` attachment path | Voice notes record in-app, encrypt before upload, and play inside the conversation |
-| Audio/music attachments | Integrated in this branch | encrypted attachment + internal audio player | Selected audio/music files are files with internal playback, distinct from recorded voice notes |
+| Message attachments | Integrated | encrypt bytes before upload; decrypt after download | Attachment sheet exposes only real transport paths; Gallery, Camera, Video, Audio, File, and static Location use the existing encrypted message pipeline |
+| Image messages | Integrated transport + playback | server `MessageType.IMAGE`; encrypted attachment path; in-memory decrypted preview | Natural-ratio inline presentation after decryption plus a zoomable in-app viewer; encrypted images are not cropped into a fake fixed thumbnail |
+| Video messages | Integrated transport + playback | server `MessageType.VIDEO`; encrypted attachment path + `video_player` | Before decryption the UI uses an honest video poster rather than fabricating a thumbnail; after decryption the real first frame/player, duration, scrubbing, and progress are available |
+| Video notes | Integrated in this branch | front-camera capture up to 60 seconds, encrypted `VIDEO` attachment with private `videoNote` + `durationMs` metadata | Hold-to-record can lock, pause/continue, cancel, and send; circular preview/playback remains local to the client and encrypted media transport is unchanged |
+| Voice messages | Integrated in this branch | `record` capture + `voice_note_kit` playback + encrypted `VOICE` attachment path | Hold-to-record supports directional cancel, slide-up lock, live amplitude waveform, timer, pause/continue, cancel, send, playback speed, waveform playback, and device-local listened feedback |
+| Audio/music attachments | Integrated in this branch | encrypted attachment + internal audio player | Selected audio/music files are files with internal playback and speed controls, distinct from recorded voice notes |
+| File attachments | Integrated in this branch | encrypted attachment download + temporary decrypted file + native open/save handoff | Cards show type/name/size, indeterminate decrypt progress, Open in the OS, and Save; temporary decrypted files are cleaned up with the media widget lifecycle |
+| Recording state machine | Integrated in this branch | `ChatNuRecordingSession` + existing `record`/`camera` capture paths | Explicit idle → arming → holding → locked/paused → finishing states replace boolean-heavy recorder UI; cancel and lock gestures are mutually exclusive and RTL-aware |
 | Static location messages | Integrated in this branch | encrypted location payload + `MessageType.LOCATION` + `flutter_map` renderer | Current coordinates are permission-gated, encrypted in message content, and rendered as a non-interactive OSM-backed map card with attribution |
-| Live location | Partial foundation only | server `MessageType.LIVE_LOCATION` and Kotlin session model exist, but no audited production update/revoke stream yet | Must define expiry/revoke and encrypted realtime-update semantics before live sharing UI |
+| Live location | Partial foundation only | server `MessageType.LIVE_LOCATION` and Kotlin session model exist, but no audited production update/revoke stream yet | Attachment sheet shows the capability disabled; expiry/revoke and encrypted realtime-update semantics must exist before live sharing can be enabled |
+| Contact message attachment | Not exposed | no audited encrypted contact-message payload in current server contract | Attachment sheet shows Contact disabled rather than serializing address-book data into an invented message format |
 | View-once media | Partial foundation only | server enum contains `VIEW_ONCE_IMAGE` / `VIEW_ONCE_VIDEO` | Needs one-view enforcement semantics before UI |
 | Message copy | Local capability | clipboard only | Context action exposed |
 | Failed text retry | Integrated | stable client ID | Context action exposed |
@@ -91,8 +94,12 @@ payload format rather than introducing a second plaintext media path.
 
 Location coordinates, voice/media metadata, media dimensions, thumbnail references, and
 similar content-sensitive metadata should remain inside the encrypted message payload
-wherever routing does not require them. Decrypted media created for playback is written
-only to app temporary storage and is deleted when the media widget is disposed.
+wherever routing does not require them. Phase 2 keeps recorded and picked-video duration
+inside encrypted private metadata. Because the current encrypted attachment payload does
+not carry a separately routable thumbnail, the client does not invent or upload a
+plaintext video thumbnail: it shows a neutral poster before decryption and the real first
+frame/player only after local decryption. Decrypted media created for playback/opening is
+written only to app temporary storage and is deleted when the media widget is disposed.
 
 ## QR / internal-link boundary
 

@@ -9,6 +9,7 @@ import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
+import 'package:chatnu/features/messages/application/live_location_controller.dart';
 import 'package:chatnu/features/messages/domain/message.dart';
 import 'package:chatnu/features/messages/presentation/recording_session.dart';
 import 'package:file_picker/file_picker.dart';
@@ -554,6 +555,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
   Future<void> _showAttachmentSheet() async {
     FocusScope.of(context).unfocus();
     final strings = ChatNuStrings.of(context);
+    final liveLocation = ref.read(liveLocationControllerProvider);
     final choice = await showModalBottomSheet<_AttachmentChoice>(
       context: context,
       useSafeArea: true,
@@ -570,6 +572,9 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               constraints: const BoxConstraints(maxWidth: 720),
               child: _AttachmentSheet(
                 persian: strings.isPersian,
+                liveLocationActive: liveLocation.isSharingConversation(
+                  widget.conversationId,
+                ),
                 onSelected: (value) => Navigator.of(sheetContext).pop(value),
               ),
             ),
@@ -592,10 +597,41 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
       case _AttachmentChoice.file:
         await _pickFile();
       case _AttachmentChoice.liveLocation:
-        _showUnsupportedAttachment(liveLocation: true);
+        await _toggleLiveLocation();
       case _AttachmentChoice.contact:
         _showUnsupportedAttachment(liveLocation: false);
     }
+  }
+
+  Future<void> _toggleLiveLocation() async {
+    final controller = ref.read(liveLocationControllerProvider.notifier);
+    final current = ref.read(liveLocationControllerProvider);
+    final persian = ChatNuStrings.of(context).isPersian;
+    if (current.isSharingConversation(widget.conversationId)) {
+      controller.stop();
+      if (mounted) {
+        _showError(persian ? 'موقعیت زنده متوقف شد.' : 'Live Location stopped.');
+      }
+      return;
+    }
+
+    await controller.start(widget.conversationId);
+    if (!mounted) return;
+    final next = ref.read(liveLocationControllerProvider);
+    if (next.status == ChatNuLiveLocationStatus.failed) {
+      _showError(
+        next.error ??
+            (persian
+                ? 'اشتراک موقعیت زنده شروع نشد.'
+                : 'Live Location could not start.'),
+      );
+      return;
+    }
+    _showError(
+      persian
+          ? 'موقعیت زنده تا ۱۵ دقیقه و فقط تا زمانی که ChatNU در پیش‌زمینه است ارسال می‌شود.'
+          : 'Live Location shares for up to 15 minutes while ChatNU stays in the foreground.',
+    );
   }
 
   Future<void> _pickGallery() async {
@@ -744,8 +780,8 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     _showError(
       liveLocation
           ? (persian
-                ? 'اشتراک موقعیت زنده تا تعریف چرخهٔ انقضا و لغو امن در سرور غیرفعال است.'
-                : 'Live Location stays unavailable until the server defines secure expiry and revoke semantics.')
+                ? 'اشتراک موقعیت زنده در این دستگاه فقط در پیش‌زمینه پشتیبانی می‌شود.'
+                : 'Live Location on this device is supported only while ChatNU stays in the foreground.')
           : (persian
                 ? 'پیام مخاطب هنوز قالب رمزگذاری‌شدهٔ قابل‌اعتماد در سرور ندارد.'
                 : 'Contact messages stay unavailable until the server defines an encrypted contact payload.'),
@@ -1189,9 +1225,14 @@ enum _AttachmentChoice {
 }
 
 class _AttachmentSheet extends StatelessWidget {
-  const _AttachmentSheet({required this.persian, required this.onSelected});
+  const _AttachmentSheet({
+    required this.persian,
+    required this.liveLocationActive,
+    required this.onSelected,
+  });
 
   final bool persian;
+  final bool liveLocationActive;
   final ValueChanged<_AttachmentChoice> onSelected;
 
   @override
@@ -1238,8 +1279,13 @@ class _AttachmentSheet extends StatelessWidget {
         choice: _AttachmentChoice.liveLocation,
         icon: Icons.my_location_rounded,
         title: persian ? 'موقعیت زنده' : 'Live Location',
-        subtitle: persian ? 'نیازمند پشتیبانی سرور' : 'Server support required',
-        enabled: false,
+        subtitle: liveLocationActive
+            ? (persian
+                  ? 'برای توقف لمس کنید • فقط پیش‌زمینه'
+                  : 'Tap to stop • foreground only')
+            : (persian
+                  ? '۱۵ دقیقه • فقط پیش‌زمینه'
+                  : '15 min • foreground only'),
       ),
       _AttachmentItem(
         choice: _AttachmentChoice.contact,

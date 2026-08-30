@@ -6,6 +6,7 @@ on:
       - refactor/settings-media-glass-v2
     paths:
       - ".github/workflows/chat-ux-v3-validate.yml"
+      - "flutter/**"
 
 permissions:
   contents: write

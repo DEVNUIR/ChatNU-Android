@@ -19,7 +19,12 @@ mkdir -p android/app/src/main/kotlin/ir/devnu/chatnu
 mkdir -p android/app/src/main/res/drawable
 cp tool/android/MainActivity.kt android/app/src/main/kotlin/ir/devnu/chatnu/MainActivity.kt
 cp tool/android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-cp ../app/src/main/res/drawable/ic_chatnu.xml android/app/src/main/res/drawable/ic_chatnu.xml
+ICON_SOURCE="../app/src/main/res/drawable/ic_chatnu.xml"
+if grep -qi '#5B7CFF' "$ICON_SOURCE"; then
+  echo "Legacy blue ChatNU placeholder launcher icon is not allowed." >&2
+  exit 1
+fi
+cp "$ICON_SOURCE" android/app/src/main/res/drawable/ic_chatnu.xml
 
 # Match the production Android application identity and security baseline so a
 # release signed with the existing ChatNU key can upgrade in place and retain

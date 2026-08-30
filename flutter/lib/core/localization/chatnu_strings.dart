@@ -56,6 +56,17 @@ class ChatNuStrings {
   String get sentToServer => isPersian ? 'ارسال‌شده به سرور' : 'Sent to server';
   String get failed => isPersian ? 'ناموفق' : 'Failed';
   String get retry => isPersian ? 'تلاش دوباره' : 'Retry';
+  String get retryOlderMessages =>
+      isPersian ? 'بارگیری دوبارهٔ پیام‌های قدیمی' : 'Retry older messages';
+  String get couldNotLoadConversation => isPersian
+      ? 'گفت‌وگو بارگیری نشد.'
+      : 'Couldn’t load this conversation.';
+  String get syncingMessages =>
+      isPersian ? 'در حال همگام‌سازی پیام‌ها…' : 'Syncing messages…';
+  String get syncFailed => isPersian
+      ? 'همگام‌سازی کامل نشد. برای تلاش دوباره بزنید.'
+      : 'Couldn’t sync messages. Tap to retry.';
+  String get draft => isPersian ? 'پیش‌نویس' : 'Draft';
   String get copy => isPersian ? 'کپی' : 'Copy';
   String get pinned => isPersian ? 'سنجاق‌شده' : 'Pinned';
   String get pin => isPersian ? 'سنجاق کردن' : 'Pin';

@@ -63,8 +63,10 @@ class ChatNuRecordingSession {
   ChatNuRecordingSession startHolding() {
     if (phase != ChatNuRecordingPhase.arming) return this;
     return copyWith(
-      phase: ChatNuRecordingPhase.holding,
-      gesture: ChatNuRecordingGesture.none,
+      phase: lockArmed
+          ? ChatNuRecordingPhase.locked
+          : ChatNuRecordingPhase.holding,
+      gesture: gesture,
     );
   }
 

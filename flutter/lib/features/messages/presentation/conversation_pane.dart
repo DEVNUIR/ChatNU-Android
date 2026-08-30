@@ -366,12 +366,15 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
     final activeSearchIndex = searchMatches.indexWhere(
       (message) => message.id == _activeSearchMessageId,
     );
-    final searchResultLabel = !_searchOpen || _searchController.text.trim().isEmpty
+    final searchResultLabel =
+        !_searchOpen || _searchController.text.trim().isEmpty
         ? null
         : searchMatches.isEmpty
         ? strings.noMessageMatches
         : strings.messageSearchResult(
-            activeSearchIndex < 0 ? searchMatches.length : activeSearchIndex + 1,
+            activeSearchIndex < 0
+                ? searchMatches.length
+                : activeSearchIndex + 1,
             searchMatches.length,
           );
 
@@ -391,8 +394,9 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
                 searchResultLabel: searchResultLabel,
                 onSearchChanged: _onSearchChanged,
                 onSearchToggle: _toggleSearch,
-                onPreviousSearchResult:
-                    activeSearchIndex > 0 ? () => _navigateSearch(older: true) : null,
+                onPreviousSearchResult: activeSearchIndex > 0
+                    ? () => _navigateSearch(older: true)
+                    : null,
                 onNextSearchResult:
                     activeSearchIndex >= 0 &&
                         activeSearchIndex < searchMatches.length - 1
@@ -467,13 +471,15 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
                                     !_sameDay(previous.sentAt, message.sentAt);
                                 final mine =
                                     message.senderId == state.currentUser.id;
-                                final groupPosition = MessageGrouping.positionAt(
-                                  messages,
-                                  chronologicalIndex,
-                                  gap: widget.groupingGap,
+                                final groupPosition =
+                                    MessageGrouping.positionAt(
+                                      messages,
+                                      chronologicalIndex,
+                                      gap: widget.groupingGap,
+                                    );
+                                final groupStart = MessageGrouping.isGroupStart(
+                                  groupPosition,
                                 );
-                                final groupStart =
-                                    MessageGrouping.isGroupStart(groupPosition);
                                 final member = conversation.members
                                     .where(
                                       (user) => user.id == message.senderId,

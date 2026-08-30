@@ -22,7 +22,8 @@ class ChatNuStrings {
   String get splash => isPersian ? 'راه‌اندازی' : 'Splash';
   String get searchConversations =>
       isPersian ? 'جست‌وجوی گفت‌وگوها' : 'Search conversations';
-  String get searchInChat => isPersian ? 'جست‌وجو در گفت‌وگو' : 'Search in chat';
+  String get searchInChat =>
+      isPersian ? 'جست‌وجو در گفت‌وگو' : 'Search in chat';
   String get closeSearch => isPersian ? 'بستن جست‌وجو' : 'Close search';
   String get previousSearchResult =>
       isPersian ? 'نتیجهٔ قبلی' : 'Previous result';

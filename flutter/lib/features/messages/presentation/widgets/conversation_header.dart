@@ -90,10 +90,11 @@ class ConversationHeader extends ConsumerWidget {
                         conversation.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.2,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.2,
+                            ),
                       ),
                       const SizedBox(height: 2),
                       Row(
@@ -110,7 +111,9 @@ class ConversationHeader extends ConsumerWidget {
                             child: Text(
                               isDirect
                                   ? strings.encrypted
-                                  : strings.members(conversation.members.length),
+                                  : strings.members(
+                                      conversation.members.length,
+                                    ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodySmall,
@@ -161,7 +164,8 @@ class ConversationHeader extends ConsumerWidget {
               ),
             ]
           : <Widget>[
-              if (isDirect && ChatNuCapabilities.current.oneToOneCalls) ...<Widget>[
+              if (isDirect &&
+                  ChatNuCapabilities.current.oneToOneCalls) ...<Widget>[
                 GlassIconButton(
                   tooltip: strings.videoCall,
                   onPressed: demo

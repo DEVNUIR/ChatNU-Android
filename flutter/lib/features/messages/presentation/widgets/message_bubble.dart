@@ -57,11 +57,12 @@ class MessageBubble extends ConsumerWidget {
         unawaited(HapticFeedback.mediumImpact());
         unawaited(_showMobileActions(context, ref));
       },
-      onSecondaryTapDown: (details) => unawaited(
-        _showDesktopActions(context, ref, details.globalPosition),
-      ),
+      onSecondaryTapDown: (details) =>
+          unawaited(_showDesktopActions(context, ref, details.globalPosition)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: ChatNuSizing.messageMaxWidth),
+        constraints: const BoxConstraints(
+          maxWidth: ChatNuSizing.messageMaxWidth,
+        ),
         margin: EdgeInsetsDirectional.only(bottom: groupedEnd ? 7 : 2),
         padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 12, 7),
         decoration: BoxDecoration(

@@ -217,11 +217,11 @@ class DeliveryStatus extends StatelessWidget {
     final palette = context.chatNu;
     final color = foreground ?? palette.textMuted;
     final label = switch (state) {
-      MessageDeliveryState.queuedOffline => strings.sending,
+      MessageDeliveryState.queuedOffline => strings.queued,
       MessageDeliveryState.sending => strings.sending,
       MessageDeliveryState.failed => strings.failed,
-      MessageDeliveryState.sentToServer => strings.sentToServer,
-      MessageDeliveryState.deliveredToRecipientDevice => strings.sentToServer,
+      MessageDeliveryState.sentToServer ||
+      MessageDeliveryState.deliveredToRecipientDevice ||
       MessageDeliveryState.read => strings.sentToServer,
     };
     final child = switch (state) {
@@ -239,10 +239,12 @@ class DeliveryStatus extends StatelessWidget {
         size: 14,
         color: foreground ?? palette.destructive,
       ),
+      // The current server proves acknowledgement only. Do not imply device
+      // delivery/read with double-check semantics until a real receipt exists.
       MessageDeliveryState.sentToServer ||
       MessageDeliveryState.deliveredToRecipientDevice ||
       MessageDeliveryState.read => Icon(
-        Icons.done_all_rounded,
+        Icons.done_rounded,
         size: 14,
         color: color,
       ),

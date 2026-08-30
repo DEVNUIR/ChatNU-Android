@@ -2,15 +2,62 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:chatnu/core/di/app_providers.dart';
+import 'package:chatnu/core/network/chatnu_api_client.dart';
 import 'package:chatnu/core/realtime/chatnu_realtime_client.dart';
 import 'package:chatnu/features/accounts/domain/chatnu_user.dart';
 import 'package:chatnu/features/auth/application/session_controller.dart';
 import 'package:chatnu/features/conversations/domain/conversation.dart';
+import 'package:chatnu/features/home/data/messenger_local_store.dart';
 import 'package:chatnu/features/home/data/messenger_repository.dart';
 import 'package:chatnu/features/messages/domain/message.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum MessengerDestination { chats, contacts, settings }
+
+enum MessengerSyncStatus { idle, synchronizing, failed }
+
+class ConversationLoadState {
+  const ConversationLoadState({
+    this.initialLoading = false,
+    this.loadingOlder = false,
+    this.hasMore = true,
+    this.oldestLoadedAt,
+    this.initialError,
+    this.olderError,
+    this.messageError,
+  });
+
+  final bool initialLoading;
+  final bool loadingOlder;
+  final bool hasMore;
+  final DateTime? oldestLoadedAt;
+  final String? initialError;
+  final String? olderError;
+  final String? messageError;
+
+  ConversationLoadState copyWith({
+    bool? initialLoading,
+    bool? loadingOlder,
+    bool? hasMore,
+    DateTime? oldestLoadedAt,
+    String? initialError,
+    bool clearInitialError = false,
+    String? olderError,
+    bool clearOlderError = false,
+    String? messageError,
+    bool clearMessageError = false,
+  }) {
+    return ConversationLoadState(
+      initialLoading: initialLoading ?? this.initialLoading,
+      loadingOlder: loadingOlder ?? this.loadingOlder,
+      hasMore: hasMore ?? this.hasMore,
+      oldestLoadedAt: oldestLoadedAt ?? this.oldestLoadedAt,
+      initialError: clearInitialError ? null : initialError ?? this.initialError,
+      olderError: clearOlderError ? null : olderError ?? this.olderError,
+      messageError: clearMessageError ? null : messageError ?? this.messageError,
+    );
+  }
+}
 
 class MessengerDemoState {
   const MessengerDemoState({
@@ -20,9 +67,15 @@ class MessengerDemoState {
     required this.messagesByConversation,
     this.selectedConversationId,
     this.realtimeStatus = RealtimeConnectionStatus.disconnected,
-    this.isLoading = false,
-    this.error,
+    this.syncStatus = MessengerSyncStatus.idle,
+    this.syncError,
+    this.conversationsLoading = false,
+    this.conversationsError,
+    this.conversationStates = const <String, ConversationLoadState>{},
+    this.drafts = const <String, String>{},
     this.contactResults = const <ChatNuUser>[],
+    this.contactSearchLoading = false,
+    this.contactSearchError,
   });
 
   final ChatNuUser currentUser;
@@ -31,9 +84,23 @@ class MessengerDemoState {
   final Map<String, List<ChatNuMessage>> messagesByConversation;
   final String? selectedConversationId;
   final RealtimeConnectionStatus realtimeStatus;
-  final bool isLoading;
-  final String? error;
+  final MessengerSyncStatus syncStatus;
+  final String? syncError;
+  final bool conversationsLoading;
+  final String? conversationsError;
+  final Map<String, ConversationLoadState> conversationStates;
+  final Map<String, String> drafts;
   final List<ChatNuUser> contactResults;
+  final bool contactSearchLoading;
+  final String? contactSearchError;
+
+  // Transitional compatibility for retained surfaces. New messenger behavior must
+  // use the scoped fields above instead of driving unrelated UI from these getters.
+  bool get isLoading => conversationsLoading;
+  String? get error => conversationsError ?? contactSearchError ?? syncError;
+
+  ConversationLoadState conversationState(String conversationId) =>
+      conversationStates[conversationId] ?? const ConversationLoadState();
 
   MessengerDemoState copyWith({
     ChatNuUser? currentUser,
@@ -43,10 +110,18 @@ class MessengerDemoState {
     String? selectedConversationId,
     bool clearSelection = false,
     RealtimeConnectionStatus? realtimeStatus,
-    bool? isLoading,
-    String? error,
-    bool clearError = false,
+    MessengerSyncStatus? syncStatus,
+    String? syncError,
+    bool clearSyncError = false,
+    bool? conversationsLoading,
+    String? conversationsError,
+    bool clearConversationsError = false,
+    Map<String, ConversationLoadState>? conversationStates,
+    Map<String, String>? drafts,
     List<ChatNuUser>? contactResults,
+    bool? contactSearchLoading,
+    String? contactSearchError,
+    bool clearContactSearchError = false,
   }) {
     return MessengerDemoState(
       currentUser: currentUser ?? this.currentUser,
@@ -58,9 +133,19 @@ class MessengerDemoState {
           ? null
           : selectedConversationId ?? this.selectedConversationId,
       realtimeStatus: realtimeStatus ?? this.realtimeStatus,
-      isLoading: isLoading ?? this.isLoading,
-      error: clearError ? null : error ?? this.error,
+      syncStatus: syncStatus ?? this.syncStatus,
+      syncError: clearSyncError ? null : syncError ?? this.syncError,
+      conversationsLoading: conversationsLoading ?? this.conversationsLoading,
+      conversationsError: clearConversationsError
+          ? null
+          : conversationsError ?? this.conversationsError,
+      conversationStates: conversationStates ?? this.conversationStates,
+      drafts: drafts ?? this.drafts,
       contactResults: contactResults ?? this.contactResults,
+      contactSearchLoading: contactSearchLoading ?? this.contactSearchLoading,
+      contactSearchError: clearContactSearchError
+          ? null
+          : contactSearchError ?? this.contactSearchError,
     );
   }
 }
@@ -91,6 +176,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
   StreamSubscription<Map<String, dynamic>>? _realtimeEvents;
   StreamSubscription<RealtimeConnectionStatus>? _realtimeStatus;
   bool _productionStarted = false;
+  bool _syncInProgress = false;
 
   bool get _isDemo => ref.read(appModeProvider) == ChatNuAppMode.demo;
 
@@ -121,27 +207,54 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       destination: MessengerDestination.chats,
       conversations: const <ChatNuConversation>[],
       messagesByConversation: const <String, List<ChatNuMessage>>{},
-      isLoading: session.isAuthenticated,
+      conversationsLoading: session.isAuthenticated,
     );
   }
 
   Future<void> _startProduction() async {
     if (_isDemo || !ref.read(sessionProvider).isAuthenticated) return;
-    final repository = MessengerRepository(
-      api: ref.read(apiClientProvider),
-      e2ee: ref.read(deviceE2eeProvider),
-      vault: ref.read(credentialVaultProvider),
-    );
+    final repository = ref.read(messengerRepositoryProvider);
     _repository = repository;
     _realtimeEvents = repository.realtime.events.listen(_handleRealtimeEvent);
-    _realtimeStatus = repository.realtime.status.listen((status) {
-      state = state.copyWith(realtimeStatus: status);
-    });
-    await refreshConversations();
+    _realtimeStatus = repository.realtime.status.listen(
+      (status) => _handleRealtimeStatus(status),
+    );
+
+    await _restoreCachedState();
+    unawaited(refreshConversations());
     try {
       await repository.startRealtime();
     } catch (error) {
-      state = state.copyWith(error: _readableError(error));
+      state = state.copyWith(
+        realtimeStatus: RealtimeConnectionStatus.disconnected,
+        syncStatus: MessengerSyncStatus.failed,
+        syncError: _readableError(error),
+      );
+    }
+  }
+
+  Future<void> _restoreCachedState() async {
+    final repository = _repository;
+    if (repository == null) return;
+    try {
+      final snapshot = await repository.loadCachedState();
+      final pageStates = <String, ConversationLoadState>{};
+      for (final entry in snapshot.paginationByConversation.entries) {
+        pageStates[entry.key] = ConversationLoadState(
+          hasMore: entry.value.hasMore,
+          oldestLoadedAt: entry.value.oldestLoadedAt,
+        );
+      }
+      state = state.copyWith(
+        conversations: _sortConversations(snapshot.conversations),
+        messagesByConversation: snapshot.messagesByConversation,
+        drafts: snapshot.drafts,
+        conversationStates: pageStates,
+        conversationsLoading: snapshot.conversations.isEmpty,
+      );
+    } catch (_) {
+      // A damaged cache must never prevent a normal remote session from starting.
+      state = state.copyWith(conversationsLoading: true);
     }
   }
 
@@ -149,15 +262,21 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     if (_isDemo) return;
     final repository = _repository;
     if (repository == null) return;
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      conversationsLoading: true,
+      clearConversationsError: true,
+    );
     try {
       final conversations = await repository.loadConversations();
       state = state.copyWith(
         conversations: _sortConversations(conversations),
-        isLoading: false,
+        conversationsLoading: false,
       );
     } catch (error) {
-      state = state.copyWith(isLoading: false, error: _readableError(error));
+      state = state.copyWith(
+        conversationsLoading: false,
+        conversationsError: _readableError(error),
+      );
     }
   }
 
@@ -170,17 +289,24 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
         .where((conversation) => conversation.id == conversationId)
         .map((conversation) => conversation.unreadCount)
         .firstOrNull;
+    final updated = state.conversations
+        .map(
+          (conversation) => conversation.id == conversationId
+              ? conversation.copyWith(unreadCount: 0)
+              : conversation,
+        )
+        .toList(growable: false);
     state = state.copyWith(
       destination: MessengerDestination.chats,
       selectedConversationId: conversationId,
-      conversations: state.conversations
-          .map(
-            (conversation) => conversation.id == conversationId
-                ? conversation.copyWith(unreadCount: 0)
-                : conversation,
-          )
-          .toList(growable: false),
+      conversations: updated,
     );
+    final selected = updated
+        .where((conversation) => conversation.id == conversationId)
+        .firstOrNull;
+    if (!_isDemo && selected != null) {
+      unawaited(_repository?.persistConversation(selected));
+    }
     if (_isDemo) return;
     unawaited(loadMessages(conversationId));
     if ((previousUnread ?? 0) > 0) {
@@ -196,16 +322,91 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     if (_isDemo) return;
     final repository = _repository;
     if (repository == null) return;
+    final current = state.conversationState(conversationId);
+    if (current.initialLoading) return;
+    _setConversationState(
+      conversationId,
+      current.copyWith(
+        initialLoading: state.messagesByConversation[conversationId].orEmpty.isEmpty,
+        clearInitialError: true,
+      ),
+    );
     try {
-      final messages = await repository.loadMessages(conversationId);
+      final page = await repository.loadInitialMessages(conversationId);
       final map = Map<String, List<ChatNuMessage>>.from(
         state.messagesByConversation,
       );
-      map[conversationId] = messages;
-      state = state.copyWith(messagesByConversation: map, clearError: true);
+      map[conversationId] = page.messages;
+      state = state.copyWith(messagesByConversation: map);
+      _setConversationState(
+        conversationId,
+        state.conversationState(conversationId).copyWith(
+          initialLoading: false,
+          hasMore: page.hasMore,
+          oldestLoadedAt: page.oldestLoadedAt,
+          clearInitialError: true,
+        ),
+      );
     } catch (error) {
-      state = state.copyWith(error: _readableError(error));
+      _setConversationState(
+        conversationId,
+        state.conversationState(conversationId).copyWith(
+          initialLoading: false,
+          initialError: _readableError(error),
+        ),
+      );
     }
+  }
+
+  Future<void> loadOlderMessages(String conversationId) async {
+    if (_isDemo) return;
+    final repository = _repository;
+    if (repository == null) return;
+    final current = state.conversationState(conversationId);
+    if (current.loadingOlder || !current.hasMore) return;
+    _setConversationState(
+      conversationId,
+      current.copyWith(loadingOlder: true, clearOlderError: true),
+    );
+    try {
+      final page = await repository.loadOlderMessages(conversationId);
+      final map = Map<String, List<ChatNuMessage>>.from(
+        state.messagesByConversation,
+      );
+      map[conversationId] = mergeMessageLists(
+        map[conversationId].orEmpty,
+        page.messages,
+      );
+      state = state.copyWith(messagesByConversation: map);
+      _setConversationState(
+        conversationId,
+        state.conversationState(conversationId).copyWith(
+          loadingOlder: false,
+          hasMore: page.hasMore,
+          oldestLoadedAt: page.oldestLoadedAt,
+          clearOlderError: true,
+        ),
+      );
+    } catch (error) {
+      _setConversationState(
+        conversationId,
+        state.conversationState(conversationId).copyWith(
+          loadingOlder: false,
+          olderError: _readableError(error),
+        ),
+      );
+    }
+  }
+
+  void setDraft(String conversationId, String value) {
+    final drafts = Map<String, String>.from(state.drafts);
+    if (value.isEmpty) {
+      drafts.remove(conversationId);
+    } else {
+      drafts[conversationId] = value;
+    }
+    state = state.copyWith(drafts: drafts);
+    if (!_isDemo) unawaited(_repository?.saveDraft(conversationId, value));
   }
 
   void togglePin(String conversationId) {
@@ -214,8 +415,10 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
         .firstOrNull;
     if (target == null) return;
     final newValue = !target.isPinned;
-    _replaceConversation(target.copyWith(isPinned: newValue), sort: true);
+    final updated = target.copyWith(isPinned: newValue);
+    _replaceConversation(updated, sort: true);
     if (_isDemo) return;
+    unawaited(_repository?.persistConversation(updated));
     unawaited(_setPinWithRollback(target, newValue));
   }
 
@@ -225,8 +428,10 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
         .firstOrNull;
     if (target == null) return;
     final newValue = !target.isMuted;
-    _replaceConversation(target.copyWith(isMuted: newValue));
+    final updated = target.copyWith(isMuted: newValue);
+    _replaceConversation(updated);
     if (_isDemo) return;
+    unawaited(_repository?.persistConversation(updated));
     unawaited(_setMuteWithRollback(target, newValue));
   }
 
@@ -235,6 +440,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     if (text.isEmpty) return;
     if (_isDemo) {
       _sendDemoText(conversationId, text);
+      setDraft(conversationId, '');
       return;
     }
     final repository = _repository;
@@ -260,8 +466,13 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     } else {
       _replaceMessage(conversationId, failedMatch.id, optimistic);
     }
+    _setConversationState(
+      conversationId,
+      state.conversationState(conversationId).copyWith(clearMessageError: true),
+    );
     _updateConversationPreview(conversationId, text, optimistic.sentAt);
-    unawaited(_sendTextAwait(optimistic));
+    setDraft(conversationId, '');
+    unawaited(_sendTextAwait(optimistic, replaceId: failedMatch?.id));
   }
 
   void retryMessage(ChatNuMessage message) {
@@ -300,6 +511,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     );
     _appendMessage(optimistic);
     _updateConversationPreview(conversationId, fileName, optimistic.sentAt);
+    await repository.persistMessage(optimistic);
     try {
       final sent = await repository.sendAttachment(
         conversationId: conversationId,
@@ -313,12 +525,17 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       _replaceMessage(conversationId, clientId, sent);
       await refreshConversations();
     } catch (error) {
-      _replaceMessage(
-        conversationId,
-        clientId,
-        optimistic.copyWith(deliveryState: MessageDeliveryState.failed),
+      final failed = optimistic.copyWith(
+        deliveryState: MessageDeliveryState.failed,
       );
-      state = state.copyWith(error: _readableError(error));
+      _replaceMessage(conversationId, clientId, failed);
+      await repository.persistMessage(failed, replaceId: clientId);
+      _setConversationState(
+        conversationId,
+        state.conversationState(conversationId).copyWith(
+          messageError: _readableError(error),
+        ),
+      );
     }
   }
 
@@ -349,6 +566,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       'Shared location',
       optimistic.sentAt,
     );
+    await repository.persistMessage(optimistic);
     try {
       final sent = await repository.sendLocation(
         conversationId: conversationId,
@@ -359,12 +577,17 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       _replaceMessage(conversationId, clientId, sent);
       await refreshConversations();
     } catch (error) {
-      _replaceMessage(
-        conversationId,
-        clientId,
-        optimistic.copyWith(deliveryState: MessageDeliveryState.failed),
+      final failed = optimistic.copyWith(
+        deliveryState: MessageDeliveryState.failed,
       );
-      state = state.copyWith(error: _readableError(error));
+      _replaceMessage(conversationId, clientId, failed);
+      await repository.persistMessage(failed, replaceId: clientId);
+      _setConversationState(
+        conversationId,
+        state.conversationState(conversationId).copyWith(
+          messageError: _readableError(error),
+        ),
+      );
     }
   }
 
@@ -374,7 +597,12 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     try {
       return await repository.downloadAttachment(message);
     } catch (error) {
-      state = state.copyWith(error: _readableError(error));
+      _setConversationState(
+        message.conversationId,
+        state.conversationState(message.conversationId).copyWith(
+          messageError: _readableError(error),
+        ),
+      );
       return null;
     }
   }
@@ -382,12 +610,22 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
   Future<List<ChatNuUser>> searchUsers(String query) async {
     final repository = _repository;
     if (_isDemo || repository == null) return const <ChatNuUser>[];
+    state = state.copyWith(
+      contactSearchLoading: query.trim().length >= 2,
+      clearContactSearchError: true,
+    );
     try {
       final users = await repository.searchUsers(query);
-      state = state.copyWith(contactResults: users, clearError: true);
+      state = state.copyWith(
+        contactResults: users,
+        contactSearchLoading: false,
+      );
       return users;
     } catch (error) {
-      state = state.copyWith(error: _readableError(error));
+      state = state.copyWith(
+        contactSearchLoading: false,
+        contactSearchError: _readableError(error),
+      );
       return const <ChatNuUser>[];
     }
   }
@@ -401,7 +639,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       selectConversation(conversation.id);
       return conversation;
     } catch (error) {
-      state = state.copyWith(error: _readableError(error));
+      state = state.copyWith(contactSearchError: _readableError(error));
       return null;
     }
   }
@@ -421,18 +659,49 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       selectConversation(conversation.id);
       return conversation;
     } catch (error) {
-      state = state.copyWith(error: _readableError(error));
+      state = state.copyWith(contactSearchError: _readableError(error));
       return null;
     }
   }
 
-  void clearError() {
-    state = state.copyWith(clearError: true);
+  void clearConversationError(String conversationId) {
+    final current = state.conversationState(conversationId);
+    _setConversationState(
+      conversationId,
+      current.copyWith(
+        clearInitialError: true,
+        clearOlderError: true,
+        clearMessageError: true,
+      ),
+    );
   }
 
-  Future<void> _sendTextAwait(ChatNuMessage optimistic) async {
+  void clearError() {
+    final cleared = <String, ConversationLoadState>{};
+    for (final entry in state.conversationStates.entries) {
+      cleared[entry.key] = entry.value.copyWith(
+        clearInitialError: true,
+        clearOlderError: true,
+        clearMessageError: true,
+      );
+    }
+    state = state.copyWith(
+      conversationStates: cleared,
+      clearConversationsError: true,
+      clearContactSearchError: true,
+      clearSyncError: true,
+    );
+  }
+
+  Future<void> retrySync() => _synchronizeAfterConnect();
+
+  Future<void> _sendTextAwait(
+    ChatNuMessage optimistic, {
+    String? replaceId,
+  }) async {
     final repository = _repository;
     if (repository == null) return;
+    await repository.persistMessage(optimistic, replaceId: replaceId);
     try {
       final sent = await repository.sendText(
         conversationId: optimistic.conversationId,
@@ -442,12 +711,17 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       _replaceMessage(optimistic.conversationId, optimistic.id, sent);
       await refreshConversations();
     } catch (error) {
-      _replaceMessage(
-        optimistic.conversationId,
-        optimistic.id,
-        optimistic.copyWith(deliveryState: MessageDeliveryState.failed),
+      final failed = optimistic.copyWith(
+        deliveryState: MessageDeliveryState.failed,
       );
-      state = state.copyWith(error: _readableError(error));
+      _replaceMessage(optimistic.conversationId, optimistic.id, failed);
+      await repository.persistMessage(failed, replaceId: optimistic.id);
+      _setConversationState(
+        optimistic.conversationId,
+        state.conversationState(optimistic.conversationId).copyWith(
+          messageError: _readableError(error),
+        ),
+      );
     }
   }
 
@@ -459,7 +733,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       await _repository?.setConversationPin(original.id, newValue);
     } catch (error) {
       _replaceConversation(original, sort: true);
-      state = state.copyWith(error: _readableError(error));
+      await _repository?.persistConversation(original);
+      state = state.copyWith(conversationsError: _readableError(error));
     }
   }
 
@@ -471,7 +746,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       await _repository?.setConversationMute(original.id, newValue);
     } catch (error) {
       _replaceConversation(original);
-      state = state.copyWith(error: _readableError(error));
+      await _repository?.persistConversation(original);
+      state = state.copyWith(conversationsError: _readableError(error));
     }
   }
 
@@ -482,18 +758,62 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     try {
       await _repository?.markRead(conversationId);
     } catch (error) {
+      final conversations = state.conversations
+          .map(
+            (conversation) =>
+                conversation.id == conversationId && conversation.unreadCount == 0
+                ? conversation.copyWith(unreadCount: previousUnread)
+                : conversation,
+          )
+          .toList(growable: false);
       state = state.copyWith(
-        conversations: state.conversations
-            .map(
-              (conversation) =>
-                  conversation.id == conversationId &&
-                      conversation.unreadCount == 0
-                  ? conversation.copyWith(unreadCount: previousUnread)
-                  : conversation,
-            )
-            .toList(growable: false),
-        error: _readableError(error),
+        conversations: conversations,
+        conversationsError: _readableError(error),
       );
+      final restored = conversations
+          .where((conversation) => conversation.id == conversationId)
+          .firstOrNull;
+      if (restored != null) {
+        await _repository?.persistConversation(restored);
+      }
+    }
+  }
+
+  void _handleRealtimeStatus(RealtimeConnectionStatus status) {
+    if (status != RealtimeConnectionStatus.connected) {
+      state = state.copyWith(realtimeStatus: status);
+      return;
+    }
+    state = state.copyWith(realtimeStatus: status);
+    unawaited(_synchronizeAfterConnect());
+  }
+
+  Future<void> _synchronizeAfterConnect() async {
+    if (_isDemo || _syncInProgress) return;
+    final repository = _repository;
+    if (repository == null) return;
+    _syncInProgress = true;
+    state = state.copyWith(
+      syncStatus: MessengerSyncStatus.synchronizing,
+      clearSyncError: true,
+    );
+    try {
+      final batch = await repository.catchUp();
+      for (final message in batch.messages) {
+        _mergeMessageIntoState(message);
+      }
+      state = state.copyWith(
+        syncStatus: MessengerSyncStatus.idle,
+        clearSyncError: true,
+      );
+      unawaited(refreshConversations());
+    } catch (error) {
+      state = state.copyWith(
+        syncStatus: MessengerSyncStatus.failed,
+        syncError: _readableError(error),
+      );
+    } finally {
+      _syncInProgress = false;
     }
   }
 
@@ -512,16 +832,22 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     }
     if (type == 'conversation.read') {
       final conversationId = event['conversationId']?.toString();
-      if (conversationId != null) {
-        state = state.copyWith(
-          conversations: state.conversations
-              .map(
-                (conversation) => conversation.id == conversationId
-                    ? conversation.copyWith(unreadCount: 0)
-                    : conversation,
-              )
-              .toList(growable: false),
-        );
+      final userId = event['userId']?.toString();
+      if (conversationId != null && userId == state.currentUser.id) {
+        final conversations = state.conversations
+            .map(
+              (conversation) => conversation.id == conversationId
+                  ? conversation.copyWith(unreadCount: 0)
+                  : conversation,
+            )
+            .toList(growable: false);
+        state = state.copyWith(conversations: conversations);
+        final updated = conversations
+            .where((conversation) => conversation.id == conversationId)
+            .firstOrNull;
+        if (updated != null) {
+          unawaited(_repository?.persistConversation(updated));
+        }
       }
     }
   }
@@ -531,29 +857,61 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     if (repository == null) return;
     try {
       final message = await repository.messageFromRealtime(raw);
-      final existing =
-          state.messagesByConversation[message.conversationId].orEmpty;
-      final duplicate = existing.any(
-        (item) =>
-            item.id == message.id ||
-            (message.clientId != null &&
-                (item.clientId == message.clientId ||
-                    item.id == message.clientId)),
-      );
-      if (!duplicate) {
-        _appendMessage(message);
-      } else if (message.clientId != null) {
-        final local = existing.lastWhereOrNull(
-          (item) =>
-              item.clientId == message.clientId || item.id == message.clientId,
-        );
-        if (local != null) {
-          _replaceMessage(message.conversationId, local.id, message);
-        }
-      }
-      unawaited(refreshConversations());
+      final existed = _containsMessage(message);
+      _mergeMessageIntoState(message);
+      if (!existed) _applyRealtimeConversationUpdate(message);
     } catch (_) {
-      // A malformed realtime event should not terminate the live connection.
+      // A malformed/decrypt-failed realtime event must not terminate the socket.
+    }
+  }
+
+  bool _containsMessage(ChatNuMessage message) {
+    return state.messagesByConversation[message.conversationId].orEmpty.any(
+      (item) =>
+          item.id == message.id ||
+          (message.clientId != null &&
+              (item.clientId == message.clientId || item.id == message.clientId)),
+    );
+  }
+
+  void _mergeMessageIntoState(ChatNuMessage message) {
+    final map = Map<String, List<ChatNuMessage>>.from(
+      state.messagesByConversation,
+    );
+    map[message.conversationId] = mergeMessageLists(
+      map[message.conversationId].orEmpty,
+      <ChatNuMessage>[message],
+    );
+    state = state.copyWith(messagesByConversation: map);
+    _updateConversationPreviewIfNewer(message);
+  }
+
+  void _applyRealtimeConversationUpdate(ChatNuMessage message) {
+    final selected = state.selectedConversationId == message.conversationId;
+    final mine = message.senderId == state.currentUser.id;
+    final conversations = state.conversations
+        .map((conversation) {
+          if (conversation.id != message.conversationId) return conversation;
+          return conversation.copyWith(
+            lastMessagePreview: message.body,
+            lastActivityAt: message.sentAt,
+            unreadCount: mine || selected
+                ? conversation.unreadCount
+                : conversation.unreadCount + 1,
+          );
+        })
+        .toList(growable: false);
+    state = state.copyWith(conversations: _sortConversations(conversations));
+    final updated = conversations
+        .where((conversation) => conversation.id == message.conversationId)
+        .firstOrNull;
+    if (updated != null) {
+      unawaited(_repository?.persistConversation(updated));
+    } else {
+      unawaited(refreshConversations());
+    }
+    if (selected && !mine) {
+      unawaited(_repository?.markRead(message.conversationId));
     }
   }
 
@@ -561,10 +919,10 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     final map = Map<String, List<ChatNuMessage>>.from(
       state.messagesByConversation,
     );
-    map[message.conversationId] = <ChatNuMessage>[
-      ...map[message.conversationId].orEmpty,
-      message,
-    ];
+    map[message.conversationId] = mergeMessageLists(
+      map[message.conversationId].orEmpty,
+      <ChatNuMessage>[message],
+    );
     state = state.copyWith(messagesByConversation: map);
   }
 
@@ -573,12 +931,17 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     String oldId,
     ChatNuMessage replacement,
   ) {
+    final existing = state.messagesByConversation[conversationId].orEmpty;
+    final withoutOld = existing
+        .where((message) => message.id != oldId)
+        .toList(growable: false);
     final map = Map<String, List<ChatNuMessage>>.from(
       state.messagesByConversation,
     );
-    map[conversationId] = map[conversationId].orEmpty
-        .map((message) => message.id == oldId ? replacement : message)
-        .toList(growable: false);
+    map[conversationId] = mergeMessageLists(
+      withoutOld,
+      <ChatNuMessage>[replacement],
+    );
     state = state.copyWith(messagesByConversation: map);
   }
 
@@ -606,20 +969,48 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     String preview,
     DateTime sentAt,
   ) {
-    state = state.copyWith(
-      conversations: _sortConversations(
-        state.conversations
-            .map(
-              (conversation) => conversation.id == conversationId
-                  ? conversation.copyWith(
-                      lastMessagePreview: preview,
-                      lastActivityAt: sentAt,
-                    )
-                  : conversation,
-            )
-            .toList(growable: false),
-      ),
+    final conversations = _sortConversations(
+      state.conversations
+          .map(
+            (conversation) => conversation.id == conversationId
+                ? conversation.copyWith(
+                    lastMessagePreview: preview,
+                    lastActivityAt: sentAt,
+                  )
+                : conversation,
+          )
+          .toList(growable: false),
     );
+    state = state.copyWith(conversations: conversations);
+    final updated = conversations
+        .where((conversation) => conversation.id == conversationId)
+        .firstOrNull;
+    if (!_isDemo && updated != null) {
+      unawaited(_repository?.persistConversation(updated));
+    }
+  }
+
+  void _updateConversationPreviewIfNewer(ChatNuMessage message) {
+    final target = state.conversations
+        .where((conversation) => conversation.id == message.conversationId)
+        .firstOrNull;
+    if (target == null || message.sentAt.isBefore(target.lastActivityAt)) return;
+    _updateConversationPreview(
+      message.conversationId,
+      message.body,
+      message.sentAt,
+    );
+  }
+
+  void _setConversationState(
+    String conversationId,
+    ConversationLoadState value,
+  ) {
+    final map = Map<String, ConversationLoadState>.from(
+      state.conversationStates,
+    );
+    map[conversationId] = value;
+    state = state.copyWith(conversationStates: map);
   }
 
   List<ChatNuConversation> _sortConversations(
@@ -637,6 +1028,7 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     final now = DateTime.now();
     final message = ChatNuMessage(
       id: 'local-${now.microsecondsSinceEpoch}',
+      clientId: 'local-${now.microsecondsSinceEpoch}',
       conversationId: conversationId,
       senderId: state.currentUser.id,
       senderName: state.currentUser.displayName,
@@ -734,8 +1126,20 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
   }
 
   String _readableError(Object error) {
-    final text = error.toString();
-    return text.startsWith('Exception: ') ? text.substring(11) : text;
+    if (error is ChatNuApiException) {
+      return switch (error.statusCode) {
+        401 => 'Your session expired. Sign in again.',
+        403 => 'This action is not available for your account.',
+        404 => 'This conversation is no longer available.',
+        429 => 'Too many requests. Try again shortly.',
+        _ => 'Couldn’t reach ChatNU. Check your connection and try again.',
+      };
+    }
+    if (error is StateError &&
+        error.message.toString().contains('E2EE-capable')) {
+      return 'Some people in this chat need to open the latest ChatNU before you can send securely.';
+    }
+    return 'Something went wrong. Try again.';
   }
 }
 

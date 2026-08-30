@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chatnu/core/config/server_config_repository.dart';
 import 'package:chatnu/core/config/server_endpoint.dart';
 import 'package:chatnu/core/crypto/device_e2ee.dart';
@@ -6,6 +8,7 @@ import 'package:chatnu/core/network/chatnu_api_client.dart';
 import 'package:chatnu/core/platform/chatnu_native_bridge.dart';
 import 'package:chatnu/core/storage/credential_vault.dart';
 import 'package:chatnu/core/storage/secret_store.dart';
+import 'package:chatnu/features/home/data/messenger_local_store.dart';
 import 'package:chatnu/features/home/data/messenger_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -81,10 +84,17 @@ final apiClientProvider = Provider<ChatNuApiClient>((ref) {
   );
 });
 
+final messengerLocalStoreProvider = Provider<MessengerLocalStore>((ref) {
+  final store = SqliteMessengerLocalStore();
+  ref.onDispose(() => unawaited(store.close()));
+  return store;
+});
+
 final messengerRepositoryProvider = Provider<MessengerRepository>((ref) {
   return MessengerRepository(
     api: ref.watch(apiClientProvider),
     e2ee: ref.watch(deviceE2eeProvider),
     vault: ref.watch(credentialVaultProvider),
+    localStore: ref.watch(messengerLocalStoreProvider),
   );
 });

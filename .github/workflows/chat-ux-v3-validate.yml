@@ -1,0 +1,49 @@
+name: Chat UX V3 validate
+
+on:
+  push:
+    branches:
+      - refactor/settings-media-glass-v2
+    paths:
+      - ".github/workflows/chat-ux-v3-validate.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        working-directory: flutter
+        run: flutter pub get
+      - name: Format Flutter
+        working-directory: flutter
+        run: dart format lib test
+      - name: Bootstrap Android
+        working-directory: flutter
+        run: ./tool/bootstrap_android.sh
+      - name: Analyze Flutter
+        working-directory: flutter
+        run: flutter analyze --fatal-infos
+      - name: Test Flutter
+        working-directory: flutter
+        run: flutter test
+      - name: Compile Android debug APK
+        working-directory: flutter
+        run: flutter build apk --debug
+      - name: Commit validated chat UX
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/chat-ux-v3-validate.yml
+          git add flutter/lib flutter/pubspec.yaml flutter/pubspec.lock
+          git commit -m "feat(flutter): finalize messenger chat UX"
+          git push

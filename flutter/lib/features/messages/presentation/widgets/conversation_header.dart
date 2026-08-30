@@ -17,10 +17,26 @@ class ConversationHeader extends ConsumerWidget {
     required this.conversation,
     super.key,
     this.onBack,
+    this.searchOpen = false,
+    this.searchController,
+    this.searchFocusNode,
+    this.searchResultLabel,
+    this.onSearchChanged,
+    this.onSearchToggle,
+    this.onPreviousSearchResult,
+    this.onNextSearchResult,
   });
 
   final ChatNuConversation conversation;
   final VoidCallback? onBack;
+  final bool searchOpen;
+  final TextEditingController? searchController;
+  final FocusNode? searchFocusNode;
+  final String? searchResultLabel;
+  final ValueChanged<String>? onSearchChanged;
+  final VoidCallback? onSearchToggle;
+  final VoidCallback? onPreviousSearchResult;
+  final VoidCallback? onNextSearchResult;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,6 +45,7 @@ class ConversationHeader extends ConsumerWidget {
     final isDirect = conversation.kind == ConversationKind.direct;
     final currentUser = ref.watch(messengerDemoProvider).currentUser;
     final demo = ref.watch(appModeProvider) == ChatNuAppMode.demo;
+    final inSearchMode = searchOpen && searchController != null;
 
     return GlassAppBar(
       leading: onBack == null
@@ -38,90 +55,155 @@ class ConversationHeader extends ConsumerWidget {
               onPressed: onBack,
               icon: Icons.arrow_back_ios_new_rounded,
             ),
-      title: Row(
-        children: <Widget>[
-          GlassAvatar(
-            label: conversation.title,
-            imageUrl: conversation.avatarUrl,
-            group: !isDirect,
-            size: 42,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      title: inSearchMode
+          ? TextField(
+              key: const Key('conversation-search-field'),
+              controller: searchController,
+              focusNode: searchFocusNode,
+              onChanged: onSearchChanged,
+              onSubmitted: (_) => onPreviousSearchResult?.call(),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: strings.searchInChat,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 9),
+              ),
+            )
+          : Row(
               children: <Widget>[
-                Text(
-                  conversation.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                  ),
+                GlassAvatar(
+                  label: conversation.title,
+                  imageUrl: conversation.avatarUrl,
+                  group: !isDirect,
+                  size: 42,
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: <Widget>[
-                    Icon(
-                      isDirect ? Icons.lock_rounded : Icons.group_outlined,
-                      size: 11,
-                      color: palette.textMuted,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        isDirect
-                            ? strings.encrypted
-                            : strings.members(conversation.members.length),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        conversation.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Row(
+                        children: <Widget>[
+                          Icon(
+                            isDirect
+                                ? Icons.lock_rounded
+                                : Icons.group_outlined,
+                            size: 11,
+                            color: palette.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              isDirect
+                                  ? strings.encrypted
+                                  : strings.members(conversation.members.length),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-      actions: isDirect && ChatNuCapabilities.current.oneToOneCalls
+      actions: inSearchMode
           ? <Widget>[
-              GlassIconButton(
-                tooltip: strings.videoCall,
-                onPressed: demo
-                    ? null
-                    : () => unawaited(
-                        ref
-                            .read(callControllerProvider.notifier)
-                            .startCall(
-                              conversation: conversation,
-                              currentUserId: currentUser.id,
-                              video: true,
-                            ),
+              if (searchResultLabel != null)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 4, end: 2),
+                  child: Center(
+                    child: Text(
+                      searchResultLabel!,
+                      key: const Key('conversation-search-result-label'),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: palette.textSecondary,
+                        fontFeatures: const <FontFeature>[
+                          FontFeature.tabularFigures(),
+                        ],
                       ),
-                icon: Icons.videocam_rounded,
+                    ),
+                  ),
+                ),
+              GlassIconButton(
+                key: const Key('conversation-search-previous'),
+                tooltip: strings.previousSearchResult,
+                onPressed: onPreviousSearchResult,
+                icon: Icons.keyboard_arrow_up_rounded,
               ),
-              const SizedBox(width: 2),
               GlassIconButton(
-                tooltip: strings.voiceCall,
-                onPressed: demo
-                    ? null
-                    : () => unawaited(
-                        ref
-                            .read(callControllerProvider.notifier)
-                            .startCall(
-                              conversation: conversation,
-                              currentUserId: currentUser.id,
-                              video: false,
-                            ),
-                      ),
-                icon: Icons.call_rounded,
+                key: const Key('conversation-search-next'),
+                tooltip: strings.nextSearchResult,
+                onPressed: onNextSearchResult,
+                icon: Icons.keyboard_arrow_down_rounded,
+              ),
+              GlassIconButton(
+                key: const Key('conversation-search-close'),
+                tooltip: strings.closeSearch,
+                onPressed: onSearchToggle,
+                icon: Icons.close_rounded,
               ),
             ]
-          : const <Widget>[],
+          : <Widget>[
+              if (isDirect && ChatNuCapabilities.current.oneToOneCalls) ...<Widget>[
+                GlassIconButton(
+                  tooltip: strings.videoCall,
+                  onPressed: demo
+                      ? null
+                      : () => unawaited(
+                          ref
+                              .read(callControllerProvider.notifier)
+                              .startCall(
+                                conversation: conversation,
+                                currentUserId: currentUser.id,
+                                video: true,
+                              ),
+                        ),
+                  icon: Icons.videocam_rounded,
+                ),
+                const SizedBox(width: 2),
+                GlassIconButton(
+                  tooltip: strings.voiceCall,
+                  onPressed: demo
+                      ? null
+                      : () => unawaited(
+                          ref
+                              .read(callControllerProvider.notifier)
+                              .startCall(
+                                conversation: conversation,
+                                currentUserId: currentUser.id,
+                                video: false,
+                              ),
+                        ),
+                  icon: Icons.call_rounded,
+                ),
+              ],
+              if (onSearchToggle != null) ...<Widget>[
+                const SizedBox(width: 2),
+                GlassIconButton(
+                  key: const Key('conversation-search-button'),
+                  tooltip: strings.searchInChat,
+                  onPressed: onSearchToggle,
+                  icon: Icons.search_rounded,
+                ),
+              ],
+            ],
     );
   }
 }

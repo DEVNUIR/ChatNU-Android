@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui' show FontFeature;
 
 import 'package:camera/camera.dart';
 import 'package:chatnu/core/di/app_providers.dart';
@@ -133,7 +132,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer>
                 child: AnimatedSwitcher(
                   duration: MediaQuery.disableAnimationsOf(context)
                       ? Duration.zero
-                      : ChatNuMotion.fast,
+                      : ChatNuMotion.component,
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
                   child: busyRecording
@@ -158,7 +157,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer>
               AnimatedSwitcher(
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
-                    : ChatNuMotion.fast,
+                    : ChatNuMotion.component,
                 transitionBuilder: (child, animation) => ScaleTransition(
                   scale: CurvedAnimation(
                     parent: animation,
@@ -260,7 +259,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer>
         _recording = true;
       });
       _recordStartedAt = DateTime.now();
-      _recordPulse.repeat(reverse: true);
+      unawaited(_recordPulse.repeat(reverse: true));
       _recordTimer = Timer.periodic(const Duration(milliseconds: 180), (_) {
         if (!mounted || !_recording) return;
         final started = _recordStartedAt;
@@ -376,13 +375,14 @@ class _MessageComposerState extends ConsumerState<MessageComposer>
       if (mounted) _showError(_readableRecordingError(error));
     } finally {
       await _disposeCamera();
-      if (!mounted) return;
-      setState(() {
-        _finishing = false;
-        _cancelArmed = false;
-        _elapsed = Duration.zero;
-        _recordStartedAt = null;
-      });
+      if (mounted) {
+        setState(() {
+          _finishing = false;
+          _cancelArmed = false;
+          _elapsed = Duration.zero;
+          _recordStartedAt = null;
+        });
+      }
     }
   }
 

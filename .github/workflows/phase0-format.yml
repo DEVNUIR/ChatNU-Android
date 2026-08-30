@@ -1,0 +1,39 @@
+name: Phase 0 formatter
+
+on:
+  push:
+    branches:
+      - chatgpt/phase-0-reliability
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/phase-0-reliability
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Format Dart sources
+        run: dart format lib test
+      - name: Commit formatting
+        working-directory: .
+        run: |
+          if git diff --quiet -- flutter/lib flutter/test; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter/lib flutter/test
+          git commit -m "chore: format phase0 Dart sources"
+          git push origin HEAD:chatgpt/phase-0-reliability

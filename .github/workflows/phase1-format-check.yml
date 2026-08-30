@@ -26,19 +26,32 @@ jobs:
           cache: true
       - name: Bootstrap Android platform
         run: ./tool/bootstrap_android.sh
+      - name: Patch analyzer lint
+        working-directory: .
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('flutter/lib/features/messages/presentation/conversation_pane.dart')
+          text = path.read_text()
+          old = """    final future = MediaQuery.disableAnimationsOf(context)\n        ? Future<void>.sync(() => _scrollController.jumpTo(clamped.toDouble()))\n        : _scrollController.animateTo(\n            clamped.toDouble(),\n            duration: const Duration(milliseconds: 180),\n            curve: Curves.easeOutCubic,\n          );\n    unawaited(\n      future.then((_) async {\n        if (!mounted) return;\n        await WidgetsBinding.instance.endOfFrame;\n        final targetContext = _messageKeys[messageId]?.currentContext;\n        if (targetContext == null) return;\n        await Scrollable.ensureVisible(\n          targetContext,\n          alignment: 0.45,\n          duration: MediaQuery.disableAnimationsOf(context)\n              ? Duration.zero\n              : const Duration(milliseconds: 150),\n          curve: Curves.easeOutCubic,\n        );\n      }),\n    );\n"""
+          new = """    final disableAnimations = MediaQuery.disableAnimationsOf(context);\n    final future = disableAnimations\n        ? Future<void>.sync(() => _scrollController.jumpTo(clamped.toDouble()))\n        : _scrollController.animateTo(\n            clamped.toDouble(),\n            duration: const Duration(milliseconds: 180),\n            curve: Curves.easeOutCubic,\n          );\n    unawaited(\n      future.then((_) async {\n        if (!mounted) return;\n        await WidgetsBinding.instance.endOfFrame;\n        if (!mounted) return;\n        final targetContext = _messageKeys[messageId]?.currentContext;\n        if (targetContext == null || !targetContext.mounted) return;\n        await Scrollable.ensureVisible(\n          targetContext,\n          alignment: 0.45,\n          duration: disableAnimations\n              ? Duration.zero\n              : const Duration(milliseconds: 150),\n          curve: Curves.easeOutCubic,\n        );\n      }),\n    );\n"""
+          if old not in text:
+              raise SystemExit('expected async search-jump block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
       - name: Format
         run: dart format lib test
-      - name: Commit canonical formatting
+      - name: Commit fixes
         working-directory: .
         run: |
           if git diff --quiet -- flutter/lib flutter/test; then
-            echo "No formatting changes"
+            echo "No source changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add flutter/lib flutter/test
-          git commit -m "style: format phase1 Flutter changes"
+          git commit -m "fix: keep phase1 search jumps context-safe"
           git push origin HEAD:chatgpt/phase-1-core-messaging
       - name: Analyze
         run: flutter analyze --fatal-infos

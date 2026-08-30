@@ -114,7 +114,8 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
         state.messagesByConversation[conversation.id] ??
         const <ChatNuMessage>[];
     final loadState = state.conversationState(conversation.id);
-    final visibleError = loadState.messageError ??
+    final visibleError =
+        loadState.messageError ??
         (messages.isNotEmpty ? loadState.initialError : null);
 
     return Stack(
@@ -165,7 +166,8 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
                           14,
                           16,
                         ),
-                        itemCount: messages.length +
+                        itemCount:
+                            messages.length +
                             (_showOlderStatus(loadState) ? 1 : 0),
                         itemBuilder: (context, index) {
                           if (index == messages.length) {
@@ -292,10 +294,7 @@ class _ConnectionNotice extends StatelessWidget {
       button: onRetrySync != null,
       child: onRetrySync == null
           ? content
-          : InkWell(
-              onTap: () => unawaited(onRetrySync!()),
-              child: content,
-            ),
+          : InkWell(onTap: () => unawaited(onRetrySync!()), child: content),
     );
   }
 }

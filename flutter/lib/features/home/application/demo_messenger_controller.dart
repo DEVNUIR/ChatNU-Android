@@ -52,9 +52,13 @@ class ConversationLoadState {
       loadingOlder: loadingOlder ?? this.loadingOlder,
       hasMore: hasMore ?? this.hasMore,
       oldestLoadedAt: oldestLoadedAt ?? this.oldestLoadedAt,
-      initialError: clearInitialError ? null : initialError ?? this.initialError,
+      initialError: clearInitialError
+          ? null
+          : initialError ?? this.initialError,
       olderError: clearOlderError ? null : olderError ?? this.olderError,
-      messageError: clearMessageError ? null : messageError ?? this.messageError,
+      messageError: clearMessageError
+          ? null
+          : messageError ?? this.messageError,
     );
   }
 }
@@ -327,7 +331,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     _setConversationState(
       conversationId,
       current.copyWith(
-        initialLoading: state.messagesByConversation[conversationId].orEmpty.isEmpty,
+        initialLoading:
+            state.messagesByConversation[conversationId].orEmpty.isEmpty,
         clearInitialError: true,
       ),
     );
@@ -340,20 +345,24 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       state = state.copyWith(messagesByConversation: map);
       _setConversationState(
         conversationId,
-        state.conversationState(conversationId).copyWith(
-          initialLoading: false,
-          hasMore: page.hasMore,
-          oldestLoadedAt: page.oldestLoadedAt,
-          clearInitialError: true,
-        ),
+        state
+            .conversationState(conversationId)
+            .copyWith(
+              initialLoading: false,
+              hasMore: page.hasMore,
+              oldestLoadedAt: page.oldestLoadedAt,
+              clearInitialError: true,
+            ),
       );
     } catch (error) {
       _setConversationState(
         conversationId,
-        state.conversationState(conversationId).copyWith(
-          initialLoading: false,
-          initialError: _readableError(error),
-        ),
+        state
+            .conversationState(conversationId)
+            .copyWith(
+              initialLoading: false,
+              initialError: _readableError(error),
+            ),
       );
     }
   }
@@ -380,20 +389,21 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       state = state.copyWith(messagesByConversation: map);
       _setConversationState(
         conversationId,
-        state.conversationState(conversationId).copyWith(
-          loadingOlder: false,
-          hasMore: page.hasMore,
-          oldestLoadedAt: page.oldestLoadedAt,
-          clearOlderError: true,
-        ),
+        state
+            .conversationState(conversationId)
+            .copyWith(
+              loadingOlder: false,
+              hasMore: page.hasMore,
+              oldestLoadedAt: page.oldestLoadedAt,
+              clearOlderError: true,
+            ),
       );
     } catch (error) {
       _setConversationState(
         conversationId,
-        state.conversationState(conversationId).copyWith(
-          loadingOlder: false,
-          olderError: _readableError(error),
-        ),
+        state
+            .conversationState(conversationId)
+            .copyWith(loadingOlder: false, olderError: _readableError(error)),
       );
     }
   }
@@ -532,9 +542,9 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       await repository.persistMessage(failed, replaceId: clientId);
       _setConversationState(
         conversationId,
-        state.conversationState(conversationId).copyWith(
-          messageError: _readableError(error),
-        ),
+        state
+            .conversationState(conversationId)
+            .copyWith(messageError: _readableError(error)),
       );
     }
   }
@@ -584,9 +594,9 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       await repository.persistMessage(failed, replaceId: clientId);
       _setConversationState(
         conversationId,
-        state.conversationState(conversationId).copyWith(
-          messageError: _readableError(error),
-        ),
+        state
+            .conversationState(conversationId)
+            .copyWith(messageError: _readableError(error)),
       );
     }
   }
@@ -599,9 +609,9 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     } catch (error) {
       _setConversationState(
         message.conversationId,
-        state.conversationState(message.conversationId).copyWith(
-          messageError: _readableError(error),
-        ),
+        state
+            .conversationState(message.conversationId)
+            .copyWith(messageError: _readableError(error)),
       );
       return null;
     }
@@ -718,9 +728,9 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       await repository.persistMessage(failed, replaceId: optimistic.id);
       _setConversationState(
         optimistic.conversationId,
-        state.conversationState(optimistic.conversationId).copyWith(
-          messageError: _readableError(error),
-        ),
+        state
+            .conversationState(optimistic.conversationId)
+            .copyWith(messageError: _readableError(error)),
       );
     }
   }
@@ -761,7 +771,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       final conversations = state.conversations
           .map(
             (conversation) =>
-                conversation.id == conversationId && conversation.unreadCount == 0
+                conversation.id == conversationId &&
+                    conversation.unreadCount == 0
                 ? conversation.copyWith(unreadCount: previousUnread)
                 : conversation,
           )
@@ -870,7 +881,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
       (item) =>
           item.id == message.id ||
           (message.clientId != null &&
-              (item.clientId == message.clientId || item.id == message.clientId)),
+              (item.clientId == message.clientId ||
+                  item.id == message.clientId)),
     );
   }
 
@@ -938,10 +950,9 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     final map = Map<String, List<ChatNuMessage>>.from(
       state.messagesByConversation,
     );
-    map[conversationId] = mergeMessageLists(
-      withoutOld,
-      <ChatNuMessage>[replacement],
-    );
+    map[conversationId] = mergeMessageLists(withoutOld, <ChatNuMessage>[
+      replacement,
+    ]);
     state = state.copyWith(messagesByConversation: map);
   }
 
@@ -994,7 +1005,8 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     final target = state.conversations
         .where((conversation) => conversation.id == message.conversationId)
         .firstOrNull;
-    if (target == null || message.sentAt.isBefore(target.lastActivityAt)) return;
+    if (target == null || message.sentAt.isBefore(target.lastActivityAt))
+      return;
     _updateConversationPreview(
       message.conversationId,
       message.body,

@@ -32,53 +32,62 @@ void main() {
 
     setUp(() async {
       directory = await Directory.systemTemp.createTemp('chatnu-cache-test-');
-      databasePath = '${directory.path}${Platform.pathSeparator}messenger.sqlite';
+      databasePath =
+          '${directory.path}${Platform.pathSeparator}messenger.sqlite';
     });
 
     tearDown(() async {
       if (await directory.exists()) await directory.delete(recursive: true);
     });
 
-    test('app restart restores cached messages, draft, cursor, and send state', () async {
-      final first = _testStore(databasePath);
-      const scope = 'https://chat.example:443|user-1';
-      final conversation = _conversation('chat-1');
-      final failed = _message(
-        id: 'client-1',
-        clientId: 'client-1',
-        conversationId: conversation.id,
-        minute: 12,
-        deliveryState: MessageDeliveryState.failed,
-      );
+    test(
+      'app restart restores cached messages, draft, cursor, and send state',
+      () async {
+        final first = _testStore(databasePath);
+        const scope = 'https://chat.example:443|user-1';
+        final conversation = _conversation('chat-1');
+        final failed = _message(
+          id: 'client-1',
+          clientId: 'client-1',
+          conversationId: conversation.id,
+          minute: 12,
+          deliveryState: MessageDeliveryState.failed,
+        );
 
-      await first.replaceConversations(scope, <ChatNuConversation>[conversation]);
-      await first.upsertMessages(scope, <ChatNuMessage>[failed]);
-      await first.saveDraft(scope, conversation.id, 'unfinished thought');
-      await first.savePagination(
-        scope,
-        conversation.id,
-        CachedConversationPage(
-          hasMore: true,
-          oldestLoadedAt: failed.sentAt,
-        ),
-      );
-      await first.saveSyncCursor(scope, '2026-08-30T10:12:00.000Z');
-      await first.close();
+        await first.replaceConversations(scope, <ChatNuConversation>[
+          conversation,
+        ]);
+        await first.upsertMessages(scope, <ChatNuMessage>[failed]);
+        await first.saveDraft(scope, conversation.id, 'unfinished thought');
+        await first.savePagination(
+          scope,
+          conversation.id,
+          CachedConversationPage(hasMore: true, oldestLoadedAt: failed.sentAt),
+        );
+        await first.saveSyncCursor(scope, '2026-08-30T10:12:00.000Z');
+        await first.close();
 
-      final reopened = _testStore(databasePath);
-      final snapshot = await reopened.readSnapshot(scope);
+        final reopened = _testStore(databasePath);
+        final snapshot = await reopened.readSnapshot(scope);
 
-      expect(snapshot.conversations.single.id, conversation.id);
-      expect(snapshot.messagesByConversation[conversation.id], hasLength(1));
-      expect(
-        snapshot.messagesByConversation[conversation.id]!.single.deliveryState,
-        MessageDeliveryState.failed,
-      );
-      expect(snapshot.drafts[conversation.id], 'unfinished thought');
-      expect(snapshot.paginationByConversation[conversation.id]!.hasMore, isTrue);
-      expect(snapshot.syncCursor, '2026-08-30T10:12:00.000Z');
-      await reopened.close();
-    });
+        expect(snapshot.conversations.single.id, conversation.id);
+        expect(snapshot.messagesByConversation[conversation.id], hasLength(1));
+        expect(
+          snapshot
+              .messagesByConversation[conversation.id]!
+              .single
+              .deliveryState,
+          MessageDeliveryState.failed,
+        );
+        expect(snapshot.drafts[conversation.id], 'unfinished thought');
+        expect(
+          snapshot.paginationByConversation[conversation.id]!.hasMore,
+          isTrue,
+        );
+        expect(snapshot.syncCursor, '2026-08-30T10:12:00.000Z');
+        await reopened.close();
+      },
+    );
 
     test('offline cache remains readable without a remote request', () async {
       final store = _testStore(databasePath);
@@ -89,13 +98,18 @@ void main() {
         conversationId: conversation.id,
         minute: 8,
       );
-      await store.replaceConversations(scope, <ChatNuConversation>[conversation]);
+      await store.replaceConversations(scope, <ChatNuConversation>[
+        conversation,
+      ]);
       await store.upsertMessages(scope, <ChatNuMessage>[message]);
 
       final snapshot = await store.readSnapshot(scope);
 
       expect(snapshot.conversations.single.title, 'Conversation offline-chat');
-      expect(snapshot.messagesByConversation[conversation.id]!.single.id, 'cached-message');
+      expect(
+        snapshot.messagesByConversation[conversation.id]!.single.id,
+        'cached-message',
+      );
       await store.close();
     });
   });
@@ -118,30 +132,33 @@ void main() {
       expect(merged.single.id, 'server-1');
     });
 
-    test('failed retry keeps stable client identity instead of duplicating', () {
-      final failed = _message(
-        id: 'client-7',
-        clientId: 'client-7',
-        conversationId: 'chat',
-        minute: 4,
-        deliveryState: MessageDeliveryState.failed,
-      );
-      final retried = _message(
-        id: 'client-7',
-        clientId: 'client-7',
-        conversationId: 'chat',
-        minute: 5,
-        deliveryState: MessageDeliveryState.sending,
-      );
+    test(
+      'failed retry keeps stable client identity instead of duplicating',
+      () {
+        final failed = _message(
+          id: 'client-7',
+          clientId: 'client-7',
+          conversationId: 'chat',
+          minute: 4,
+          deliveryState: MessageDeliveryState.failed,
+        );
+        final retried = _message(
+          id: 'client-7',
+          clientId: 'client-7',
+          conversationId: 'chat',
+          minute: 5,
+          deliveryState: MessageDeliveryState.sending,
+        );
 
-      final merged = mergeMessageLists(
-        <ChatNuMessage>[failed],
-        <ChatNuMessage>[retried],
-      );
+        final merged = mergeMessageLists(
+          <ChatNuMessage>[failed],
+          <ChatNuMessage>[retried],
+        );
 
-      expect(merged, hasLength(1));
-      expect(merged.single.deliveryState, MessageDeliveryState.sending);
-    });
+        expect(merged, hasLength(1));
+        expect(merged.single.deliveryState, MessageDeliveryState.sending);
+      },
+    );
 
     test('prepending older history preserves reverse-list anchor indices', () {
       final existing = <ChatNuMessage>[
@@ -160,72 +177,84 @@ void main() {
       final merged = mergeMessageLists(existing, older);
 
       for (final message in existing) {
-        final chronologicalIndex = merged.indexWhere((item) => item.id == message.id);
+        final chronologicalIndex = merged.indexWhere(
+          (item) => item.id == message.id,
+        );
         final reverseIndex = merged.length - 1 - chronologicalIndex;
         expect(reverseIndex, oldReverseIndices[message.id]);
       }
     });
   });
 
-  test('repository paginates beyond the initial page without replacing history', () async {
-    final fixture = await _repositoryFixture();
-    addTearDown(fixture.dispose);
-    final initial = <MessageDto>[
-      for (var index = 0; index < MessengerRepository.messagePageSize; index += 1)
-        _dto('new-$index', DateTime.utc(2026, 8, 30, 11, index)),
-    ];
-    final older = <MessageDto>[
-      _dto('old-1', DateTime.utc(2026, 8, 30, 9, 58)),
-      _dto('old-2', DateTime.utc(2026, 8, 30, 9, 59)),
-    ];
-    fixture.api.messagePages.add(initial);
-    fixture.api.messagePages.add(older);
+  test(
+    'repository paginates beyond the initial page without replacing history',
+    () async {
+      final fixture = await _repositoryFixture();
+      addTearDown(fixture.dispose);
+      final initial = <MessageDto>[
+        for (
+          var index = 0;
+          index < MessengerRepository.messagePageSize;
+          index += 1
+        )
+          _dto('new-$index', DateTime.utc(2026, 8, 30, 11, index)),
+      ];
+      final older = <MessageDto>[
+        _dto('old-1', DateTime.utc(2026, 8, 30, 9, 58)),
+        _dto('old-2', DateTime.utc(2026, 8, 30, 9, 59)),
+      ];
+      fixture.api.messagePages.add(initial);
+      fixture.api.messagePages.add(older);
 
-    final first = await fixture.repository.loadInitialMessages('chat');
-    final second = await fixture.repository.loadOlderMessages('chat');
-    final cached = await fixture.store.readMessages(fixture.scope, 'chat');
+      final first = await fixture.repository.loadInitialMessages('chat');
+      final second = await fixture.repository.loadOlderMessages('chat');
+      final cached = await fixture.store.readMessages(fixture.scope, 'chat');
 
-    expect(first.messages, hasLength(MessengerRepository.messagePageSize));
-    expect(first.hasMore, isTrue);
-    expect(second.messages, hasLength(2));
-    expect(second.hasMore, isFalse);
-    expect(cached, hasLength(MessengerRepository.messagePageSize + 2));
-    expect(cached.first.id, 'old-1');
-  });
+      expect(first.messages, hasLength(MessengerRepository.messagePageSize));
+      expect(first.hasMore, isTrue);
+      expect(second.messages, hasLength(2));
+      expect(second.hasMore, isFalse);
+      expect(cached, hasLength(MessengerRepository.messagePageSize + 2));
+      expect(cached.first.id, 'old-1');
+    },
+  );
 
-  test('reconnect catch-up resumes from persisted cursor and deduplicates events', () async {
-    final fixture = await _repositoryFixture();
-    addTearDown(fixture.dispose);
-    final firstCursor = DateTime.utc(2026, 8, 30, 10).toIso8601String();
-    final secondCursor = DateTime.utc(2026, 8, 30, 10, 1).toIso8601String();
-    final message1 = _dto('sync-1', DateTime.utc(2026, 8, 30, 10));
-    final message2 = _dto('sync-2', DateTime.utc(2026, 8, 30, 10, 1));
-    fixture.api.syncPages.add(
-      SyncResponse(
-        events: <SyncEventDto>[
-          SyncEventDto(type: 'message.created', message: message1),
-        ],
-        nextCursor: firstCursor,
-      ),
-    );
-    fixture.api.syncPages.add(
-      SyncResponse(
-        events: <SyncEventDto>[
-          SyncEventDto(type: 'message.created', message: message1),
-          SyncEventDto(type: 'message.created', message: message2),
-        ],
-        nextCursor: secondCursor,
-      ),
-    );
+  test(
+    'reconnect catch-up resumes from persisted cursor and deduplicates events',
+    () async {
+      final fixture = await _repositoryFixture();
+      addTearDown(fixture.dispose);
+      final firstCursor = DateTime.utc(2026, 8, 30, 10).toIso8601String();
+      final secondCursor = DateTime.utc(2026, 8, 30, 10, 1).toIso8601String();
+      final message1 = _dto('sync-1', DateTime.utc(2026, 8, 30, 10));
+      final message2 = _dto('sync-2', DateTime.utc(2026, 8, 30, 10, 1));
+      fixture.api.syncPages.add(
+        SyncResponse(
+          events: <SyncEventDto>[
+            SyncEventDto(type: 'message.created', message: message1),
+          ],
+          nextCursor: firstCursor,
+        ),
+      );
+      fixture.api.syncPages.add(
+        SyncResponse(
+          events: <SyncEventDto>[
+            SyncEventDto(type: 'message.created', message: message1),
+            SyncEventDto(type: 'message.created', message: message2),
+          ],
+          nextCursor: secondCursor,
+        ),
+      );
 
-    await fixture.repository.catchUp();
-    await fixture.repository.catchUp();
-    final snapshot = await fixture.store.readSnapshot(fixture.scope);
+      await fixture.repository.catchUp();
+      await fixture.repository.catchUp();
+      final snapshot = await fixture.store.readSnapshot(fixture.scope);
 
-    expect(fixture.api.syncCursors, <String?>[null, firstCursor]);
-    expect(snapshot.messagesByConversation['chat'], hasLength(2));
-    expect(snapshot.syncCursor, secondCursor);
-  });
+      expect(fixture.api.syncCursors, <String?>[null, firstCursor]);
+      expect(snapshot.messagesByConversation['chat'], hasLength(2));
+      expect(snapshot.syncCursor, secondCursor);
+    },
+  );
 
   testWidgets('delivery indicator never invents delivered/read double checks', (
     tester,
@@ -273,7 +302,10 @@ void main() {
         overrides: <Override>[
           appModeProvider.overrideWithValue(ChatNuAppMode.demo),
         ],
-        child: MaterialApp(theme: ChatNuTheme.light, home: const MessengerShell()),
+        child: MaterialApp(
+          theme: ChatNuTheme.light,
+          home: const MessengerShell(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -352,7 +384,9 @@ MessageDto _dto(String id, DateTime createdAt) => MessageDto(
 );
 
 Future<_RepositoryFixture> _repositoryFixture() async {
-  final directory = await Directory.systemTemp.createTemp('chatnu-repository-test-');
+  final directory = await Directory.systemTemp.createTemp(
+    'chatnu-repository-test-',
+  );
   final path = '${directory.path}${Platform.pathSeparator}messenger.sqlite';
   final store = _testStore(path);
   final secretStore = MemorySecretStore();

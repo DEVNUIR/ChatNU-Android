@@ -9,10 +9,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class CachedConversationPage {
-  const CachedConversationPage({
-    required this.hasMore,
-    this.oldestLoadedAt,
-  });
+  const CachedConversationPage({required this.hasMore, this.oldestLoadedAt});
 
   final bool hasMore;
   final DateTime? oldestLoadedAt;
@@ -51,12 +48,12 @@ abstract class MessengerLocalStore {
     List<ChatNuConversation> conversations,
   );
 
-  Future<void> upsertConversation(String scope, ChatNuConversation conversation);
-
-  Future<void> upsertMessages(
+  Future<void> upsertConversation(
     String scope,
-    Iterable<ChatNuMessage> messages,
+    ChatNuConversation conversation,
   );
+
+  Future<void> upsertMessages(String scope, Iterable<ChatNuMessage> messages);
 
   Future<void> replaceMessage(
     String scope,
@@ -207,9 +204,9 @@ CREATE TABLE sync_state (
     final messages = <String, List<ChatNuMessage>>{};
     for (final row in messageRows) {
       final message = _messageFromPayload(row['payload'] as String);
-      messages.putIfAbsent(message.conversationId, () => <ChatNuMessage>[]).add(
-        message,
-      );
+      messages
+          .putIfAbsent(message.conversationId, () => <ChatNuMessage>[])
+          .add(message);
     }
 
     final drafts = <String, String>{};
@@ -224,7 +221,10 @@ CREATE TABLE sync_state (
         hasMore: (row['has_more'] as int? ?? 0) == 1,
         oldestLoadedAt: millis == null
             ? null
-            : DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true).toLocal(),
+            : DateTime.fromMillisecondsSinceEpoch(
+                millis,
+                isUtc: true,
+              ).toLocal(),
       );
     }
 
@@ -498,14 +498,15 @@ ChatNuConversation _conversationFromPayload(String payload) {
     kind: json['kind'] == ConversationKind.group.name
         ? ConversationKind.group
         : ConversationKind.direct,
-    members: (json['members'] is List ? json['members'] as List : const <Object>[])
-        .whereType<Map>()
-        .map(
-          (item) => _userFromJson(
-            item.map((key, value) => MapEntry(key.toString(), value)),
-          ),
-        )
-        .toList(growable: false),
+    members:
+        (json['members'] is List ? json['members'] as List : const <Object>[])
+            .whereType<Map>()
+            .map(
+              (item) => _userFromJson(
+                item.map((key, value) => MapEntry(key.toString(), value)),
+              ),
+            )
+            .toList(growable: false),
     lastMessagePreview: json['lastMessagePreview']?.toString() ?? '',
     lastActivityAt: _date(json['lastActivityAt']),
     avatarUrl: _nullableString(json['avatarUrl']),
@@ -580,7 +581,8 @@ ChatNuMessage _messageFromPayload(String payload) {
 
 Map<String, dynamic> _decodedMap(String payload) {
   final value = jsonDecode(payload);
-  if (value is! Map) throw const FormatException('Expected cached JSON object.');
+  if (value is! Map)
+    throw const FormatException('Expected cached JSON object.');
   return value.map((key, item) => MapEntry(key.toString(), item));
 }
 

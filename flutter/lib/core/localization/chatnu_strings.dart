@@ -59,9 +59,8 @@ class ChatNuStrings {
   String get retry => isPersian ? 'تلاش دوباره' : 'Retry';
   String get retryOlderMessages =>
       isPersian ? 'بارگیری دوبارهٔ پیام‌های قدیمی' : 'Retry older messages';
-  String get couldNotLoadConversation => isPersian
-      ? 'گفت‌وگو بارگیری نشد.'
-      : 'Couldn’t load this conversation.';
+  String get couldNotLoadConversation =>
+      isPersian ? 'گفت‌وگو بارگیری نشد.' : 'Couldn’t load this conversation.';
   String get syncingMessages =>
       isPersian ? 'در حال همگام‌سازی پیام‌ها…' : 'Syncing messages…';
   String get syncFailed => isPersian

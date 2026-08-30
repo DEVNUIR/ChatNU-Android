@@ -58,7 +58,8 @@ class MessengerRepository {
   final ChatNuRealtimeClient realtime;
 
   String get _scope {
-    final account = _vault.session?.user.id ?? _vault.cryptoAccount ?? 'unknown';
+    final account =
+        _vault.session?.user.id ?? _vault.cryptoAccount ?? 'unknown';
     return '${_api.endpoint.identityNamespace}|$account';
   }
 
@@ -73,11 +74,11 @@ class MessengerRepository {
   }
 
   Future<MessageHistoryPage> loadInitialMessages(String conversationId) async {
-    final previousPage = await _localStore.readPagination(_scope, conversationId);
-    final dtos = await _api.messages(
+    final previousPage = await _localStore.readPagination(
+      _scope,
       conversationId,
-      limit: messagePageSize,
     );
+    final dtos = await _api.messages(conversationId, limit: messagePageSize);
     final remote = await Future.wait(dtos.map(_mapper.toMessage));
     await _localStore.upsertMessages(_scope, remote);
 
@@ -85,7 +86,8 @@ class MessengerRepository {
     final merged = mergeMessageLists(cached, remote);
     final oldest = merged.isEmpty ? null : merged.first.sentAt;
     final page = CachedConversationPage(
-      hasMore: dtos.length == messagePageSize || (previousPage?.hasMore ?? false),
+      hasMore:
+          dtos.length == messagePageSize || (previousPage?.hasMore ?? false),
       oldestLoadedAt: oldest,
     );
     await _localStore.savePagination(_scope, conversationId, page);
@@ -111,7 +113,8 @@ class MessengerRepository {
       );
     }
 
-    final oldest = storedPage?.oldestLoadedAt ??
+    final oldest =
+        storedPage?.oldestLoadedAt ??
         (cached.isEmpty ? null : cached.first.sentAt);
     if (oldest == null) return loadInitialMessages(conversationId);
 
@@ -347,7 +350,10 @@ class MessengerRepository {
       requestCursor = response.nextCursor;
     }
 
-    final cursor = completedCursor ?? persistedCursor ?? DateTime.now().toUtc().toIso8601String();
+    final cursor =
+        completedCursor ??
+        persistedCursor ??
+        DateTime.now().toUtc().toIso8601String();
     await _localStore.saveSyncCursor(_scope, cursor);
     return MessengerSyncBatch(
       messages: mergeMessageLists(const <ChatNuMessage>[], caughtUp),
@@ -389,12 +395,7 @@ class MessengerRepository {
       },
     );
     final sent = await _mapper.toMessage(dto);
-    await _localStore.replaceMessage(
-      _scope,
-      conversationId,
-      clientId,
-      sent,
-    );
+    await _localStore.replaceMessage(_scope, conversationId, clientId, sent);
     return sent;
   }
 

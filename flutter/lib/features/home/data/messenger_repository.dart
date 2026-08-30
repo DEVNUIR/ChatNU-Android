@@ -263,6 +263,7 @@ class MessengerRepository {
     required double latitude,
     required double longitude,
     String? label,
+    bool live = false,
   }) {
     if (latitude < -90 ||
         latitude > 90 ||
@@ -273,11 +274,14 @@ class MessengerRepository {
     return _sendEncryptedPayload(
       conversationId: conversationId,
       clientId: clientId,
-      type: ChatNuMessageType.location,
+      type: live
+          ? ChatNuMessageType.liveLocation
+          : ChatNuMessageType.location,
       plaintext: jsonEncode(<String, dynamic>{
         'kind': 'location',
         'lat': latitude,
         'lng': longitude,
+        if (live) 'live': true,
         if (label?.trim().isNotEmpty == true) 'label': label!.trim(),
       }),
     );

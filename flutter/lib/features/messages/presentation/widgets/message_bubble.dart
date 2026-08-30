@@ -6,7 +6,7 @@ import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/core/utils/bidi.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
 import 'package:chatnu/features/messages/domain/message.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:chatnu/features/messages/presentation/widgets/rich_message_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,7 +68,9 @@ class MessageBubble extends ConsumerWidget {
                   ),
                 ),
               if (message.type == ChatNuMessageType.text ||
-                  !message.hasAttachment)
+                  message.type == ChatNuMessageType.system ||
+                  (message.type == ChatNuMessageType.location &&
+                      !message.hasLocation))
                 Directionality(
                   textDirection: directionForText(message.body),
                   child: Text(
@@ -79,7 +81,7 @@ class MessageBubble extends ConsumerWidget {
                   ),
                 )
               else
-                _AttachmentContent(message: message, mine: mine),
+                RichMessageContent(message: message, mine: mine),
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -200,120 +202,6 @@ class _MessageSheetAction extends StatelessWidget {
       trailing: Icon(icon),
       onTap: onTap,
     );
-  }
-}
-
-class _AttachmentContent extends ConsumerWidget {
-  const _AttachmentContent({required this.message, required this.mine});
-
-  final ChatNuMessage message;
-  final bool mine;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final strings = ChatNuStrings.of(context);
-    final palette = context.chatNu;
-    final foreground = mine ? Colors.black : palette.textPrimary;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 210),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: mine
-                  ? Colors.black.withValues(alpha: 0.08)
-                  : palette.backgroundElevated,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(_attachmentIcon(message.type), color: foreground),
-          ),
-          const SizedBox(width: 9),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  message.fileName ?? message.body,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelLarge?.copyWith(color: foreground),
-                ),
-                if (message.sizeBytes != null)
-                  Text(
-                    _formatBytes(message.sizeBytes!),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: mine
-                          ? Colors.black.withValues(alpha: 0.58)
-                          : palette.textMuted,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (message.hasAttachment)
-            IconButton(
-              tooltip: strings.attachmentDownload,
-              color: foreground,
-              onPressed: () => unawaited(_download(context, ref)),
-              icon: const Icon(Icons.download_rounded),
-            )
-          else if (message.deliveryState == MessageDeliveryState.sending)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.8,
-                  color: foreground,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _download(BuildContext context, WidgetRef ref) async {
-    final strings = ChatNuStrings.of(context);
-    final bytes = await ref
-        .read(messengerDemoProvider.notifier)
-        .downloadAttachment(message);
-    if (bytes == null || !context.mounted) return;
-    final result = await FilePicker.saveFile(
-      dialogTitle: strings.attachmentDownload,
-      fileName: message.fileName ?? 'attachment',
-      bytes: bytes,
-      mimeType: message.mimeType ?? 'application/octet-stream',
-    );
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          result == null ? strings.saveCancelled : strings.attachmentSaved,
-        ),
-      ),
-    );
-  }
-
-  static IconData _attachmentIcon(ChatNuMessageType type) => switch (type) {
-    ChatNuMessageType.image ||
-    ChatNuMessageType.viewOnceImage => Icons.image_outlined,
-    ChatNuMessageType.video ||
-    ChatNuMessageType.viewOnceVideo => Icons.video_file_outlined,
-    ChatNuMessageType.voice => Icons.audio_file_outlined,
-    _ => Icons.insert_drive_file_outlined,
-  };
-
-  static String _formatBytes(int value) {
-    if (value < 1024) return '$value B';
-    if (value < 1024 * 1024) return '${(value / 1024).toStringAsFixed(1)} KiB';
-    return '${(value / (1024 * 1024)).toStringAsFixed(1)} MiB';
   }
 }
 

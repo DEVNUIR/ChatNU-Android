@@ -11,6 +11,7 @@ import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/auth/application/session_controller.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';
 import 'package:chatnu/features/settings/application/appearance_controller.dart';
+import 'package:chatnu/features/settings/presentation/settings_action_sheets.dart';
 import 'package:chatnu/features/settings/presentation/settings_support_sheets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,13 +64,8 @@ class SettingsPane extends ConsumerWidget {
                 avatarUrl: user.avatarUrl,
                 bio: user.bio,
                 serverLabel: endpoint.restUri.host,
-                onTap: () => unawaited(
-                  showChatNuProfileSheet(
-                    context,
-                    user: user,
-                    endpoint: endpoint,
-                  ),
-                ),
+                onTap: () =>
+                    unawaited(showProfileEditorSheet(context, user: user)),
               ),
               if (session.offline) ...<Widget>[
                 const SizedBox(height: ChatNuSpacing.sm),
@@ -88,15 +84,10 @@ class SettingsPane extends ConsumerWidget {
                     icon: Icons.person_outline_rounded,
                     title: strings.isPersian ? 'نمایهٔ شما' : 'Your profile',
                     subtitle: strings.isPersian
-                        ? 'نام، نام کاربری، توضیح و سرور فعال'
-                        : 'Identity, bio and active server',
-                    onTap: () => unawaited(
-                      showChatNuProfileSheet(
-                        context,
-                        user: user,
-                        endpoint: endpoint,
-                      ),
-                    ),
+                        ? 'تصویر نمایه، نام نمایشی و توضیح حساب'
+                        : 'Avatar, display name and account bio',
+                    onTap: () =>
+                        unawaited(showProfileEditorSheet(context, user: user)),
                   ),
                   _SettingsTile(
                     icon: Icons.switch_account_rounded,
@@ -104,14 +95,10 @@ class SettingsPane extends ConsumerWidget {
                         ? 'حساب‌ها و سرورها'
                         : 'Accounts & servers',
                     subtitle: strings.isPersian
-                        ? 'هویت فعال، سرور و provisioning امن'
-                        : 'Active identity, server and secure provisioning',
+                        ? 'تغییر امن سرور فعال؛ تغییر سرور باعث خروج از حساب می‌شود'
+                        : 'Safely switch the active server; switching signs this account out',
                     onTap: () => unawaited(
-                      showAccountsServersSheet(
-                        context,
-                        user: user,
-                        endpoint: endpoint,
-                      ),
+                      showServerManagerSheet(context, endpoint: endpoint),
                     ),
                   ),
                   _SettingsTile(
@@ -142,8 +129,9 @@ class SettingsPane extends ConsumerWidget {
                         ? 'پس‌زمینهٔ گفتگو'
                         : 'Chat background',
                     subtitle: strings.isPersian
-                        ? 'پس‌زمینهٔ محیطی متحرک با احترام به Reduce Motion'
-                        : 'Ambient animated wallpaper that respects Reduce Motion',
+                        ? 'محیطی، شبکهٔ نرم، نیمه‌شب یا ساده'
+                        : 'Ambient, soft grid, midnight or solid',
+                    onTap: () => unawaited(showWallpaperPickerSheet(context)),
                   ),
                   _SettingsTile(
                     icon: Icons.photo_library_outlined,
@@ -151,15 +139,15 @@ class SettingsPane extends ConsumerWidget {
                         ? 'رسانه و فایل‌ها'
                         : 'Media & files',
                     subtitle: strings.isPersian
-                        ? 'تصویر، ویدیو، صدا و فایل با رمزگذاری قبل از آپلود'
-                        : 'Images, video, audio and files encrypted before upload',
+                        ? 'تصویر، ویدیو نوت، پیام صوتی، موسیقی، موقعیت و فایل؛ رمزگذاری قبل از آپلود'
+                        : 'Images, video notes, voice notes, music, location and files; encrypted before upload',
                   ),
                   _SettingsTile(
                     icon: Icons.video_call_outlined,
                     title: strings.isPersian ? 'تماس‌ها' : 'Calls',
                     subtitle: strings.isPersian
-                        ? 'تماس صوتی و تصویری امن یک‌به‌یک'
-                        : 'Secure one-to-one audio and video calling',
+                        ? 'تماس امن یک‌به‌یک با بلندگو و تعویض دوربین؛ جلسه گروهی نیازمند پروتکل/SFU سرور است'
+                        : 'Secure 1:1 calls with speaker and camera switching; meetings require server SFU/protocol support',
                   ),
                 ],
               ),

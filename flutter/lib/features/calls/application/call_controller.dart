@@ -29,6 +29,7 @@ class ChatNuCallState {
     this.video = false,
     this.muted = false,
     this.cameraEnabled = true,
+    this.speakerOn = false,
     this.localStream,
     this.remoteStream,
     this.error,
@@ -42,6 +43,7 @@ class ChatNuCallState {
   final bool video;
   final bool muted;
   final bool cameraEnabled;
+  final bool speakerOn;
   final MediaStream? localStream;
   final MediaStream? remoteStream;
   final String? error;
@@ -58,6 +60,7 @@ class ChatNuCallState {
     bool? video,
     bool? muted,
     bool? cameraEnabled,
+    bool? speakerOn,
     MediaStream? localStream,
     MediaStream? remoteStream,
     String? error,
@@ -71,6 +74,7 @@ class ChatNuCallState {
       video: video ?? this.video,
       muted: muted ?? this.muted,
       cameraEnabled: cameraEnabled ?? this.cameraEnabled,
+      speakerOn: speakerOn ?? this.speakerOn,
       localStream: localStream ?? this.localStream,
       remoteStream: remoteStream ?? this.remoteStream,
       error: error ?? this.error,
@@ -225,6 +229,27 @@ class CallController extends Notifier<ChatNuCallState> {
       track.enabled = next;
     }
     state = state.copyWith(cameraEnabled: next);
+  }
+
+  Future<void> toggleSpeaker() async {
+    final next = !state.speakerOn;
+    try {
+      await Helper.setSpeakerphoneOn(next);
+      state = state.copyWith(speakerOn: next);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+    }
+  }
+
+  Future<void> switchCamera() async {
+    if (!state.video) return;
+    final tracks = _localStream?.getVideoTracks() ?? <MediaStreamTrack>[];
+    if (tracks.isEmpty) return;
+    try {
+      await Helper.switchCamera(tracks.first, null, _localStream);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+    }
   }
 
   Future<void> _preparePeer({required bool video}) async {
@@ -383,6 +408,10 @@ class CallController extends Notifier<ChatNuCallState> {
   }
 
   Future<void> _disposePeer() async {
+    try {
+      await Helper.setSpeakerphoneOn(false);
+      await Helper.clearAndroidCommunicationDevice();
+    } catch (_) {}
     final peer = _peer;
     _peer = null;
     if (peer != null) await peer.close();

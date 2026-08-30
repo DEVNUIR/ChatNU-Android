@@ -65,15 +65,17 @@ class ContactBookController extends Notifier<ContactBookState> {
       if (decoded is! List) {
         throw const FormatException('Invalid contact book.');
       }
-      final contacts = decoded
-          .whereType<Map>()
-          .map(
-            (raw) => raw.map((key, value) => MapEntry(key.toString(), value)),
-          )
-          .map(_fromJson)
-          .whereType<ChatNuUser>()
-          .toList(growable: false)
-        ..sort((a, b) => a.displayName.compareTo(b.displayName));
+      final contacts =
+          decoded
+              .whereType<Map>()
+              .map(
+                (raw) =>
+                    raw.map((key, value) => MapEntry(key.toString(), value)),
+              )
+              .map(_fromJson)
+              .whereType<ChatNuUser>()
+              .toList(growable: false)
+            ..sort((a, b) => a.displayName.compareTo(b.displayName));
       if (ref.mounted) {
         state = ContactBookState(contacts: contacts, loading: false);
       }

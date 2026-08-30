@@ -125,7 +125,10 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
                 child: contactBook.loading && !searching
                     ? const Center(child: CircularProgressIndicator())
                     : visible.isEmpty
-                    ? _ContactsEmptyState(query: _search.text, saved: !searching)
+                    ? _ContactsEmptyState(
+                        query: _search.text,
+                        saved: !searching,
+                      )
                     : ListView.builder(
                         padding: const EdgeInsetsDirectional.fromSTEB(
                           ChatNuSpacing.md,
@@ -281,7 +284,9 @@ class _ContactTile extends StatelessWidget {
                     : (strings.isPersian ? 'ذخیره مخاطب' : 'Save contact'),
                 onPressed: onToggleSaved,
                 icon: Icon(
-                  saved ? Icons.person_remove_outlined : Icons.person_add_outlined,
+                  saved
+                      ? Icons.person_remove_outlined
+                      : Icons.person_add_outlined,
                   color: saved ? palette.accentPrimary : palette.textMuted,
                 ),
               ),

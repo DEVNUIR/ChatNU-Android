@@ -283,6 +283,17 @@ class _ActiveCallControls extends StatelessWidget {
           selected: state.muted,
           onPressed: ref.read(callControllerProvider.notifier).toggleMute,
         ),
+        const SizedBox(width: ChatNuSpacing.xs),
+        _CallControlButton(
+          tooltip: state.speakerOn ? 'Speaker off' : 'Speaker on',
+          icon: state.speakerOn
+              ? Icons.volume_up_rounded
+              : Icons.hearing_rounded,
+          selected: state.speakerOn,
+          onPressed: () => unawaited(
+            ref.read(callControllerProvider.notifier).toggleSpeaker(),
+          ),
+        ),
         if (state.video) ...<Widget>[
           const SizedBox(width: ChatNuSpacing.xs),
           _CallControlButton(
@@ -292,6 +303,14 @@ class _ActiveCallControls extends StatelessWidget {
                 : Icons.videocam_off_rounded,
             selected: !state.cameraEnabled,
             onPressed: ref.read(callControllerProvider.notifier).toggleCamera,
+          ),
+          const SizedBox(width: ChatNuSpacing.xs),
+          _CallControlButton(
+            tooltip: 'Switch camera',
+            icon: Icons.cameraswitch_rounded,
+            onPressed: () => unawaited(
+              ref.read(callControllerProvider.notifier).switchCamera(),
+            ),
           ),
         ],
         const SizedBox(width: ChatNuSpacing.md),

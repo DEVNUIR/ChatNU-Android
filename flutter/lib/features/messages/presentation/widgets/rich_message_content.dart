@@ -17,14 +17,20 @@ import 'package:video_player/video_player.dart';
 import 'package:voice_note_kit/voice_note_kit.dart';
 
 class RichMessageContent extends ConsumerWidget {
-  const RichMessageContent({required this.message, required this.mine, super.key});
+  const RichMessageContent({
+    required this.message,
+    required this.mine,
+    super.key,
+  });
 
   final ChatNuMessage message;
   final bool mine;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (message.hasLocation) return _LocationMessage(message: message, mine: mine);
+    if (message.hasLocation) {
+      return _LocationMessage(message: message, mine: mine);
+    }
     if (message.isPlayableAudio) {
       return _EncryptedAudioMessage(message: message, mine: mine);
     }
@@ -71,7 +77,8 @@ class _LocationMessage extends StatelessWidget {
                 ),
                 children: <Widget>[
                   TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'ir.devnu.chatnu',
                   ),
                   MarkerLayer(
@@ -168,7 +175,9 @@ abstract class _EncryptedMediaState<T extends ConsumerStatefulWidget>
     final name = message.fileName ?? '';
     final dot = name.lastIndexOf('.');
     if (dot >= 0 && dot < name.length - 1) {
-      final raw = name.substring(dot + 1).replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+      final raw = name
+          .substring(dot + 1)
+          .replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
       if (raw.isNotEmpty && raw.length <= 8) return raw;
     }
     final mime = message.mimeType?.toLowerCase() ?? '';
@@ -232,7 +241,9 @@ class _EncryptedAudioMessageState
       error: error,
       icon: Icons.graphic_eq_rounded,
       label: widget.message.type == ChatNuMessageType.voice
-          ? (ChatNuStrings.of(context).isPersian ? 'پخش پیام صوتی' : 'Play voice note')
+          ? (ChatNuStrings.of(context).isPersian
+                ? 'پخش پیام صوتی'
+                : 'Play voice note')
           : (ChatNuStrings.of(context).isPersian ? 'پخش صدا' : 'Play audio'),
       onPressed: widget.message.hasAttachment
           ? () => unawaited(decryptToTemp(widget.message))
@@ -291,7 +302,9 @@ class _EncryptedVideoMessageState
           ),
           IconButton.filledTonal(
             onPressed: () {
-              controller.value.isPlaying ? controller.pause() : controller.play();
+              controller.value.isPlaying
+                  ? controller.pause()
+                  : controller.play();
               setState(() {});
             },
             icon: Icon(
@@ -322,7 +335,9 @@ class _EncryptedVideoMessageState
           ? Icons.video_camera_front_outlined
           : Icons.play_circle_outline_rounded,
       label: widget.message.isVideoNote
-          ? (ChatNuStrings.of(context).isPersian ? 'پخش ویدیو نوت' : 'Play video note')
+          ? (ChatNuStrings.of(context).isPersian
+                ? 'پخش ویدیو نوت'
+                : 'Play video note')
           : (ChatNuStrings.of(context).isPersian ? 'پخش ویدیو' : 'Play video'),
       onPressed: widget.message.hasAttachment ? () => unawaited(_load()) : null,
     );
@@ -340,7 +355,8 @@ class _EncryptedImageMessage extends ConsumerStatefulWidget {
       _EncryptedImageMessageState();
 }
 
-class _EncryptedImageMessageState extends ConsumerState<_EncryptedImageMessage> {
+class _EncryptedImageMessageState
+    extends ConsumerState<_EncryptedImageMessage> {
   Uint8List? _bytes;
   bool _loading = false;
 
@@ -408,7 +424,7 @@ class _EncryptedFileMessage extends ConsumerWidget {
         .read(messengerDemoProvider.notifier)
         .downloadAttachment(message);
     if (bytes == null || !context.mounted) return;
-    final result = await FilePicker.platform.saveFile(
+    final result = await FilePicker.saveFile(
       dialogTitle: strings.attachmentDownload,
       fileName: message.fileName ?? 'attachment',
       bytes: bytes,
@@ -485,9 +501,9 @@ class _LoadMediaTile extends StatelessWidget {
                       label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: foreground,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelLarge?.copyWith(color: foreground),
                     ),
                     if (error != null)
                       Text(

@@ -80,7 +80,9 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               IconButton(
                 key: const Key('message-attach-button'),
                 tooltip: strings.attach,
-                onPressed: demo ? null : () => unawaited(_showAttachmentSheet()),
+                onPressed: demo
+                    ? null
+                    : () => unawaited(_showAttachmentSheet()),
                 style: IconButton.styleFrom(
                   minimumSize: const Size(46, 46),
                   backgroundColor: palette.glassWeak,
@@ -139,7 +141,9 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     : IconButton(
                         key: const ValueKey<String>('composer-voice-note'),
                         tooltip: strings.isPersian ? 'پیام صوتی' : 'Voice note',
-                        onPressed: demo ? null : () => unawaited(_recordVoice()),
+                        onPressed: demo
+                            ? null
+                            : () => unawaited(_recordVoice()),
                         style: IconButton.styleFrom(
                           minimumSize: const Size(46, 46),
                           backgroundColor: palette.glassWeak,
@@ -157,7 +161,9 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
   void _send() {
     final value = widget.controller.text;
     if (value.trim().isEmpty) return;
-    ref.read(messengerDemoProvider.notifier).sendText(widget.conversationId, value);
+    ref
+        .read(messengerDemoProvider.notifier)
+        .sendText(widget.conversationId, value);
     widget.controller.clear();
   }
 
@@ -193,17 +199,20 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                 _AttachmentAction(
                   icon: Icons.photo_rounded,
                   label: persian ? 'عکس' : 'Photo',
-                  onTap: () => Navigator.of(context).pop(_AttachmentChoice.photo),
+                  onTap: () =>
+                      Navigator.of(context).pop(_AttachmentChoice.photo),
                 ),
                 _AttachmentAction(
                   icon: Icons.videocam_rounded,
                   label: persian ? 'ویدیو' : 'Video',
-                  onTap: () => Navigator.of(context).pop(_AttachmentChoice.video),
+                  onTap: () =>
+                      Navigator.of(context).pop(_AttachmentChoice.video),
                 ),
                 _AttachmentAction(
                   icon: Icons.music_note_rounded,
                   label: persian ? 'صدا/موسیقی' : 'Audio',
-                  onTap: () => Navigator.of(context).pop(_AttachmentChoice.audio),
+                  onTap: () =>
+                      Navigator.of(context).pop(_AttachmentChoice.audio),
                 ),
                 _AttachmentAction(
                   icon: Icons.video_camera_front_outlined,
@@ -214,12 +223,14 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                 _AttachmentAction(
                   icon: Icons.location_on_outlined,
                   label: persian ? 'موقعیت' : 'Location',
-                  onTap: () => Navigator.of(context).pop(_AttachmentChoice.location),
+                  onTap: () =>
+                      Navigator.of(context).pop(_AttachmentChoice.location),
                 ),
                 _AttachmentAction(
                   icon: Icons.insert_drive_file_outlined,
                   label: persian ? 'فایل' : 'File',
-                  onTap: () => Navigator.of(context).pop(_AttachmentChoice.file),
+                  onTap: () =>
+                      Navigator.of(context).pop(_AttachmentChoice.file),
                 ),
               ],
             ),
@@ -270,10 +281,11 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               iconColor: palette.backgroundElevated,
               recordingWavesColor: palette.accentPrimary,
               idleWavesColor: palette.textMuted,
-              onRecorded: (recorded) => Navigator.of(sheetContext).pop(recorded),
-              onError: (error) => ScaffoldMessenger.of(sheetContext).showSnackBar(
-                SnackBar(content: Text(error)),
-              ),
+              onRecorded: (recorded) =>
+                  Navigator.of(sheetContext).pop(recorded),
+              onError: (error) => ScaffoldMessenger.of(
+                sheetContext,
+              ).showSnackBar(SnackBar(content: Text(error))),
             ),
             const SizedBox(height: 12),
             Text(
@@ -290,14 +302,17 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
     if (!mounted) return;
-    final mimeType = lookupMimeType(file.path, headerBytes: bytes) ?? 'audio/m4a';
-    await ref.read(messengerDemoProvider.notifier).sendAttachment(
-      conversationId: widget.conversationId,
-      bytes: bytes,
-      fileName: file.uri.pathSegments.last,
-      mimeType: mimeType,
-      type: ChatNuMessageType.voice,
-    );
+    final mimeType =
+        lookupMimeType(file.path, headerBytes: bytes) ?? 'audio/m4a';
+    await ref
+        .read(messengerDemoProvider.notifier)
+        .sendAttachment(
+          conversationId: widget.conversationId,
+          bytes: bytes,
+          fileName: file.uri.pathSegments.last,
+          mimeType: mimeType,
+          type: ChatNuMessageType.voice,
+        );
     unawaited(file.delete().catchError((_) => file));
   }
 
@@ -310,15 +325,18 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     if (picked == null || !mounted) return;
     final bytes = await picked.readAsBytes();
     if (!mounted) return;
-    final mimeType = lookupMimeType(picked.name, headerBytes: bytes) ?? 'video/mp4';
-    await ref.read(messengerDemoProvider.notifier).sendAttachment(
-      conversationId: widget.conversationId,
-      bytes: bytes,
-      fileName: picked.name,
-      mimeType: mimeType,
-      type: ChatNuMessageType.video,
-      privateMetadata: const <String, dynamic>{'videoNote': true},
-    );
+    final mimeType =
+        lookupMimeType(picked.name, headerBytes: bytes) ?? 'video/mp4';
+    await ref
+        .read(messengerDemoProvider.notifier)
+        .sendAttachment(
+          conversationId: widget.conversationId,
+          bytes: bytes,
+          fileName: picked.name,
+          mimeType: mimeType,
+          type: ChatNuMessageType.video,
+          privateMetadata: const <String, dynamic>{'videoNote': true},
+        );
   }
 
   Future<void> _shareLocation() async {
@@ -341,43 +359,43 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
         ),
       );
       if (!mounted) return;
-      await ref.read(messengerDemoProvider.notifier).sendLocation(
-        conversationId: widget.conversationId,
-        latitude: position.latitude,
-        longitude: position.longitude,
-      );
+      await ref
+          .read(messengerDemoProvider.notifier)
+          .sendLocation(
+            conversationId: widget.conversationId,
+            latitude: position.latitude,
+            longitude: position.longitude,
+          );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
   Future<void> _pickAttachment(FileType fileType) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: fileType,
-      allowMultiple: false,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.single;
-    final bytes = file.bytes;
-    if (bytes == null || !mounted) return;
+    final file = await FilePicker.pickFile(type: fileType);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
     final mimeType =
-        lookupMimeType(file.name, headerBytes: bytes) ?? 'application/octet-stream';
+        lookupMimeType(file.name, headerBytes: bytes) ??
+        'application/octet-stream';
     final type = mimeType.startsWith('image/')
         ? ChatNuMessageType.image
         : mimeType.startsWith('video/')
         ? ChatNuMessageType.video
         : ChatNuMessageType.file;
-    await ref.read(messengerDemoProvider.notifier).sendAttachment(
-      conversationId: widget.conversationId,
-      bytes: bytes,
-      fileName: file.name,
-      mimeType: mimeType,
-      type: type,
-    );
+    await ref
+        .read(messengerDemoProvider.notifier)
+        .sendAttachment(
+          conversationId: widget.conversationId,
+          bytes: bytes,
+          fileName: file.name,
+          mimeType: mimeType,
+          type: type,
+        );
   }
 }
 

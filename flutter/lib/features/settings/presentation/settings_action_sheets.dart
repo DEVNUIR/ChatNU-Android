@@ -98,8 +98,12 @@ class _ProfileEditorSheetState extends ConsumerState<_ProfileEditorSheet> {
                       ),
                     ),
                     IconButton(
-                      tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                      onPressed: _busy ? null : () => Navigator.of(context).pop(),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close_rounded),
                     ),
                   ],
@@ -163,7 +167,10 @@ class _ProfileEditorSheetState extends ConsumerState<_ProfileEditorSheet> {
                   ),
                   child: Row(
                     children: <Widget>[
-                      Icon(Icons.alternate_email_rounded, color: palette.textMuted),
+                      Icon(
+                        Icons.alternate_email_rounded,
+                        color: palette.textMuted,
+                      ),
                       const SizedBox(width: ChatNuSpacing.sm),
                       Expanded(
                         child: Column(
@@ -175,9 +182,8 @@ class _ProfileEditorSheetState extends ConsumerState<_ProfileEditorSheet> {
                               strings.isPersian
                                   ? 'نام کاربری فعلاً قابل تغییر نیست؛ به فضای هویت رمزنگاری دستگاه متصل است.'
                                   : 'Username is currently immutable because it participates in the device E2EE identity namespace.',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: palette.textMuted,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: palette.textMuted),
                             ),
                           ],
                         ),
@@ -189,9 +195,9 @@ class _ProfileEditorSheetState extends ConsumerState<_ProfileEditorSheet> {
                   const SizedBox(height: ChatNuSpacing.sm),
                   Text(
                     _error!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: palette.destructive,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: palette.destructive),
                   ),
                 ],
                 const SizedBox(height: ChatNuSpacing.md),
@@ -216,10 +222,9 @@ class _ProfileEditorSheetState extends ConsumerState<_ProfileEditorSheet> {
       _busy = true;
       _error = null;
     });
-    final error = await ref.read(sessionProvider.notifier).updateProfile(
-      displayName: _displayName.text,
-      bio: _bio.text,
-    );
+    final error = await ref
+        .read(sessionProvider.notifier)
+        .updateProfile(displayName: _displayName.text, bio: _bio.text);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -229,26 +234,16 @@ class _ProfileEditorSheetState extends ConsumerState<_ProfileEditorSheet> {
   }
 
   Future<void> _pickAvatar() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.single;
-    final bytes = file.bytes;
-    if (bytes == null) {
-      setState(() => _error = 'Unable to read the selected image.');
-      return;
-    }
+    final file = await FilePicker.pickFile(type: FileType.image);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
     setState(() {
       _busy = true;
       _error = null;
     });
-    final error = await ref.read(sessionProvider.notifier).uploadAvatar(
-      bytes: bytes,
-      fileName: file.name,
-    );
+    final error = await ref
+        .read(sessionProvider.notifier)
+        .uploadAvatar(bytes: bytes, fileName: file.name);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -276,7 +271,8 @@ class _ServerManagerSheet extends ConsumerStatefulWidget {
   final ChatNuServerEndpoint endpoint;
 
   @override
-  ConsumerState<_ServerManagerSheet> createState() => _ServerManagerSheetState();
+  ConsumerState<_ServerManagerSheet> createState() =>
+      _ServerManagerSheetState();
 }
 
 class _ServerManagerSheetState extends ConsumerState<_ServerManagerSheet> {
@@ -348,9 +344,9 @@ class _ServerManagerSheetState extends ConsumerState<_ServerManagerSheet> {
                 const SizedBox(height: ChatNuSpacing.sm),
                 Text(
                   _error!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: palette.destructive,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: palette.destructive),
                 ),
               ],
               const SizedBox(height: ChatNuSpacing.md),
@@ -383,7 +379,9 @@ class _ServerManagerSheetState extends ConsumerState<_ServerManagerSheet> {
       _busy = true;
       _error = null;
     });
-    final error = await ref.read(sessionProvider.notifier).switchServer(_server.text);
+    final error = await ref
+        .read(sessionProvider.notifier)
+        .switchServer(_server.text);
     if (!mounted) return;
     if (error == null) {
       Navigator.of(context).pop();
@@ -451,17 +449,18 @@ class _WallpaperPickerSheet extends ConsumerWidget {
           ),
           const SizedBox(height: ChatNuSpacing.sm),
           ...choices.entries.map(
-            (entry) => RadioListTile<ChatWallpaperStyle>(
-              value: entry.key,
-              groupValue: selected,
-              secondary: Icon(entry.value.icon),
+            (entry) => ListTile(
+              leading: Icon(entry.value.icon),
               title: Text(entry.value.title),
-              onChanged: (value) {
-                if (value == null) return;
-                unawaited(
-                  ref.read(appearanceProvider.notifier).setWallpaperStyle(value),
-                );
-              },
+              trailing: selected == entry.key
+                  ? const Icon(Icons.check_circle_rounded)
+                  : const Icon(Icons.circle_outlined),
+              selected: selected == entry.key,
+              onTap: () => unawaited(
+                ref
+                    .read(appearanceProvider.notifier)
+                    .setWallpaperStyle(entry.key),
+              ),
             ),
           ),
         ],

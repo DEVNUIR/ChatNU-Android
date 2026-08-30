@@ -295,7 +295,8 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
       position.minScrollExtent,
       position.maxScrollExtent,
     );
-    final future = MediaQuery.disableAnimationsOf(context)
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final future = disableAnimations
         ? Future<void>.sync(() => _scrollController.jumpTo(clamped.toDouble()))
         : _scrollController.animateTo(
             clamped.toDouble(),
@@ -306,12 +307,13 @@ class _ConversationPaneState extends ConsumerState<ConversationPane> {
       future.then((_) async {
         if (!mounted) return;
         await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
         final targetContext = _messageKeys[messageId]?.currentContext;
-        if (targetContext == null) return;
+        if (targetContext == null || !targetContext.mounted) return;
         await Scrollable.ensureVisible(
           targetContext,
           alignment: 0.45,
-          duration: MediaQuery.disableAnimationsOf(context)
+          duration: disableAnimations
               ? Duration.zero
               : const Duration(milliseconds: 150),
           curve: Curves.easeOutCubic,

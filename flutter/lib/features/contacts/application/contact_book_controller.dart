@@ -24,14 +24,18 @@ class ContactBookController extends Notifier<ContactBookState> {
     final session = ref.watch(sessionProvider);
     final endpoint = ref.watch(serverEndpointProvider);
     final user = session.user;
-    if (user == null) return const ContactBookState(loading: false);
+    if (user == null) {
+      return const ContactBookState(loading: false);
+    }
     final scope = '${endpoint.identityNamespace}|${user.id}';
     Future<void>.microtask(() => _hydrate(scope));
     return const ContactBookState();
   }
 
   Future<void> add(ChatNuUser user) async {
-    if (state.contains(user.id)) return;
+    if (state.contains(user.id)) {
+      return;
+    }
     final next = <ChatNuUser>[...state.contacts, user]
       ..sort((a, b) => a.displayName.compareTo(b.displayName));
     state = ContactBookState(contacts: next, loading: false);
@@ -52,11 +56,15 @@ class ContactBookController extends Notifier<ContactBookState> {
     try {
       final encoded = await ref.read(secretStoreProvider).read(_key(scope));
       if (encoded == null || encoded.isEmpty) {
-        if (ref.mounted) state = const ContactBookState(loading: false);
+        if (ref.mounted) {
+          state = const ContactBookState(loading: false);
+        }
         return;
       }
       final decoded = jsonDecode(encoded);
-      if (decoded is! List) throw const FormatException('Invalid contact book.');
+      if (decoded is! List) {
+        throw const FormatException('Invalid contact book.');
+      }
       final contacts = decoded
           .whereType<Map>()
           .map(
@@ -70,14 +78,18 @@ class ContactBookController extends Notifier<ContactBookState> {
         state = ContactBookState(contacts: contacts, loading: false);
       }
     } catch (_) {
-      if (ref.mounted) state = const ContactBookState(loading: false);
+      if (ref.mounted) {
+        state = const ContactBookState(loading: false);
+      }
     }
   }
 
   Future<void> _persist() async {
     final session = ref.read(sessionProvider);
     final user = session.user;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
     final endpoint = ref.read(serverEndpointProvider);
     final scope = '${endpoint.identityNamespace}|${user.id}';
     final encoded = jsonEncode(

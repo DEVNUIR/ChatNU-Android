@@ -26,18 +26,34 @@ jobs:
           cache: true
       - name: Bootstrap Android platform
         run: ./tool/bootstrap_android.sh
-      - name: Patch analyzer lint
+      - name: Patch widget tests
         working-directory: .
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('flutter/lib/features/messages/presentation/conversation_pane.dart')
-          text = path.read_text()
-          old = """    final future = MediaQuery.disableAnimationsOf(context)\n        ? Future<void>.sync(() => _scrollController.jumpTo(clamped.toDouble()))\n        : _scrollController.animateTo(\n            clamped.toDouble(),\n            duration: const Duration(milliseconds: 180),\n            curve: Curves.easeOutCubic,\n          );\n    unawaited(\n      future.then((_) async {\n        if (!mounted) return;\n        await WidgetsBinding.instance.endOfFrame;\n        final targetContext = _messageKeys[messageId]?.currentContext;\n        if (targetContext == null) return;\n        await Scrollable.ensureVisible(\n          targetContext,\n          alignment: 0.45,\n          duration: MediaQuery.disableAnimationsOf(context)\n              ? Duration.zero\n              : const Duration(milliseconds: 150),\n          curve: Curves.easeOutCubic,\n        );\n      }),\n    );\n"""
-          new = """    final disableAnimations = MediaQuery.disableAnimationsOf(context);\n    final future = disableAnimations\n        ? Future<void>.sync(() => _scrollController.jumpTo(clamped.toDouble()))\n        : _scrollController.animateTo(\n            clamped.toDouble(),\n            duration: const Duration(milliseconds: 180),\n            curve: Curves.easeOutCubic,\n          );\n    unawaited(\n      future.then((_) async {\n        if (!mounted) return;\n        await WidgetsBinding.instance.endOfFrame;\n        if (!mounted) return;\n        final targetContext = _messageKeys[messageId]?.currentContext;\n        if (targetContext == null || !targetContext.mounted) return;\n        await Scrollable.ensureVisible(\n          targetContext,\n          alignment: 0.45,\n          duration: disableAnimations\n              ? Duration.zero\n              : const Duration(milliseconds: 150),\n          curve: Curves.easeOutCubic,\n        );\n      }),\n    );\n"""
-          if old not in text:
-              raise SystemExit('expected async search-jump block not found')
-          path.write_text(text.replace(old, new, 1))
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'expected text not found in {path}: {old!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace(
+              'flutter/lib/features/messages/presentation/widgets/conversation_header.dart',
+              "key: const Key('conversation-search-button'),",
+              "key: const Key('conversation-in-chat-search-button'),",
+          )
+          replace(
+              'flutter/test/core_messaging_test.dart',
+              "find.byKey(const Key('conversation-search-button'))",
+              "find.byKey(const Key('conversation-in-chat-search-button'))",
+          )
+          replace(
+              'flutter/test/core_messaging_test.dart',
+              """    final list = find.byKey(const Key('message-list'));\n    await tester.drag(list, const Offset(0, -620));\n    await tester.pumpAndSettle();\n\n    expect(find.byKey(const Key('scroll-to-latest-button')), findsOneWidget);\n""",
+              """    final list = find.byKey(const Key('message-list'));\n    final scrollable = find.descendant(\n      of: list,\n      matching: find.byType(Scrollable),\n    );\n    final scrollState = tester.state<ScrollableState>(scrollable);\n    final target = scrollState.position.maxScrollExtent.clamp(220.0, 620.0);\n    scrollState.position.jumpTo(target);\n    await tester.pumpAndSettle();\n\n    expect(find.byKey(const Key('scroll-to-latest-button')), findsOneWidget);\n""",
+          )
           PY
       - name: Format
         run: dart format lib test
@@ -51,7 +67,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add flutter/lib flutter/test
-          git commit -m "fix: keep phase1 search jumps context-safe"
+          git commit -m "test: stabilize phase1 messaging widget coverage"
           git push origin HEAD:chatgpt/phase-1-core-messaging
       - name: Analyze
         run: flutter analyze --fatal-infos

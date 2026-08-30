@@ -51,8 +51,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
   static const _maxVoiceDuration = Duration(minutes: 5);
   static const _maxVideoDuration = Duration(seconds: 60);
 
-  bool get _arming =>
-      _recordingSession.phase == ChatNuRecordingPhase.arming;
+  bool get _arming => _recordingSession.phase == ChatNuRecordingPhase.arming;
   bool get _finishing =>
       _recordingSession.phase == ChatNuRecordingPhase.finishing;
   bool get _paused => _recordingSession.isPaused;
@@ -143,15 +142,13 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                           elapsed: _elapsed,
                           cameraController: _cameraController,
                           waveform: _waveform,
-                          onCancel: () => unawaited(
-                            _finishRecording(cancel: true),
-                          ),
+                          onCancel: () =>
+                              unawaited(_finishRecording(cancel: true)),
                           onPauseResume: () => unawaited(
                             _paused ? _resumeRecording() : _pauseRecording(),
                           ),
-                          onSend: () => unawaited(
-                            _finishRecording(cancel: false),
-                          ),
+                          onSend: () =>
+                              unawaited(_finishRecording(cancel: false)),
                         )
                       : _ComposerField(
                           key: const ValueKey<String>('composer-field'),
@@ -349,10 +346,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
           if (!mounted || _paused || !_recordingSession.isRecording) return;
           final normalized = ((amplitude.current + 60) / 60).clamp(0.08, 1.0);
           setState(() {
-            _waveform = <double>[
-              ..._waveform.skip(1),
-              normalized.toDouble(),
-            ];
+            _waveform = <double>[..._waveform.skip(1), normalized.toDouble()];
           });
         });
   }

@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ChatNuRecordingSession', () {
     test('hold release sends when no gesture is armed', () {
-      final state = const ChatNuRecordingSession()
-          .startArming()
-          .startHolding();
+      final state = const ChatNuRecordingSession().startArming().startHolding();
 
       expect(state.phase, ChatNuRecordingPhase.holding);
       expect(state.releaseAction(), ChatNuRecordingReleaseAction.send);
@@ -36,10 +34,7 @@ void main() {
 
       expect(state.phase, ChatNuRecordingPhase.locked);
       expect(state.lockArmed, isTrue);
-      expect(
-        state.releaseAction(),
-        ChatNuRecordingReleaseAction.keepRecording,
-      );
+      expect(state.releaseAction(), ChatNuRecordingReleaseAction.keepRecording);
     });
 
     test('strongest gesture wins instead of arming both actions', () {

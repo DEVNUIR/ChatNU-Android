@@ -1,13 +1,6 @@
 enum ChatNuRecordingMode { voice, video }
 
-enum ChatNuRecordingPhase {
-  idle,
-  arming,
-  holding,
-  locked,
-  paused,
-  finishing,
-}
+enum ChatNuRecordingPhase { idle, arming, holding, locked, paused, finishing }
 
 enum ChatNuRecordingGesture { none, cancel, lock }
 

@@ -52,6 +52,7 @@ class ChatNuStrings {
   String get back => isPersian ? 'بازگشت' : 'Back';
   String get voiceCall => isPersian ? 'تماس صوتی' : 'Voice call';
   String get videoCall => isPersian ? 'تماس تصویری' : 'Video call';
+  String get queued => isPersian ? 'در صف ارسال' : 'Queued';
   String get sending => isPersian ? 'در حال ارسال' : 'Sending';
   String get sentToServer => isPersian ? 'ارسال‌شده به سرور' : 'Sent to server';
   String get failed => isPersian ? 'ناموفق' : 'Failed';

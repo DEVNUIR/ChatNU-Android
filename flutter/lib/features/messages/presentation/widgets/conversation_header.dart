@@ -201,7 +201,7 @@ class ConversationHeader extends ConsumerWidget {
               if (onSearchToggle != null) ...<Widget>[
                 const SizedBox(width: 2),
                 GlassIconButton(
-                  key: const Key('conversation-search-button'),
+                  key: const Key('conversation-in-chat-search-button'),
                   tooltip: strings.searchInChat,
                   onPressed: onSearchToggle,
                   icon: Icons.search_rounded,

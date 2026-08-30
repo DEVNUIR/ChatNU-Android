@@ -102,7 +102,9 @@ void main() {
   ) async {
     await _pumpDesktopDemo(tester);
 
-    await tester.tap(find.byKey(const Key('conversation-search-button')));
+    await tester.tap(
+      find.byKey(const Key('conversation-in-chat-search-button')),
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('conversation-search-field')), findsOneWidget);
 
@@ -160,7 +162,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final list = find.byKey(const Key('message-list'));
-    await tester.drag(list, const Offset(0, -620));
+    final scrollable = find.descendant(
+      of: list,
+      matching: find.byType(Scrollable),
+    );
+    final scrollState = tester.state<ScrollableState>(scrollable);
+    final target = scrollState.position.maxScrollExtent.clamp(220.0, 620.0);
+    scrollState.position.jumpTo(target);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('scroll-to-latest-button')), findsOneWidget);

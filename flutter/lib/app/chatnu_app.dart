@@ -2,6 +2,7 @@ import 'package:chatnu/app/routing/app_router.dart';
 import 'package:chatnu/core/localization/locale_controller.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/features/calls/presentation/call_overlay.dart';
+import 'package:chatnu/features/messages/presentation/live_location_lifecycle_guard.dart';
 import 'package:chatnu/features/settings/application/appearance_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -36,6 +37,7 @@ class ChatNuApp extends ConsumerWidget {
           fit: StackFit.expand,
           children: <Widget>[
             child ?? const SizedBox.shrink(),
+            const LiveLocationLifecycleGuard(),
             const CallOverlay(),
           ],
         );

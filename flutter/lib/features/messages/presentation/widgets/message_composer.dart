@@ -286,7 +286,9 @@ class _MessageComposerState extends ConsumerState<MessageComposer>
 
   Future<void> _startVoiceRecording() async {
     if (!await _audioRecorder.hasPermission()) {
-      throw StateError('Microphone permission is required to record a voice message.');
+      throw StateError(
+        'Microphone permission is required to record a voice message.',
+      );
     }
     final directory = await getTemporaryDirectory();
     final path =
@@ -628,9 +630,9 @@ class _MessageComposerState extends ConsumerState<MessageComposer>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -773,9 +775,7 @@ class _RecordingStatus extends StatelessWidget {
                     : finishing
                     ? (strings.isPersian ? 'در حال ارسال…' : 'Sending…')
                     : arming
-                    ? (strings.isPersian
-                          ? 'در حال آماده‌سازی…'
-                          : 'Preparing…')
+                    ? (strings.isPersian ? 'در حال آماده‌سازی…' : 'Preparing…')
                     : (strings.isPersian
                           ? 'برای لغو به چپ بکشید'
                           : 'Slide left to cancel'),
@@ -911,10 +911,11 @@ class _HoldRecordButton extends StatelessWidget {
               boxShadow: recording
                   ? <BoxShadow>[
                       BoxShadow(
-                        color: (cancelArmed
-                                ? palette.destructive
-                                : palette.accentPrimary)
-                            .withValues(alpha: 0.24),
+                        color:
+                            (cancelArmed
+                                    ? palette.destructive
+                                    : palette.accentPrimary)
+                                .withValues(alpha: 0.24),
                         blurRadius: 18,
                       ),
                     ]
@@ -943,10 +944,7 @@ class _HoldRecordButton extends StatelessWidget {
 enum _AttachmentChoice { gallery, camera, audio, location, file }
 
 class _AttachmentSheet extends StatelessWidget {
-  const _AttachmentSheet({
-    required this.persian,
-    required this.onSelected,
-  });
+  const _AttachmentSheet({required this.persian, required this.onSelected});
 
   final bool persian;
   final ValueChanged<_AttachmentChoice> onSelected;

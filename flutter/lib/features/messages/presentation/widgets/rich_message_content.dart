@@ -441,10 +441,7 @@ class _PersonLocationMarker extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: palette.accentPrimary,
-                border: Border.all(
-                  color: palette.backgroundElevated,
-                  width: 2,
-                ),
+                border: Border.all(color: palette.backgroundElevated, width: 2),
               ),
               alignment: Alignment.center,
               child: Icon(
@@ -1045,9 +1042,10 @@ class _LoadMediaTile extends StatelessWidget {
                           error!,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: mine ? foreground : palette.destructive,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: mine ? foreground : palette.destructive,
+                              ),
                         )
                       else if (detail != null)
                         Text(
@@ -1069,11 +1067,7 @@ class _LoadMediaTile extends StatelessWidget {
                   ),
                 ),
                 if (onPressed != null && !loading)
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 19,
-                    color: secondary,
-                  ),
+                  Icon(Icons.chevron_right_rounded, size: 19, color: secondary),
               ],
             ),
           ),

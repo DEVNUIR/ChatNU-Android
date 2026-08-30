@@ -63,7 +63,11 @@ class _ChatWallpaperState extends ConsumerState<ChatWallpaper>
     );
     final palette = context.chatNu;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final recipe = _WallpaperRecipe.forStyle(style, dark: dark, palette: palette);
+    final recipe = _WallpaperRecipe.forStyle(
+      style,
+      dark: dark,
+      palette: palette,
+    );
 
     return RepaintBoundary(
       child: AnimatedBuilder(
@@ -120,44 +124,41 @@ class _WallpaperRecipe {
     final ink = palette.textPrimary;
     return switch (style) {
       ChatWallpaperStyle.ambient => _WallpaperRecipe(
-          kind: _MessengerPatternKind.doodles,
-          background: <Color>[
-            Color.lerp(base, palette.accentPrimary, dark ? 0.035 : 0.018)!,
-            base,
-            Color.lerp(base, palette.accentCyan, dark ? 0.025 : 0.012)!,
-          ],
-          pattern: ink.withValues(alpha: dark ? 0.055 : 0.045),
-          accent: palette.accentPrimary.withValues(alpha: dark ? 0.055 : 0.04),
-        ),
+        kind: _MessengerPatternKind.doodles,
+        background: <Color>[
+          Color.lerp(base, palette.accentPrimary, dark ? 0.035 : 0.018)!,
+          base,
+          Color.lerp(base, palette.accentCyan, dark ? 0.025 : 0.012)!,
+        ],
+        pattern: ink.withValues(alpha: dark ? 0.055 : 0.045),
+        accent: palette.accentPrimary.withValues(alpha: dark ? 0.055 : 0.04),
+      ),
       ChatWallpaperStyle.softGrid => _WallpaperRecipe(
-          kind: _MessengerPatternKind.geometry,
-          background: <Color>[
-            base,
-            Color.lerp(base, palette.accentPrimary, dark ? 0.025 : 0.012)!,
-            base,
-          ],
-          pattern: ink.withValues(alpha: dark ? 0.05 : 0.038),
-          accent: palette.accentPrimary.withValues(alpha: dark ? 0.045 : 0.03),
-        ),
+        kind: _MessengerPatternKind.geometry,
+        background: <Color>[
+          base,
+          Color.lerp(base, palette.accentPrimary, dark ? 0.025 : 0.012)!,
+          base,
+        ],
+        pattern: ink.withValues(alpha: dark ? 0.05 : 0.038),
+        accent: palette.accentPrimary.withValues(alpha: dark ? 0.045 : 0.03),
+      ),
       ChatWallpaperStyle.midnight => _WallpaperRecipe(
-          kind: _MessengerPatternKind.night,
-          background: <Color>[
-            Color.lerp(base, const Color(0xFF07101C), dark ? 0.48 : 0.72)!,
-            Color.lerp(base, const Color(0xFF101726), dark ? 0.38 : 0.66)!,
-            Color.lerp(base, const Color(0xFF090D16), dark ? 0.5 : 0.76)!,
-          ],
-          pattern: Colors.white.withValues(alpha: dark ? 0.065 : 0.06),
-          accent: palette.accentCyan.withValues(alpha: 0.07),
-        ),
+        kind: _MessengerPatternKind.night,
+        background: <Color>[
+          Color.lerp(base, const Color(0xFF07101C), dark ? 0.48 : 0.72)!,
+          Color.lerp(base, const Color(0xFF101726), dark ? 0.38 : 0.66)!,
+          Color.lerp(base, const Color(0xFF090D16), dark ? 0.5 : 0.76)!,
+        ],
+        pattern: Colors.white.withValues(alpha: dark ? 0.065 : 0.06),
+        accent: palette.accentCyan.withValues(alpha: 0.07),
+      ),
       ChatWallpaperStyle.solid => _WallpaperRecipe(
-          kind: _MessengerPatternKind.minimal,
-          background: <Color>[
-            base,
-            Color.lerp(base, ink, dark ? 0.018 : 0.008)!,
-          ],
-          pattern: ink.withValues(alpha: dark ? 0.04 : 0.032),
-          accent: palette.accentPrimary.withValues(alpha: dark ? 0.035 : 0.024),
-        ),
+        kind: _MessengerPatternKind.minimal,
+        background: <Color>[base, Color.lerp(base, ink, dark ? 0.018 : 0.008)!],
+        pattern: ink.withValues(alpha: dark ? 0.04 : 0.032),
+        accent: palette.accentPrimary.withValues(alpha: dark ? 0.035 : 0.024),
+      ),
     };
   }
 }
@@ -328,7 +329,12 @@ class _MessengerPatternPainter extends CustomPainter {
     canvas.drawRRect(capsule, paint);
     final stem = Path()
       ..moveTo(center.dx - 7, center.dy + 2)
-      ..quadraticBezierTo(center.dx, center.dy + 10, center.dx + 7, center.dy + 2)
+      ..quadraticBezierTo(
+        center.dx,
+        center.dy + 10,
+        center.dx + 7,
+        center.dy + 2,
+      )
       ..moveTo(center.dx, center.dy + 9)
       ..lineTo(center.dx, center.dy + 13);
     canvas.drawPath(stem, paint);
@@ -401,7 +407,12 @@ class _MessengerPatternPainter extends CustomPainter {
     );
     final smile = Path()
       ..moveTo(center.dx - 4, center.dy + 2)
-      ..quadraticBezierTo(center.dx, center.dy + 6, center.dx + 4, center.dy + 2);
+      ..quadraticBezierTo(
+        center.dx,
+        center.dy + 6,
+        center.dx + 4,
+        center.dy + 2,
+      );
     canvas.drawPath(smile, paint);
   }
 

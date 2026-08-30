@@ -1,0 +1,33 @@
+name: Phase 3 formatter capture
+
+on:
+  push:
+    branches:
+      - chatgpt/phase-3-location-calls
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Format Phase 3 Dart
+        working-directory: flutter
+        run: dart format lib test
+      - name: Upload formatted Phase 3 files
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-formatted-dart
+          path: |
+            flutter/lib/features/home/data/messenger_repository.dart
+            flutter/lib/features/messages/application/live_location_controller.dart
+            flutter/lib/features/messages/application/live_location_policy.dart
+            flutter/lib/features/messages/presentation/widgets/message_composer.dart
+            flutter/test/location_and_calls_test.dart

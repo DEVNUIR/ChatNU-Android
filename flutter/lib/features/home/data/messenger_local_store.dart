@@ -5,7 +5,6 @@ import 'package:chatnu/features/accounts/domain/chatnu_user.dart';
 import 'package:chatnu/features/conversations/domain/conversation.dart';
 import 'package:chatnu/features/messages/domain/message.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class CachedConversationPage {
@@ -581,8 +580,9 @@ ChatNuMessage _messageFromPayload(String payload) {
 
 Map<String, dynamic> _decodedMap(String payload) {
   final value = jsonDecode(payload);
-  if (value is! Map)
+  if (value is! Map) {
     throw const FormatException('Expected cached JSON object.');
+  }
   return value.map((key, item) => MapEntry(key.toString(), item));
 }
 

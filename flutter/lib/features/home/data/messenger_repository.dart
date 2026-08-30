@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -451,7 +450,7 @@ List<ChatNuMessage> mergeMessageLists(
   Iterable<ChatNuMessage> existing,
   Iterable<ChatNuMessage> incoming,
 ) {
-  final byIdentity = LinkedHashMap<String, ChatNuMessage>();
+  final byIdentity = <String, ChatNuMessage>{};
   for (final message in existing) {
     byIdentity[_messageIdentity(message)] = message;
   }

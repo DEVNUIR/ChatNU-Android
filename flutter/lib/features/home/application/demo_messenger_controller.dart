@@ -7,7 +7,6 @@ import 'package:chatnu/core/realtime/chatnu_realtime_client.dart';
 import 'package:chatnu/features/accounts/domain/chatnu_user.dart';
 import 'package:chatnu/features/auth/application/session_controller.dart';
 import 'package:chatnu/features/conversations/domain/conversation.dart';
-import 'package:chatnu/features/home/data/messenger_local_store.dart';
 import 'package:chatnu/features/home/data/messenger_repository.dart';
 import 'package:chatnu/features/messages/domain/message.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1005,8 +1004,9 @@ class MessengerDemoController extends Notifier<MessengerDemoState> {
     final target = state.conversations
         .where((conversation) => conversation.id == message.conversationId)
         .firstOrNull;
-    if (target == null || message.sentAt.isBefore(target.lastActivityAt))
+    if (target == null || message.sentAt.isBefore(target.lastActivityAt)) {
       return;
+    }
     _updateConversationPreview(
       message.conversationId,
       message.body,

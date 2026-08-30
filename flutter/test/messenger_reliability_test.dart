@@ -299,9 +299,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: <Override>[
-          appModeProvider.overrideWithValue(ChatNuAppMode.demo),
-        ],
+        overrides: [appModeProvider.overrideWithValue(ChatNuAppMode.demo)],
         child: MaterialApp(
           theme: ChatNuTheme.light,
           home: const MessengerShell(),
@@ -444,10 +442,7 @@ class _RepositoryFixture {
 }
 
 class _FakeApiClient extends ChatNuApiClient {
-  _FakeApiClient({
-    required ChatNuServerEndpoint endpoint,
-    required CredentialVault vault,
-  }) : super(endpoint: endpoint, vault: vault);
+  _FakeApiClient({required super.endpoint, required super.vault});
 
   final List<List<MessageDto>> messagePages = <List<MessageDto>>[];
   final List<SyncResponse> syncPages = <SyncResponse>[];

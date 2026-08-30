@@ -27,6 +27,9 @@ Legend:
 | Profile edit | Integrated in this branch | authenticated `PATCH /me`, `POST /me/avatar`, `DELETE /me/avatar` + persisted session user | Settings edits display name/bio and uploads/removes the real avatar; username stays read-only because E2EE identity namespacing currently depends on it |
 | Text messaging | Integrated | encrypted payload send + stable `clientId` | Reference-style bubbles with delivery/failure states |
 | Realtime messages | Integrated | authenticated WebSocket + reconciliation/deduplication | Connection state only when attention is needed |
+| Consecutive message grouping | UI refactor | chronological decrypted message list + local presentation policy | Same-sender messages group only within the same local day and configurable gap (5 minutes by default); system messages break groups; repeated incoming group-chat sender/avatar chrome collapses |
+| In-chat message search | Local capability | currently loaded decrypted messages in client memory | Search body/sender/file-name text locally with highlighting and result navigation; no plaintext query is sent to the server, and older history must be paginated before it can be searched |
+| Smart message following / new-message-below | UI refactor | reverse message viewport + realtime message state | Follow newest messages when already near the bottom or after an own send; otherwise preserve reading position and show a local separator/count plus jump-to-latest control without changing server read semantics |
 | Conversation read state | Integrated | optimistic local clear + server rollback | Preserve existing semantics |
 | Conversation pin/mute | Integrated | optimistic mutation + rollback | Long-press/right-click sheet contains only supported operations |
 | Contact/user search | Integrated | server-backed username/display-name search | Real directory search; no fabricated server-side address book |

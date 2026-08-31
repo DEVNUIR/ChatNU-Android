@@ -366,7 +366,6 @@ class _DesktopNavigation extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final strings = ChatNuStrings.of(context);
-    final palette = context.chatNu;
     return SizedBox(
       width: 88,
       child: Padding(

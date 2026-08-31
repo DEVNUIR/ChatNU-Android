@@ -75,6 +75,7 @@ class _WideShell extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: ConversationListPane(
+                  showComposeAction: true,
                   onSelected: ref
                       .read(messengerDemoProvider.notifier)
                       .selectConversation,
@@ -140,6 +141,7 @@ class _PhoneShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(messengerDemoProvider.notifier);
     final palette = context.chatNu;
+    final strings = ChatNuStrings.of(context);
     final inConversation =
         state.destination == MessengerDestination.chats && selectedId != null;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
@@ -187,6 +189,18 @@ class _PhoneShell extends ConsumerWidget {
         },
         child: content,
       ),
+      floatingActionButton: inConversation
+          ? null
+          : FloatingActionButton.extended(
+              key: const Key('new-chat-fab'),
+              onPressed: () => unawaited(showNewChatSheet(context)),
+              backgroundColor: palette.textPrimary,
+              foregroundColor: palette.backgroundElevated,
+              elevation: 2,
+              icon: const Icon(Icons.edit_rounded, size: 19),
+              label: Text(strings.newChat),
+            ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: AnimatedSwitcher(
         duration: duration,
         child: inConversation
@@ -216,7 +230,7 @@ class _ReferenceBottomBar extends ConsumerWidget {
           top: false,
           child: Container(
             height: 72,
-            padding: const EdgeInsetsDirectional.fromSTEB(18, 8, 18, 8),
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 6, 12, 6),
             decoration: BoxDecoration(
               color: palette.backgroundElevated.withValues(alpha: 0.8),
               border: Border(top: BorderSide(color: palette.borderSubtle)),
@@ -232,9 +246,10 @@ class _ReferenceBottomBar extends ConsumerWidget {
               children: <Widget>[
                 Expanded(
                   child: _BottomIcon(
+                    key: const Key('phone-nav-chats'),
                     icon: destination == MessengerDestination.chats
-                        ? Icons.home_rounded
-                        : Icons.home_outlined,
+                        ? Icons.chat_bubble_rounded
+                        : Icons.chat_bubble_outline_rounded,
                     label: strings.chats,
                     selected: destination == MessengerDestination.chats,
                     onTap: () =>
@@ -242,30 +257,23 @@ class _ReferenceBottomBar extends ConsumerWidget {
                   ),
                 ),
                 Expanded(
-                  flex: 2,
-                  child: Center(
-                    child: FilledButton.icon(
-                      key: const Key('new-chat-bottom-button'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(158, 48),
-                        elevation: 0,
-                        backgroundColor: palette.textPrimary,
-                        foregroundColor: palette.backgroundElevated,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                      onPressed: () => unawaited(showNewChatSheet(context)),
-                      icon: const Icon(Icons.edit_rounded, size: 19),
-                      label: Text(strings.newChat),
-                    ),
+                  child: _BottomIcon(
+                    key: const Key('phone-nav-contacts'),
+                    icon: destination == MessengerDestination.contacts
+                        ? Icons.people_alt_rounded
+                        : Icons.people_alt_outlined,
+                    label: strings.contacts,
+                    selected: destination == MessengerDestination.contacts,
+                    onTap: () =>
+                        _setDestination(ref, MessengerDestination.contacts),
                   ),
                 ),
                 Expanded(
                   child: _BottomIcon(
+                    key: const Key('phone-nav-settings'),
                     icon: destination == MessengerDestination.settings
-                        ? Icons.person_rounded
-                        : Icons.person_outline_rounded,
+                        ? Icons.tune_rounded
+                        : Icons.tune_outlined,
                     label: strings.settings,
                     selected: destination == MessengerDestination.settings,
                     onTap: () =>
@@ -287,6 +295,7 @@ class _BottomIcon extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    super.key,
   });
 
   final IconData icon;
@@ -304,18 +313,44 @@ class _BottomIcon extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(18),
           color: selected
               ? palette.glassMedium.withValues(alpha: 0.72)
               : Colors.transparent,
         ),
-        child: IconButton(
-          onPressed: onTap,
-          color: selected ? palette.textPrimary : palette.textMuted,
-          icon: AnimatedScale(
-            scale: selected ? 1.06 : 1,
-            duration: const Duration(milliseconds: 180),
-            child: Icon(icon, size: 25),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                AnimatedScale(
+                  scale: selected ? 1.06 : 1,
+                  duration: const Duration(milliseconds: 180),
+                  child: Icon(
+                    icon,
+                    size: 23,
+                    color: selected
+                        ? palette.textPrimary
+                        : palette.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: selected
+                        ? palette.textPrimary
+                        : palette.textMuted,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

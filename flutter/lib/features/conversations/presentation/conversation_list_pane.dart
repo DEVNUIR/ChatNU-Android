@@ -10,9 +10,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ConversationListPane extends ConsumerStatefulWidget {
-  const ConversationListPane({required this.onSelected, super.key});
+  const ConversationListPane({
+    required this.onSelected,
+    this.showComposeAction = false,
+    super.key,
+  });
 
   final ValueChanged<String> onSelected;
+  final bool showComposeAction;
 
   @override
   ConsumerState<ConversationListPane> createState() =>
@@ -37,9 +42,11 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
     final query = _searchController.text.trim().toLowerCase();
     final conversations = state.conversations
         .where((conversation) {
+          final draft = state.drafts[conversation.id]?.trim().toLowerCase() ?? '';
           return query.isEmpty ||
               conversation.title.toLowerCase().contains(query) ||
-              conversation.lastMessagePreview.toLowerCase().contains(query);
+              conversation.lastMessagePreview.toLowerCase().contains(query) ||
+              draft.contains(query);
         })
         .toList(growable: false);
     final recent = state.conversations
@@ -93,6 +100,14 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                                   setState(() => _searching = true),
                               icon: const Icon(Icons.search_rounded, size: 28),
                             ),
+                            if (widget.showComposeAction)
+                              IconButton(
+                                key: const Key('conversation-list-compose'),
+                                tooltip: strings.newChat,
+                                onPressed: () =>
+                                    unawaited(showNewChatSheet(context)),
+                                icon: const Icon(Icons.edit_rounded, size: 25),
+                              ),
                           ],
                         ),
                 ),
@@ -109,16 +124,10 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                         20,
                         8,
                       ),
-                      itemCount: recent.length + 1,
+                      itemCount: recent.length,
                       separatorBuilder: (_, _) => const SizedBox(width: 14),
                       itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return _RecentAction(
-                            label: strings.newChat,
-                            onTap: () => unawaited(showNewChatSheet(context)),
-                          );
-                        }
-                        final conversation = recent[index - 1];
+                        final conversation = recent[index];
                         return _RecentPerson(
                           conversation: conversation,
                           onTap: () => widget.onSelected(conversation.id),
@@ -135,22 +144,11 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                     14,
                     8,
                   ),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          strings.chats,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.titleLarge?.copyWith(fontSize: 21),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: strings.newChat,
-                        onPressed: () => unawaited(showNewChatSheet(context)),
-                        icon: const Icon(Icons.more_horiz_rounded, size: 26),
-                      ),
-                    ],
+                  child: Text(
+                    strings.chats,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleLarge?.copyWith(fontSize: 21),
                   ),
                 ),
               ),
@@ -170,6 +168,7 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                     return RepaintBoundary(
                       child: _ConversationTile(
                         conversation: conversation,
+                        draft: state.drafts[conversation.id],
                         selected:
                             conversation.id == state.selectedConversationId,
                         onTap: () => widget.onSelected(conversation.id),
@@ -263,50 +262,6 @@ class _SearchHeader extends StatelessWidget {
   }
 }
 
-class _RecentAction extends StatelessWidget {
-  const _RecentAction({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.chatNu;
-    return InkWell(
-      borderRadius: BorderRadius.circular(30),
-      onTap: onTap,
-      child: SizedBox(
-        width: 58,
-        child: Column(
-          children: <Widget>[
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: palette.backgroundElevated,
-                border: Border.all(
-                  color: palette.borderSubtle,
-                  style: BorderStyle.solid,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.add_rounded, size: 28),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _RecentPerson extends StatelessWidget {
   const _RecentPerson({required this.conversation, required this.onTap});
 
@@ -392,12 +347,14 @@ class _ConversationEmptyState extends StatelessWidget {
 class _ConversationTile extends StatelessWidget {
   const _ConversationTile({
     required this.conversation,
+    required this.draft,
     required this.selected,
     required this.onTap,
     required this.onContextMenu,
   });
 
   final ChatNuConversation conversation;
+  final String? draft;
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback onContextMenu;
@@ -410,6 +367,12 @@ class _ConversationTile extends StatelessWidget {
       TimeOfDay.fromDateTime(conversation.lastActivityAt),
       alwaysUse24HourFormat: true,
     );
+    final trimmedDraft = draft?.trim();
+    final preview = trimmedDraft?.isNotEmpty == true
+        ? (strings.isPersian
+              ? 'پیش‌نویس: $trimmedDraft'
+              : 'Draft: $trimmedDraft')
+        : conversation.lastMessagePreview;
     return Semantics(
       button: true,
       selected: selected,
@@ -480,7 +443,7 @@ class _ConversationTile extends StatelessWidget {
                             ),
                           Expanded(
                             child: Text(
-                              conversation.lastMessagePreview,
+                              preview,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodyMedium
@@ -488,7 +451,9 @@ class _ConversationTile extends StatelessWidget {
                                     color: conversation.unreadCount > 0
                                         ? palette.textPrimary
                                         : palette.textSecondary,
-                                    fontWeight: conversation.unreadCount > 0
+                                    fontWeight:
+                                        trimmedDraft?.isNotEmpty == true ||
+                                            conversation.unreadCount > 0
                                         ? FontWeight.w500
                                         : FontWeight.w400,
                                   ),

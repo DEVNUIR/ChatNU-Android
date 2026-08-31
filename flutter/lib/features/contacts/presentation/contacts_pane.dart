@@ -55,8 +55,8 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
                 ),
                 subtitle: Text(
                   strings.isPersian
-                      ? 'مخاطبان ذخیره‌شده روی این حساب و جستجوی امن سرور'
-                      : 'Saved on this account + secure server directory',
+                      ? 'افراد را در ChatNU پیدا کنید و مخاطبان پرکاربرد را نگه دارید'
+                      : 'Find people on ChatNU and keep the contacts you use most.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 actions: <Widget>[
@@ -97,25 +97,23 @@ class _ContactsPaneState extends ConsumerState<ContactsPane> {
                       child: Text(
                         searching
                             ? (strings.isPersian
-                                  ? 'نتایج دایرکتوری سرور'
-                                  : 'Server directory results')
-                            : (strings.isPersian
-                                  ? 'مخاطبان ذخیره‌شده روی این دستگاه'
-                                  : 'Saved contacts on this device'),
+                                  ? 'نتایج جستجو'
+                                  : 'Search results')
+                            : strings.contacts,
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (state.error != null)
+              if (state.contactSearchError != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: ChatNuSpacing.lg,
                     vertical: ChatNuSpacing.xs,
                   ),
                   child: Text(
-                    state.error!,
+                    state.contactSearchError!,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: palette.destructive,
                     ),
@@ -218,8 +216,8 @@ class _ContactsEmptyState extends StatelessWidget {
             Text(
               saved
                   ? (strings.isPersian
-                        ? 'هنوز مخاطبی ذخیره نشده. حداقل دو حرف جستجو کنید و یک کاربر را ذخیره کنید.'
-                        : 'No saved contacts yet. Search at least two characters and save a user.')
+                        ? 'هنوز مخاطبی ندارید. کسی را جستجو کنید و برای دسترسی سریع اینجا ذخیره کنید.'
+                        : 'No contacts yet. Search for someone and save them here for quick access.')
                   : strings.noUsersFound,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,

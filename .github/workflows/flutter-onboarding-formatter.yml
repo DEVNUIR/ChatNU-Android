@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - refactor/flutter-liquid-glass-2026
-      - chatgpt/phase-5-accessibility-desktop-polish
     paths:
       - ".github/workflows/flutter-onboarding-formatter.yml"
 
@@ -21,7 +20,7 @@ jobs:
           flutter-version: "3.44.0"
           channel: stable
           cache: true
-      - name: Format Flutter sources
+      - name: Format onboarding sources
         run: |
           cd flutter
           dart format lib test
@@ -31,6 +30,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add flutter/lib flutter/test
           if ! git diff --cached --quiet; then
-            git commit -m "style(flutter): canonicalize phase5 sources"
+            git commit -m "style(flutter): format onboarding journey"
             git push
           fi

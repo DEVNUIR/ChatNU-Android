@@ -223,6 +223,39 @@ class MessageDto {
   );
 }
 
+class SyncEventDto {
+  const SyncEventDto({required this.type, this.message});
+
+  final String type;
+  final MessageDto? message;
+
+  factory SyncEventDto.fromJson(Map<String, dynamic> json) => SyncEventDto(
+    type: _string(json, 'type'),
+    message: json['message'] is Map
+        ? MessageDto.fromJson(_map(json['message']))
+        : null,
+  );
+}
+
+class SyncResponse {
+  const SyncResponse({required this.events, required this.nextCursor});
+
+  final List<SyncEventDto> events;
+  final String nextCursor;
+
+  factory SyncResponse.fromJson(Map<String, dynamic> json) => SyncResponse(
+    events: _list(json['events'])
+        .whereType<Map>()
+        .map(
+          (item) => SyncEventDto.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        )
+        .toList(growable: false),
+    nextCursor: _string(json, 'nextCursor'),
+  );
+}
+
 class AttachmentDto {
   const AttachmentDto({
     required this.id,

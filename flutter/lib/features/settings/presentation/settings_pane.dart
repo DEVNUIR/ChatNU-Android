@@ -47,11 +47,13 @@ class SettingsPane extends ConsumerWidget {
             children: <Widget>[
               GlassAppBar(
                 title: Text(
-                  strings.profile,
+                  strings.settings,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 subtitle: Text(
-                  endpoint.hostLabel,
+                  strings.isPersian
+                      ? 'حساب، حریم خصوصی و تنظیمات برنامه'
+                      : 'Account, privacy and app preferences',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall,
@@ -95,26 +97,10 @@ class SettingsPane extends ConsumerWidget {
                         ? 'حساب‌ها و سرورها'
                         : 'Accounts & servers',
                     subtitle: strings.isPersian
-                        ? 'تغییر امن سرور فعال؛ تغییر سرور باعث خروج از حساب می‌شود'
-                        : 'Safely switch the active server; switching signs this account out',
+                        ? 'سرور فعال ChatNU و ورود به حساب را مدیریت کنید'
+                        : 'Manage your active ChatNU server and sign-in',
                     onTap: () => unawaited(
                       showServerManagerSheet(context, endpoint: endpoint),
-                    ),
-                  ),
-                  _SettingsTile(
-                    icon: _connectionIcon(state.realtimeStatus),
-                    title: _connectionLabel(strings, state.realtimeStatus),
-                    subtitle: endpoint.hostLabel,
-                    trailing: IconButton(
-                      tooltip: strings.refresh,
-                      onPressed: isDemo
-                          ? null
-                          : () => unawaited(
-                              ref
-                                  .read(messengerDemoProvider.notifier)
-                                  .refreshConversations(),
-                            ),
-                      icon: const Icon(Icons.refresh_rounded),
                     ),
                   ),
                 ],
@@ -139,15 +125,15 @@ class SettingsPane extends ConsumerWidget {
                         ? 'رسانه و فایل‌ها'
                         : 'Media & files',
                     subtitle: strings.isPersian
-                        ? 'تصویر، ویدیو نوت، پیام صوتی، موسیقی، موقعیت و فایل؛ رمزگذاری قبل از آپلود'
-                        : 'Images, video notes, voice notes, music, location and files; encrypted before upload',
+                        ? 'تصویر، ویدیو، صدا، موقعیت و فایل؛ رمزگذاری پیش از ارسال'
+                        : 'Images, video, audio, location and files; encrypted before sending',
                   ),
                   _SettingsTile(
                     icon: Icons.video_call_outlined,
                     title: strings.isPersian ? 'تماس‌ها' : 'Calls',
                     subtitle: strings.isPersian
-                        ? 'تماس امن یک‌به‌یک با بلندگو و تعویض دوربین؛ جلسه گروهی نیازمند پروتکل/SFU سرور است'
-                        : 'Secure 1:1 calls with speaker and camera switching; meetings require server SFU/protocol support',
+                        ? 'تماس صوتی و تصویری امن یک‌به‌یک'
+                        : 'Secure 1:1 voice and video calls',
                   ),
                 ],
               ),
@@ -187,7 +173,9 @@ class SettingsPane extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          strings.glassQuality,
+                          strings.isPersian
+                              ? 'جلوه‌های بصری'
+                              : 'Visual effects',
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
                         const SizedBox(height: ChatNuSpacing.xs),
@@ -243,10 +231,12 @@ class SettingsPane extends ConsumerWidget {
                   _SettingsTile(
                     icon: Icons.lock_outline_rounded,
                     iconColor: palette.success,
-                    title: 'ChatNU Device Envelope v2',
+                    title: strings.isPersian
+                        ? 'رمزگذاری سرتاسری'
+                        : 'End-to-end encryption',
                     subtitle: strings.isPersian
-                        ? 'محتوای پیام روی دستگاه رمز می‌شود؛ این Signal Protocol نیست.'
-                        : 'Message content is encrypted on-device; this is not Signal Protocol.',
+                        ? 'محتوای پیام روی دستگاه‌های شما رمزگذاری و رمزگشایی می‌شود.'
+                        : 'Message content is encrypted and decrypted on your devices.',
                   ),
                   _SettingsTile(
                     icon: Icons.attach_file_rounded,
@@ -254,20 +244,35 @@ class SettingsPane extends ConsumerWidget {
                         ? 'پیوست‌های رمزگذاری‌شده'
                         : 'Encrypted attachments',
                     subtitle: strings.isPersian
-                        ? 'فایل قبل از آپلود رمز می‌شود و کلید آن داخل پیام رمزگذاری‌شده است.'
-                        : 'Files are encrypted before upload; decryption material stays inside the encrypted message.',
+                        ? 'فایل‌ها پیش از آپلود رمزگذاری می‌شوند.'
+                        : 'Files are encrypted before upload.',
                   ),
-                  if (endpoint.usesEmergencyTls)
-                    _SettingsTile(
-                      icon: Icons.security_outlined,
-                      iconColor: palette.warning,
-                      title: strings.isPersian
-                          ? 'CA اضطراری ثبت شده'
-                          : 'Emergency CA enrollment saved',
-                      subtitle: strings.isPersian
-                          ? 'Flutter تا رسیدن pin verification به برابری Android این transport را رد می‌کند.'
-                          : 'Flutter refuses this transport until native CA-pin verification reaches Android parity.',
+                ],
+              ),
+              const SizedBox(height: ChatNuSpacing.sm),
+              _SettingsSection(
+                title: strings.isPersian ? 'پیشرفته' : 'Advanced',
+                children: <Widget>[
+                  _SettingsTile(
+                    key: const Key('settings-advanced'),
+                    icon: Icons.tune_rounded,
+                    title: strings.isPersian
+                        ? 'جزئیات فنی'
+                        : 'Technical details',
+                    subtitle: strings.isPersian
+                        ? 'اتصال، پروتکل رمزگذاری و معماری تماس'
+                        : 'Connection, encryption protocol and call architecture',
+                    onTap: () => unawaited(
+                      _showAdvancedSettingsSheet(
+                        context,
+                        ref,
+                        state: state,
+                        endpointLabel: endpoint.hostLabel,
+                        emergencyTls: endpoint.usesEmergencyTls,
+                        isDemo: isDemo,
+                      ),
                     ),
+                  ),
                 ],
               ),
               const SizedBox(height: ChatNuSpacing.sm),
@@ -334,6 +339,94 @@ class SettingsPane extends ConsumerWidget {
     RealtimeConnectionStatus.connecting => strings.realtimeConnecting,
     RealtimeConnectionStatus.disconnected => strings.realtimeDisconnected,
   };
+}
+
+Future<void> _showAdvancedSettingsSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required MessengerDemoState state,
+  required String endpointLabel,
+  required bool emergencyTls,
+  required bool isDemo,
+}) async {
+  final strings = ChatNuStrings.of(context);
+  final palette = context.chatNu;
+  await showModalBottomSheet<void>(
+    context: context,
+    useSafeArea: true,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => GlassSheet(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    strings.isPersian ? 'جزئیات فنی' : 'Technical details',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                IconButton(
+                  tooltip: strings.cancel,
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: ChatNuSpacing.xs),
+            _SettingsTile(
+              icon: SettingsPane._connectionIcon(state.realtimeStatus),
+              title: SettingsPane._connectionLabel(
+                strings,
+                state.realtimeStatus,
+              ),
+              subtitle: endpointLabel,
+              trailing: IconButton(
+                tooltip: strings.refresh,
+                onPressed: isDemo
+                    ? null
+                    : () => unawaited(
+                        ref
+                            .read(messengerDemoProvider.notifier)
+                            .refreshConversations(),
+                      ),
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ),
+            _SettingsTile(
+              icon: Icons.key_rounded,
+              title: 'ChatNU Device Envelope v2',
+              subtitle: strings.isPersian
+                  ? 'پروتکل فعلی ChatNU است و Signal Protocol نیست.'
+                  : 'This is ChatNU’s current device-envelope protocol, not Signal Protocol.',
+            ),
+            _SettingsTile(
+              icon: Icons.hub_outlined,
+              title: strings.isPersian ? 'معماری تماس' : 'Call architecture',
+              subtitle: strings.isPersian
+                  ? 'سیگنالینگ فعلی یک‌به‌یک است؛ تماس گروهی به پشتیبانی چندنفره/SFU در سرور نیاز دارد.'
+                  : 'Current signaling is 1:1; group meetings require explicit multiparty/SFU server support.',
+            ),
+            if (emergencyTls)
+              _SettingsTile(
+                icon: Icons.security_outlined,
+                iconColor: palette.warning,
+                title: strings.isPersian
+                    ? 'سازگاری TLS اضطراری'
+                    : 'Emergency TLS compatibility',
+                subtitle: strings.isPersian
+                    ? 'ثبت CA ذخیره است، اما Flutter تا برابری بررسی pin بومی با Android این انتقال را رد می‌کند.'
+                    : 'Saved CA enrollment remains blocked until native CA-pin verification reaches Android parity.',
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _ProfileHero extends StatelessWidget {
@@ -494,6 +587,7 @@ class _SettingsTile extends StatelessWidget {
     this.iconColor,
     this.onTap,
     this.trailing,
+    super.key,
   });
 
   final IconData icon;

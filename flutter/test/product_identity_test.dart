@@ -37,13 +37,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('گفت‌وگوها'), findsOneWidget);
+    expect(find.text('گفت‌وگوها'), findsWidgets);
     expect(find.byKey(const Key('conversation-list')), findsOneWidget);
-    expect(find.byKey(const Key('new-chat-bottom-button')), findsOneWidget);
+    expect(find.byKey(const Key('phone-nav-chats')), findsOneWidget);
+    expect(find.byKey(const Key('new-chat-fab')), findsOneWidget);
     expect(find.text('Nova 2'), findsNothing);
     expect(find.text('Models'), findsNothing);
 
-    final context = tester.element(find.text('گفت‌وگوها'));
+    final context = tester.element(find.byKey(const Key('phone-nav-chats')));
     expect(Directionality.of(context), TextDirection.rtl);
     expect(tester.takeException(), isNull);
   });

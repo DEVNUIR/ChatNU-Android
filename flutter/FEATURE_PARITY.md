@@ -27,21 +27,31 @@ Legend:
 | Profile edit | Integrated in this branch | authenticated `PATCH /me`, `POST /me/avatar`, `DELETE /me/avatar` + persisted session user | Settings edits display name/bio and uploads/removes the real avatar; username stays read-only because E2EE identity namespacing currently depends on it |
 | Text messaging | Integrated | encrypted payload send + stable `clientId` | Reference-style bubbles with delivery/failure states |
 | Realtime messages | Integrated | authenticated WebSocket + reconciliation/deduplication | Connection state only when attention is needed |
+| Consecutive message grouping | UI refactor | chronological decrypted message list + local presentation policy | Same-sender messages group only within the same local day and configurable gap (5 minutes by default); system messages break groups; repeated incoming group-chat sender/avatar chrome collapses |
+| In-chat message search | Local capability | currently loaded decrypted messages in client memory | Search body/sender/file-name text locally with highlighting and result navigation; no plaintext query is sent to the server, and older history must be paginated before it can be searched |
+| Smart message following / new-message-below | UI refactor | reverse message viewport + realtime message state | Follow newest messages when already near the bottom or after an own send; otherwise preserve reading position and show a local separator/count plus jump-to-latest control without changing server read semantics |
 | Conversation read state | Integrated | optimistic local clear + server rollback | Preserve existing semantics |
 | Conversation pin/mute | Integrated | optimistic mutation + rollback | Long-press/right-click sheet contains only supported operations |
-| Contact/user search | Integrated | server-backed username/display-name search | Real directory search; no fabricated server-side address book |
+| Contact/user search | Integrated | server-backed username/display-name search | Real ChatNU user search; no fabricated server-side address book |
 | Saved contacts | Partial/local | per-account + per-server secure local contact book | Search results can be saved/removed as contacts without pretending the server has a synchronized contacts resource |
 | Direct conversation creation | Integrated | `openDirect` | Real server-backed result opens immediately |
 | Group creation | Integrated | `createGroup` | Member selection then group details |
 | Recent people strip | UI refactor | recent direct conversations | Real conversation peers; not a fabricated Stories feature |
-| Message attachments | Integrated | encrypt bytes before upload; decrypt after download | File transport remains opaque encrypted bytes |
-| Image messages | Integrated transport + playback | server `MessageType.IMAGE`; encrypted attachment path; in-memory decrypted preview | System image selection and inline encrypted-image preview are wired; dedicated in-app camera/photo editor remains separate work |
-| Video messages | Integrated transport + playback | server `MessageType.VIDEO`; encrypted attachment path + `video_player` | Video files play inside the chat after local decryption |
-| Video notes | Integrated in this branch | front-camera capture up to 60 seconds, encrypted `VIDEO` attachment with private `videoNote` metadata | Capture and circular in-chat playback are real; no group/video-story semantics are implied |
-| Voice messages | Integrated in this branch | `voice_note_kit` recorder/player + encrypted `VOICE` attachment path | Voice notes record in-app, encrypt before upload, and play inside the conversation |
-| Audio/music attachments | Integrated in this branch | encrypted attachment + internal audio player | Selected audio/music files are files with internal playback, distinct from recorded voice notes |
+| Primary navigation | UI refactor | `MessengerShell` + existing `MessengerDestination` state | Phone exposes Chats, Contacts and Settings directly; wide layouts preserve the existing navigation rail. No unsupported Calls-history destination is invented. |
+| New conversation entry point | UI refactor | existing `showNewChatSheet` flow | One dominant New Chat action per layout: a phone FAB outside conversations and one conversation-list header action on wide layouts; contextual empty-state/group actions remain supported. |
+| Contacts information architecture | UI refactor | `ContactsPane` + local `ContactBookController` + server user search | Saved local contacts and real ChatNU user search share one consumer-facing Contacts experience without claiming a server-synchronized address book. |
+| Settings information architecture | UI refactor | `SettingsPane` + existing appearance/session/server controllers | Primary settings use consumer language for calls, visual effects, E2EE and attachments; protocol, SFU and emergency-TLS implementation details live behind Advanced. |
+| Message attachments | Integrated | encrypt bytes before upload; decrypt after download | Attachment sheet exposes only real transport paths; Gallery, Camera, Video, Audio, File, and static Location use the existing encrypted message pipeline |
+| Image messages | Integrated transport + playback | server `MessageType.IMAGE`; encrypted attachment path; in-memory decrypted preview | Natural-ratio inline presentation after decryption plus a zoomable in-app viewer; encrypted images are not cropped into a fake fixed thumbnail |
+| Video messages | Integrated transport + playback | server `MessageType.VIDEO`; encrypted attachment path + `video_player` | Before decryption the UI uses an honest video poster rather than fabricating a thumbnail; after decryption the real first frame/player, duration, scrubbing, and progress are available |
+| Video notes | Integrated in this branch | front-camera capture up to 60 seconds, encrypted `VIDEO` attachment with private `videoNote` + `durationMs` metadata | Hold-to-record can lock, pause/continue, cancel, and send; circular preview/playback remains local to the client and encrypted media transport is unchanged |
+| Voice messages | Integrated in this branch | `record` capture + `voice_note_kit` playback + encrypted `VOICE` attachment path | Hold-to-record supports directional cancel, slide-up lock, live amplitude waveform, timer, pause/continue, cancel, send, playback speed, waveform playback, and device-local listened feedback |
+| Audio/music attachments | Integrated in this branch | encrypted attachment + internal audio player | Selected audio/music files are files with internal playback and speed controls, distinct from recorded voice notes |
+| File attachments | Integrated in this branch | encrypted attachment download + temporary decrypted file + native open/save handoff | Cards show type/name/size, indeterminate decrypt progress, Open in the OS, and Save; temporary decrypted files are cleaned up with the media widget lifecycle |
+| Recording state machine | Integrated in this branch | `ChatNuRecordingSession` + existing `record`/`camera` capture paths | Explicit idle → arming → holding → locked/paused → finishing states replace boolean-heavy recorder UI; cancel and lock gestures are mutually exclusive and RTL-aware |
 | Static location messages | Integrated in this branch | encrypted location payload + `MessageType.LOCATION` + `flutter_map` renderer | Current coordinates are permission-gated, encrypted in message content, and rendered as a non-interactive OSM-backed map card with attribution |
-| Live location | Partial foundation only | server `MessageType.LIVE_LOCATION` and Kotlin session model exist, but no audited production update/revoke stream yet | Must define expiry/revoke and encrypted realtime-update semantics before live sharing UI |
+| Live location | Partial/local in this branch | repeated device-E2EE `MessageType.LIVE_LOCATION` messages driven by `LiveLocationController`; no dedicated server session/update/revoke resource | User can share for up to 15 minutes while ChatNU remains foregrounded; the client sends a fresh encrypted coordinate about every 30 seconds and stops on app background, explicit stop, or local expiry. No background sharing, cross-device stop, participant session, or server-authoritative countdown is claimed |
+| Contact message attachment | Not exposed | no audited encrypted contact-message payload in current server contract | Attachment sheet shows Contact disabled rather than serializing address-book data into an invented message format |
 | View-once media | Partial foundation only | server enum contains `VIEW_ONCE_IMAGE` / `VIEW_ONCE_VIDEO` | Needs one-view enforcement semantics before UI |
 | Message copy | Local capability | clipboard only | Context action exposed |
 | Failed text retry | Integrated | stable client ID | Context action exposed |
@@ -52,8 +62,9 @@ Legend:
 | Reactions | Not exposed | No audited reaction model/API | Do not fake |
 | Typing indicator | Not exposed | No production typing event surfaced to Flutter view state | Do not simulate |
 | Presence / Online | Not exposed | `lastSeenAt` exists but no audited presence contract | Header says encrypted rather than fabricating online state |
-| One-to-one audio calls | Integrated | WebRTC + realtime call signaling | Modern direct-call action + active-call overlay |
-| One-to-one video calls | Integrated | WebRTC + realtime call signaling | Modern video action + active-call overlay |
+| One-to-one audio calls | Integrated in this branch | WebRTC + realtime call signaling + `CallController` connection policy | Direct calls expose preparing, ringing, connecting, connected, reconnecting, and failure states; unanswered ringing is bounded to 45 seconds and transient disconnects receive an 8-second reconnect grace period |
+| One-to-one video calls | Integrated in this branch | WebRTC + realtime call signaling + `CallController` connection policy | Same resilient state model as voice calls while preserving real remote/local video, camera controls, and existing signaling |
+| Call permission / transport errors | Integrated in this branch | media-device/WebRTC exceptions mapped at the call application layer | Consumer UI receives friendly microphone/camera/network guidance instead of raw WebRTC, ICE, or WebSocket exception strings |
 | Mute / camera toggle | Integrated | `CallController` | Expose exactly supported controls |
 | Speaker route | Integrated in this branch | `flutter_webrtc` `Helper.setSpeakerphoneOn` | Active-call overlay exposes speaker on/off and resets routing on teardown |
 | Switch camera | Integrated in this branch | `flutter_webrtc` `Helper.switchCamera` | Video calls expose front/rear camera switching without changing signaling |
@@ -88,8 +99,12 @@ payload format rather than introducing a second plaintext media path.
 
 Location coordinates, voice/media metadata, media dimensions, thumbnail references, and
 similar content-sensitive metadata should remain inside the encrypted message payload
-wherever routing does not require them. Decrypted media created for playback is written
-only to app temporary storage and is deleted when the media widget is disposed.
+wherever routing does not require them. Phase 2 keeps recorded and picked-video duration
+inside encrypted private metadata. Because the current encrypted attachment payload does
+not carry a separately routable thumbnail, the client does not invent or upload a
+plaintext video thumbnail: it shows a neutral poster before decryption and the real first
+frame/player only after local decryption. Decrypted media created for playback/opening is
+written only to app temporary storage and is deleted when the media widget is disposed.
 
 ## QR / internal-link boundary
 
@@ -106,6 +121,13 @@ OpenStreetMap endpoint with attribution and a ChatNU user-agent. This is suitabl
 functional validation and light use; a production-scale deployment should use an
 OSM-compatible tile service or self-hosted tile infrastructure rather than treating the
 community tile endpoint as an unlimited application CDN.
+
+Phase 3 Live Location is deliberately not modeled as a durable server-side location
+session because the audited backend exposes the `LIVE_LOCATION` message type but no
+separate update/revoke/session resource. The foreground controller therefore emits a
+series of ordinary device-E2EE live-location messages on a local 15-minute timer. It stops
+when the app leaves the foreground and makes no promise that another device can revoke,
+resume, or share a synchronized expiry countdown for that local session.
 
 ## Performance boundary
 

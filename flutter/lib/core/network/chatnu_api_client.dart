@@ -261,6 +261,15 @@ class ChatNuApiClient {
     ).map((item) => MessageDto.fromJson(_map(item))).toList(growable: false);
   }
 
+  Future<SyncResponse> sync({String? cursor, int limit = 500}) async {
+    return SyncResponse.fromJson(
+      await _getJson(
+        'sync',
+        queryParameters: <String, dynamic>{'cursor': ?cursor, 'limit': limit},
+      ),
+    );
+  }
+
   Future<MessageDto> sendMessage({
     required String conversationId,
     required String clientId,

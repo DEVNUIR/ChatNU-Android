@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:chatnu/core/di/app_providers.dart';
 import 'package:chatnu/core/network/api_models.dart';
 import 'package:chatnu/features/auth/application/session_controller.dart';
+import 'package:chatnu/features/calls/application/call_connection_policy.dart';
 import 'package:chatnu/features/conversations/domain/conversation.dart';
 import 'package:chatnu/features/home/data/messenger_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,9 +13,11 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 enum ChatNuCallStatus {
   idle,
   outgoing,
+  ringing,
   incoming,
   connecting,
   connected,
+  reconnecting,
   ended,
   failed,
 }
@@ -64,6 +67,7 @@ class ChatNuCallState {
     MediaStream? localStream,
     MediaStream? remoteStream,
     String? error,
+    bool clearError = false,
   }) {
     return ChatNuCallState(
       status: status ?? this.status,
@@ -77,7 +81,7 @@ class ChatNuCallState {
       speakerOn: speakerOn ?? this.speakerOn,
       localStream: localStream ?? this.localStream,
       remoteStream: remoteStream ?? this.remoteStream,
-      error: error ?? this.error,
+      error: clearError ? null : error ?? this.error,
     );
   }
 }
@@ -89,6 +93,8 @@ class CallController extends Notifier<ChatNuCallState> {
   MediaStream? _localStream;
   MediaStream? _remoteStream;
   Map<String, dynamic>? _pendingOffer;
+  Timer? _disconnectGraceTimer;
+  Timer? _ringingTimer;
   bool _attached = false;
 
   @override
@@ -102,6 +108,8 @@ class CallController extends Notifier<ChatNuCallState> {
       Future<void>.microtask(_attachRealtime);
     }
     ref.onDispose(() {
+      _disconnectGraceTimer?.cancel();
+      _ringingTimer?.cancel();
       unawaited(_events?.cancel());
       unawaited(_disposePeer());
     });
@@ -159,6 +167,11 @@ class CallController extends Notifier<ChatNuCallState> {
         'video': video,
       });
       if (!sent) throw StateError('Realtime connection is not available.');
+      state = state.copyWith(
+        status: ChatNuCallStatus.ringing,
+        clearError: true,
+      );
+      _startRingingTimeout();
     } catch (error) {
       await _fail(error);
     }
@@ -168,7 +181,10 @@ class CallController extends Notifier<ChatNuCallState> {
     final offer = _pendingOffer;
     if (offer == null || state.status != ChatNuCallStatus.incoming) return;
     try {
-      state = state.copyWith(status: ChatNuCallStatus.connecting);
+      state = state.copyWith(
+        status: ChatNuCallStatus.connecting,
+        clearError: true,
+      );
       await _preparePeer(video: state.video);
       await _peer!.setRemoteDescription(
         RTCSessionDescription(offer['sdp']?.toString(), 'offer'),
@@ -218,7 +234,7 @@ class CallController extends Notifier<ChatNuCallState> {
         in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
       track.enabled = !next;
     }
-    state = state.copyWith(muted: next);
+    state = state.copyWith(muted: next, clearError: true);
   }
 
   void toggleCamera() {
@@ -228,16 +244,16 @@ class CallController extends Notifier<ChatNuCallState> {
         in _localStream?.getVideoTracks() ?? <MediaStreamTrack>[]) {
       track.enabled = next;
     }
-    state = state.copyWith(cameraEnabled: next);
+    state = state.copyWith(cameraEnabled: next, clearError: true);
   }
 
   Future<void> toggleSpeaker() async {
     final next = !state.speakerOn;
     try {
       await Helper.setSpeakerphoneOn(next);
-      state = state.copyWith(speakerOn: next);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(speakerOn: next, clearError: true);
+    } catch (_) {
+      state = state.copyWith(error: 'Couldn’t change speaker output.');
     }
   }
 
@@ -247,8 +263,9 @@ class CallController extends Notifier<ChatNuCallState> {
     if (tracks.isEmpty) return;
     try {
       await Helper.switchCamera(tracks.first, null, _localStream);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
+      state = state.copyWith(clearError: true);
+    } catch (_) {
+      state = state.copyWith(error: 'Couldn’t switch cameras.');
     }
   }
 
@@ -288,17 +305,7 @@ class CallController extends Notifier<ChatNuCallState> {
       _remoteStream = event.streams.first;
       state = state.copyWith(remoteStream: _remoteStream);
     };
-    peer.onConnectionState = (connectionState) {
-      if (connectionState ==
-          RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-        state = state.copyWith(status: ChatNuCallStatus.connected);
-      } else if (connectionState ==
-              RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-          connectionState ==
-              RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
-        state = state.copyWith(status: ChatNuCallStatus.failed);
-      }
-    };
+    peer.onConnectionState = _handlePeerConnectionState;
 
     final stream = await navigator.mediaDevices.getUserMedia(<String, dynamic>{
       'audio': true,
@@ -309,6 +316,59 @@ class CallController extends Notifier<ChatNuCallState> {
       await peer.addTrack(track, stream);
     }
     state = state.copyWith(localStream: stream);
+  }
+
+  void _handlePeerConnectionState(RTCPeerConnectionState connectionState) {
+    if (connectionState ==
+        RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+      _disconnectGraceTimer?.cancel();
+      _disconnectGraceTimer = null;
+      _ringingTimer?.cancel();
+      _ringingTimer = null;
+      state = state.copyWith(
+        status: ChatNuCallStatus.connected,
+        clearError: true,
+      );
+      return;
+    }
+
+    if (connectionState ==
+        RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+      if (state.status == ChatNuCallStatus.connected ||
+          state.status == ChatNuCallStatus.connecting ||
+          state.status == ChatNuCallStatus.reconnecting) {
+        state = state.copyWith(
+          status: ChatNuCallStatus.reconnecting,
+          clearError: true,
+        );
+        _startDisconnectGrace();
+      }
+      return;
+    }
+
+    if (connectionState ==
+        RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+      unawaited(_fail(StateError('Call connection failed.')));
+    }
+  }
+
+  void _startDisconnectGrace() {
+    _disconnectGraceTimer?.cancel();
+    _disconnectGraceTimer = Timer(
+      ChatNuCallConnectionPolicy.disconnectGrace,
+      () {
+        if (state.status != ChatNuCallStatus.reconnecting) return;
+        unawaited(_failFriendly('Call connection was lost.'));
+      },
+    );
+  }
+
+  void _startRingingTimeout() {
+    _ringingTimer?.cancel();
+    _ringingTimer = Timer(ChatNuCallConnectionPolicy.ringingTimeout, () {
+      if (state.status != ChatNuCallStatus.ringing) return;
+      unawaited(_failFriendly('No answer.'));
+    });
   }
 
   void _handleSignal(Map<String, dynamic> event) {
@@ -333,8 +393,13 @@ class CallController extends Notifier<ChatNuCallState> {
   Future<void> _applyAnswer(Map<String, dynamic> event) async {
     final sdp = event['sdp']?.toString();
     if (sdp == null || _peer == null) return;
+    _ringingTimer?.cancel();
+    _ringingTimer = null;
     await _peer!.setRemoteDescription(RTCSessionDescription(sdp, 'answer'));
-    state = state.copyWith(status: ChatNuCallStatus.connecting);
+    state = state.copyWith(
+      status: ChatNuCallStatus.connecting,
+      clearError: true,
+    );
   }
 
   Future<void> _applyIce(Map<String, dynamic> event) async {
@@ -387,15 +452,22 @@ class CallController extends Notifier<ChatNuCallState> {
   }
 
   Future<void> _fail(Object error) async {
+    await _failFriendly(
+      ChatNuCallConnectionPolicy.friendlyError(error, video: state.video),
+    );
+  }
+
+  Future<void> _failFriendly(String message) async {
+    final previous = state;
     await _disposePeer();
     state = ChatNuCallState(
       status: ChatNuCallStatus.failed,
-      callId: state.callId,
-      conversationId: state.conversationId,
-      peerUserId: state.peerUserId,
-      peerName: state.peerName,
-      video: state.video,
-      error: error.toString(),
+      callId: previous.callId,
+      conversationId: previous.conversationId,
+      peerUserId: previous.peerUserId,
+      peerName: previous.peerName,
+      video: previous.video,
+      error: message,
     );
   }
 
@@ -408,6 +480,10 @@ class CallController extends Notifier<ChatNuCallState> {
   }
 
   Future<void> _disposePeer() async {
+    _disconnectGraceTimer?.cancel();
+    _disconnectGraceTimer = null;
+    _ringingTimer?.cancel();
+    _ringingTimer = null;
     try {
       await Helper.setSpeakerphoneOn(false);
       await Helper.clearAndroidCommunicationDevice();

@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:voice_note_kit/voice_note_kit.dart';
@@ -552,36 +553,99 @@ class _EncryptedAudioMessage extends ConsumerStatefulWidget {
 
 class _EncryptedAudioMessageState
     extends _EncryptedMediaState<_EncryptedAudioMessage> {
+  bool _listened = false;
+
   @override
   Widget build(BuildContext context) {
+    final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
     final foreground = widget.mine ? Colors.black : palette.textPrimary;
+    final secondary = widget.mine
+        ? Colors.black.withValues(alpha: 0.58)
+        : palette.textMuted;
     if (tempFile != null) {
       return Container(
         width: 292,
-        padding: const EdgeInsetsDirectional.fromSTEB(2, 2, 2, 1),
+        padding: const EdgeInsetsDirectional.fromSTEB(8, 7, 8, 5),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(ChatNuRadii.md),
           color: widget.mine
               ? Colors.black.withValues(alpha: 0.035)
               : palette.backgroundElevated.withValues(alpha: 0.42),
         ),
-        child: AudioPlayerWidget(
-          autoLoad: true,
-          autoPlay: false,
-          audioPath: tempFile!.path,
-          audioType: AudioType.directFile,
-          playerStyle: PlayerStyle.style2,
-          shapeType: PlayIconShapeType.circular,
-          textDirection: Directionality.of(context),
-          width: 288,
-          size: 42,
-          showProgressBar: true,
-          showTimer: true,
-          backgroundColor: Colors.transparent,
-          progressBarColor: foreground,
-          progressBarBackgroundColor: foreground.withValues(alpha: 0.18),
-          iconColor: foreground,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  widget.message.type == ChatNuMessageType.voice
+                      ? Icons.mic_rounded
+                      : Icons.audio_file_outlined,
+                  size: 15,
+                  color: secondary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    widget.message.type == ChatNuMessageType.voice
+                        ? (strings.isPersian ? 'پیام صوتی' : 'Voice message')
+                        : (widget.message.fileName ??
+                              (strings.isPersian ? 'صدا' : 'Audio')),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: secondary),
+                  ),
+                ),
+                AnimatedSwitcher(
+                  duration: ChatNuMotion.micro,
+                  child: _listened
+                      ? Row(
+                          key: const ValueKey<String>('listened'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(
+                              Icons.check_circle_outline_rounded,
+                              size: 14,
+                              color: secondary,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              strings.isPersian ? 'شنیده شد' : 'Listened',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: secondary),
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+            AudioPlayerWidget(
+              autoLoad: true,
+              autoPlay: false,
+              audioPath: tempFile!.path,
+              audioType: AudioType.directFile,
+              playerStyle: PlayerStyle.style2,
+              shapeType: PlayIconShapeType.circular,
+              textDirection: Directionality.of(context),
+              width: 276,
+              size: 42,
+              showProgressBar: true,
+              showTimer: true,
+              backgroundColor: Colors.transparent,
+              progressBarColor: foreground,
+              progressBarBackgroundColor: foreground.withValues(alpha: 0.18),
+              iconColor: foreground,
+              audioSpeeds: const <double>[1, 1.5, 2],
+              onPlay: (isPlaying) {
+                if (!isPlaying || _listened || !mounted) return;
+                setState(() => _listened = true);
+              },
+            ),
+          ],
         ),
       );
     }
@@ -592,12 +656,10 @@ class _EncryptedAudioMessageState
       error: error,
       icon: Icons.graphic_eq_rounded,
       label: widget.message.type == ChatNuMessageType.voice
-          ? (ChatNuStrings.of(context).isPersian
-                ? 'پخش پیام صوتی'
-                : 'Play voice message')
-          : (ChatNuStrings.of(context).isPersian ? 'پخش صدا' : 'Play audio'),
+          ? (strings.isPersian ? 'پخش پیام صوتی' : 'Play voice message')
+          : (strings.isPersian ? 'پخش صدا' : 'Play audio'),
       detail: widget.message.mediaDurationMs == null
-          ? null
+          ? _sizeLabel(widget.message.sizeBytes)
           : _durationLabel(
               Duration(milliseconds: widget.message.mediaDurationMs!),
             ),
@@ -626,15 +688,20 @@ class _EncryptedVideoMessageState
   Future<void> _load() async {
     final file = await decryptToTemp(widget.message);
     if (file == null || !mounted) return;
-    final controller = VideoPlayerController.file(file);
-    await controller.initialize();
-    if (!mounted) {
-      await controller.dispose();
-      return;
+    try {
+      final controller = VideoPlayerController.file(file);
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      controller.addListener(_onTick);
+      _controller = controller;
+      setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => error = 'Unable to play this video.');
     }
-    controller.addListener(_onTick);
-    _controller = controller;
-    setState(() {});
   }
 
   void _onTick() {
@@ -669,24 +736,11 @@ class _EncryptedVideoMessageState
           ? _videoNote(context, controller)
           : _regularVideo(context, controller);
     }
-    return _LoadMediaTile(
+    return _VideoPosterTile(
       message: widget.message,
       mine: widget.mine,
       loading: loading,
       error: error,
-      icon: widget.message.isVideoNote
-          ? Icons.video_camera_front_outlined
-          : Icons.play_circle_outline_rounded,
-      label: widget.message.isVideoNote
-          ? (ChatNuStrings.of(context).isPersian
-                ? 'پخش ویدیو نوت'
-                : 'Play video message')
-          : (ChatNuStrings.of(context).isPersian ? 'پخش ویدیو' : 'Play video'),
-      detail: widget.message.mediaDurationMs == null
-          ? null
-          : _durationLabel(
-              Duration(milliseconds: widget.message.mediaDurationMs!),
-            ),
       onPressed: widget.message.hasAttachment ? () => unawaited(_load()) : null,
     );
   }
@@ -743,10 +797,8 @@ class _EncryptedVideoMessageState
                   shape: BoxShape.circle,
                   color: Colors.black.withValues(alpha: 0.48),
                 ),
-                child: Icon(
-                  value.isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
+                child: const Icon(
+                  Icons.play_arrow_rounded,
                   color: Colors.white,
                   size: 31,
                 ),
@@ -754,25 +806,10 @@ class _EncryptedVideoMessageState
             ),
             Positioned(
               bottom: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.48),
-                  borderRadius: BorderRadius.circular(ChatNuRadii.pill),
-                ),
-                child: Text(
-                  _durationLabel(
-                    value.position > Duration.zero
-                        ? value.position
-                        : value.duration,
-                  ),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white,
-                    fontFeatures: const <FontFeature>[
-                      FontFeature.tabularFigures(),
-                    ],
-                  ),
-                ),
+              child: _MediaDurationPill(
+                duration: value.position > Duration.zero
+                    ? value.position
+                    : value.duration,
               ),
             ),
           ],
@@ -791,19 +828,26 @@ class _EncryptedVideoMessageState
       child: SizedBox(
         width: 292,
         child: AspectRatio(
-          aspectRatio: aspect,
+          aspectRatio: aspect.clamp(0.58, 1.9),
           child: ColoredBox(
             color: palette.backgroundPrimary,
             child: Stack(
               alignment: Alignment.center,
               children: <Widget>[
                 Positioned.fill(child: VideoPlayer(controller)),
-                IconButton.filledTonal(
-                  onPressed: _togglePlayback,
-                  icon: Icon(
-                    controller.value.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
+                AnimatedOpacity(
+                  opacity: controller.value.isPlaying ? 0 : 1,
+                  duration: ChatNuMotion.micro,
+                  child: IconButton.filledTonal(
+                    onPressed: _togglePlayback,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                  ),
+                ),
+                PositionedDirectional(
+                  top: 8,
+                  end: 8,
+                  child: _MediaDurationPill(
+                    duration: controller.value.duration,
                   ),
                 ),
                 Positioned(
@@ -824,6 +868,150 @@ class _EncryptedVideoMessageState
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VideoPosterTile extends StatelessWidget {
+  const _VideoPosterTile({
+    required this.message,
+    required this.mine,
+    required this.loading,
+    required this.error,
+    required this.onPressed,
+  });
+
+  final ChatNuMessage message;
+  final bool mine;
+  final bool loading;
+  final String? error;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.chatNu;
+    final foreground = mine ? Colors.black : palette.textPrimary;
+    final secondary = mine
+        ? Colors.black.withValues(alpha: 0.58)
+        : palette.textMuted;
+    final duration = message.mediaDurationMs == null
+        ? null
+        : Duration(milliseconds: message.mediaDurationMs!);
+    if (message.isVideoNote) {
+      return _LoadMediaTile(
+        message: message,
+        mine: mine,
+        loading: loading,
+        error: error,
+        icon: Icons.video_camera_front_outlined,
+        label: ChatNuStrings.of(context).isPersian
+            ? 'پخش ویدیو نوت'
+            : 'Play video message',
+        detail: duration == null ? null : _durationLabel(duration),
+        onPressed: onPressed,
+      );
+    }
+    return SizedBox(
+      width: 292,
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: loading ? null : onPressed,
+            borderRadius: BorderRadius.circular(ChatNuRadii.md),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(ChatNuRadii.md),
+                color: mine
+                    ? Colors.black.withValues(alpha: 0.07)
+                    : palette.backgroundElevated.withValues(alpha: 0.62),
+                border: Border.all(
+                  color: mine
+                      ? Colors.black.withValues(alpha: 0.09)
+                      : palette.borderSubtle,
+                ),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: <Widget>[
+                  Positioned.fill(
+                    child: Icon(
+                      Icons.movie_outlined,
+                      size: 72,
+                      color: foreground.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  if (loading)
+                    CircularProgressIndicator(strokeWidth: 2, color: foreground)
+                  else
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: foreground.withValues(alpha: 0.13),
+                      ),
+                      child: Icon(
+                        Icons.play_arrow_rounded,
+                        color: foreground,
+                        size: 31,
+                      ),
+                    ),
+                  PositionedDirectional(
+                    start: 10,
+                    end: 10,
+                    bottom: 9,
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            error ?? message.fileName ?? 'Video',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: error == null
+                                      ? secondary
+                                      : palette.destructive,
+                                ),
+                          ),
+                        ),
+                        if (duration != null)
+                          _MediaDurationPill(duration: duration),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaDurationPill extends StatelessWidget {
+  const _MediaDurationPill({required this.duration});
+
+  final Duration duration;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(ChatNuRadii.pill),
+      ),
+      child: Text(
+        _durationLabel(duration),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Colors.white,
+          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
         ),
       ),
     );
@@ -871,6 +1059,7 @@ class _EncryptedImageMessageState
   String? _error;
 
   Future<void> _load() async {
+    if (_loading) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -886,22 +1075,46 @@ class _EncryptedImageMessageState
     });
   }
 
+  void _openViewer() {
+    final bytes = _bytes;
+    if (bytes == null) return;
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
+        reverseTransitionDuration: const Duration(milliseconds: 140),
+        pageBuilder: (context, animation, secondaryAnimation) => _ImageViewer(
+          bytes: bytes,
+          title: widget.message.fileName ?? 'Image',
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bytes = _bytes;
     if (bytes != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(ChatNuRadii.md),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 292, maxHeight: 370),
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-            errorBuilder: (context, error, stackTrace) => const SizedBox(
-              width: 220,
-              height: 120,
-              child: Center(child: Icon(Icons.broken_image_outlined)),
+      return GestureDetector(
+        onTap: _openViewer,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(ChatNuRadii.md),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 292, maxHeight: 420),
+            child: Image.memory(
+              bytes,
+              width: 292,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              filterQuality: FilterQuality.medium,
+              errorBuilder: (context, error, stackTrace) => const SizedBox(
+                width: 220,
+                height: 120,
+                child: Center(child: Icon(Icons.broken_image_outlined)),
+              ),
             ),
           ),
         ),
@@ -914,47 +1127,126 @@ class _EncryptedImageMessageState
       error: _error,
       icon: Icons.image_outlined,
       label: ChatNuStrings.of(context).isPersian ? 'نمایش تصویر' : 'View image',
+      detail: _sizeLabel(widget.message.sizeBytes),
       onPressed: widget.message.hasAttachment ? () => unawaited(_load()) : null,
     );
   }
 }
 
-class _EncryptedFileMessage extends ConsumerWidget {
+class _ImageViewer extends StatelessWidget {
+  const _ImageViewer({required this.bytes, required this.title});
+
+  final Uint8List bytes;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = ChatNuStrings.of(context);
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          SafeArea(
+            child: InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 5,
+              boundaryMargin: const EdgeInsets.all(48),
+              child: Center(
+                child: Image.memory(
+                  bytes,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.all(ChatNuSpacing.sm),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: GlassSurface(
+                    variant: GlassVariant.strong,
+                    enableBlur: true,
+                    borderRadius: ChatNuRadii.xl,
+                    padding: const EdgeInsets.all(ChatNuSpacing.xs),
+                    child: Row(
+                      children: <Widget>[
+                        GlassIconButton(
+                          tooltip: MaterialLocalizations.of(
+                            context,
+                          ).backButtonTooltip,
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: Icons.arrow_back_ios_new_rounded,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(color: Colors.white),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 8),
+                          child: Text(
+                            strings.isPersian
+                                ? 'برای بزرگ‌نمایی حرکت دهید'
+                                : 'Pinch to zoom',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.white70),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EncryptedFileMessage extends ConsumerStatefulWidget {
   const _EncryptedFileMessage({required this.message, required this.mine});
 
   final ChatNuMessage message;
   final bool mine;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final strings = ChatNuStrings.of(context);
-    return _LoadMediaTile(
-      message: message,
-      mine: mine,
-      icon: Icons.insert_drive_file_outlined,
-      label: message.fileName ?? message.body,
-      detail: _sizeLabel(message.sizeBytes),
-      onPressed: message.hasAttachment
-          ? () => unawaited(_download(context, ref, strings))
-          : null,
-    );
+  ConsumerState<_EncryptedFileMessage> createState() =>
+      _EncryptedFileMessageState();
+}
+
+class _EncryptedFileMessageState
+    extends _EncryptedMediaState<_EncryptedFileMessage> {
+  Future<void> _open() async {
+    final file = await decryptToTemp(widget.message);
+    if (file == null || !mounted) return;
+    await OpenFile.open(file.path, type: widget.message.mimeType);
   }
 
-  Future<void> _download(
-    BuildContext context,
-    WidgetRef ref,
-    ChatNuStrings strings,
-  ) async {
-    final bytes = await ref
-        .read(messengerDemoProvider.notifier)
-        .downloadAttachment(message);
-    if (bytes == null || !context.mounted) return;
+  Future<void> _save() async {
+    File? file = tempFile;
+    file ??= await decryptToTemp(widget.message);
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    final strings = ChatNuStrings.of(context);
     final result = await FilePicker.saveFile(
       dialogTitle: strings.attachmentDownload,
-      fileName: message.fileName ?? 'attachment',
+      fileName: widget.message.fileName ?? 'attachment',
       bytes: bytes,
     );
-    if (!context.mounted) return;
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -963,6 +1255,130 @@ class _EncryptedFileMessage extends ConsumerWidget {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = ChatNuStrings.of(context);
+    final palette = context.chatNu;
+    final foreground = widget.mine ? Colors.black : palette.textPrimary;
+    final secondary = widget.mine
+        ? Colors.black.withValues(alpha: 0.58)
+        : palette.textMuted;
+    final label = widget.message.fileName ?? widget.message.body;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 236, maxWidth: 304),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: widget.mine
+                    ? Colors.black.withValues(alpha: 0.08)
+                    : palette.backgroundElevated,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: loading
+                  ? SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.8,
+                        color: foreground,
+                      ),
+                    )
+                  : Icon(_fileIcon(widget.message), color: foreground),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(color: foreground),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    error ?? _fileDetail(widget.message),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: error == null ? secondary : palette.destructive,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: strings.isPersian ? 'باز کردن' : 'Open',
+              onPressed: loading || !widget.message.hasAttachment
+                  ? null
+                  : () => unawaited(_open()),
+              icon: const Icon(Icons.open_in_new_rounded, size: 19),
+            ),
+            IconButton(
+              tooltip: strings.attachmentDownload,
+              onPressed: loading || !widget.message.hasAttachment
+                  ? null
+                  : () => unawaited(_save()),
+              icon: const Icon(Icons.download_outlined, size: 19),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+IconData _fileIcon(ChatNuMessage message) {
+  final mime = message.mimeType?.toLowerCase() ?? '';
+  final name = message.fileName?.toLowerCase() ?? '';
+  if (mime.contains('pdf') || name.endsWith('.pdf')) {
+    return Icons.picture_as_pdf_outlined;
+  }
+  if (mime.startsWith('audio/')) return Icons.audio_file_outlined;
+  if (mime.startsWith('video/')) return Icons.video_file_outlined;
+  if (mime.startsWith('image/')) return Icons.image_outlined;
+  if (mime.contains('zip') ||
+      mime.contains('compressed') ||
+      name.endsWith('.zip') ||
+      name.endsWith('.rar') ||
+      name.endsWith('.7z')) {
+    return Icons.folder_zip_outlined;
+  }
+  if (mime.startsWith('text/') ||
+      name.endsWith('.txt') ||
+      name.endsWith('.md')) {
+    return Icons.description_outlined;
+  }
+  if (name.endsWith('.doc') || name.endsWith('.docx')) {
+    return Icons.article_outlined;
+  }
+  if (name.endsWith('.xls') ||
+      name.endsWith('.xlsx') ||
+      name.endsWith('.csv')) {
+    return Icons.table_chart_outlined;
+  }
+  return Icons.insert_drive_file_outlined;
+}
+
+String _fileDetail(ChatNuMessage message) {
+  final name = message.fileName ?? '';
+  final dot = name.lastIndexOf('.');
+  final extension = dot >= 0 && dot < name.length - 1
+      ? name.substring(dot + 1).toUpperCase()
+      : null;
+  final mime = message.mimeType;
+  final type = extension ?? mime ?? 'FILE';
+  final size = _sizeLabel(message.sizeBytes);
+  return size == null ? type : '$type • $size';
 }
 
 class _LoadMediaTile extends StatelessWidget {

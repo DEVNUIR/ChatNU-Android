@@ -50,6 +50,14 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
     }
     final palette = context.chatNu;
     final incoming = state.status == ChatNuCallStatus.incoming;
+    final failed = state.status == ChatNuCallStatus.failed;
+    final waiting = switch (state.status) {
+      ChatNuCallStatus.outgoing ||
+      ChatNuCallStatus.ringing ||
+      ChatNuCallStatus.connecting ||
+      ChatNuCallStatus.reconnecting => true,
+      _ => false,
+    };
     final hasRemoteVideo = state.video && state.remoteStream != null && _ready;
 
     return Material(
@@ -103,19 +111,42 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                           ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      _statusLabel(state.status, state.video),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: hasRemoteVideo
-                            ? Colors.white.withValues(alpha: 0.8)
-                            : palette.textSecondary,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        if (waiting) ...<Widget>[
+                          SizedBox.square(
+                            dimension: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.8,
+                              color: hasRemoteVideo
+                                  ? Colors.white70
+                                  : palette.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                        ],
+                        Flexible(
+                          child: Text(
+                            _statusLabel(state.status, state.video),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: failed
+                                      ? palette.destructive
+                                      : hasRemoteVideo
+                                      ? Colors.white.withValues(alpha: 0.8)
+                                      : palette.textSecondary,
+                                ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              if (state.video && state.localStream != null && _ready)
+              if (state.video && state.localStream != null && _ready && !failed)
                 PositionedDirectional(
                   top: 92,
                   end: ChatNuSpacing.md,
@@ -169,6 +200,8 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
                     ),
                     child: incoming
                         ? _IncomingCallControls(ref: ref)
+                        : failed
+                        ? _FailedCallControls(ref: ref)
                         : _ActiveCallControls(ref: ref, state: state),
                   ),
                 ),
@@ -183,10 +216,12 @@ class _CallOverlayState extends ConsumerState<CallOverlay> {
   String _statusLabel(ChatNuCallStatus status, bool video) => switch (status) {
     ChatNuCallStatus.incoming =>
       video ? 'Incoming video call' : 'Incoming voice call',
-    ChatNuCallStatus.outgoing => 'Calling…',
-    ChatNuCallStatus.connecting => 'Connecting…',
-    ChatNuCallStatus.connected => 'Encrypted WebRTC media connected',
-    ChatNuCallStatus.failed => 'Call connection failed',
+    ChatNuCallStatus.outgoing => 'Preparing call…',
+    ChatNuCallStatus.ringing => 'Ringing…',
+    ChatNuCallStatus.connecting => 'Connecting securely…',
+    ChatNuCallStatus.connected => video ? 'Video call' : 'Voice call',
+    ChatNuCallStatus.reconnecting => 'Reconnecting…',
+    ChatNuCallStatus.failed => 'Call ended',
     ChatNuCallStatus.ended => 'Call ended',
     ChatNuCallStatus.idle => '',
   };
@@ -261,6 +296,22 @@ class _IncomingCallControls extends StatelessWidget {
               unawaited(ref.read(callControllerProvider.notifier).reject()),
         ),
       ],
+    );
+  }
+}
+
+class _FailedCallControls extends StatelessWidget {
+  const _FailedCallControls({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    return _CallControlButton(
+      tooltip: 'Close',
+      icon: Icons.close_rounded,
+      onPressed: () =>
+          unawaited(ref.read(callControllerProvider.notifier).end()),
     );
   }
 }

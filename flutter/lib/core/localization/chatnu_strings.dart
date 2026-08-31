@@ -22,6 +22,20 @@ class ChatNuStrings {
   String get splash => isPersian ? 'راه‌اندازی' : 'Splash';
   String get searchConversations =>
       isPersian ? 'جست‌وجوی گفت‌وگوها' : 'Search conversations';
+  String get searchInChat =>
+      isPersian ? 'جست‌وجو در گفت‌وگو' : 'Search in chat';
+  String get closeSearch => isPersian ? 'بستن جست‌وجو' : 'Close search';
+  String get previousSearchResult =>
+      isPersian ? 'نتیجهٔ قبلی' : 'Previous result';
+  String get nextSearchResult => isPersian ? 'نتیجهٔ بعدی' : 'Next result';
+  String get noMessageMatches =>
+      isPersian ? 'پیامی پیدا نشد' : 'No matching messages';
+  String messageSearchResult(int current, int total) => '$current/$total';
+  String newMessages(int count) => isPersian
+      ? '$count پیام جدید'
+      : '$count new message${count == 1 ? '' : 's'}';
+  String get scrollToLatest =>
+      isPersian ? 'رفتن به تازه‌ترین پیام‌ها' : 'Jump to latest messages';
   String get all => isPersian ? 'همه' : 'All';
   String get unread => isPersian ? 'خوانده‌نشده' : 'Unread';
   String get personal => isPersian ? 'شخصی' : 'Personal';
@@ -52,10 +66,21 @@ class ChatNuStrings {
   String get back => isPersian ? 'بازگشت' : 'Back';
   String get voiceCall => isPersian ? 'تماس صوتی' : 'Voice call';
   String get videoCall => isPersian ? 'تماس تصویری' : 'Video call';
+  String get queued => isPersian ? 'در صف ارسال' : 'Queued';
   String get sending => isPersian ? 'در حال ارسال' : 'Sending';
   String get sentToServer => isPersian ? 'ارسال‌شده به سرور' : 'Sent to server';
   String get failed => isPersian ? 'ناموفق' : 'Failed';
   String get retry => isPersian ? 'تلاش دوباره' : 'Retry';
+  String get retryOlderMessages =>
+      isPersian ? 'بارگیری دوبارهٔ پیام‌های قدیمی' : 'Retry older messages';
+  String get couldNotLoadConversation =>
+      isPersian ? 'گفت‌وگو بارگیری نشد.' : 'Couldn’t load this conversation.';
+  String get syncingMessages =>
+      isPersian ? 'در حال همگام‌سازی پیام‌ها…' : 'Syncing messages…';
+  String get syncFailed => isPersian
+      ? 'همگام‌سازی کامل نشد. برای تلاش دوباره بزنید.'
+      : 'Couldn’t sync messages. Tap to retry.';
+  String get draft => isPersian ? 'پیش‌نویس' : 'Draft';
   String get copy => isPersian ? 'کپی' : 'Copy';
   String get pinned => isPersian ? 'سنجاق‌شده' : 'Pinned';
   String get pin => isPersian ? 'سنجاق کردن' : 'Pin';

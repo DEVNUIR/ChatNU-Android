@@ -108,7 +108,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
               title: strings.isPersian ? 'پیدا کردن افراد' : 'Find people',
               subtitle: strings.isPersian
                   ? 'افراد را با نام کاربری پیدا کنید'
-                  : 'Search the directory by username',
+                  : 'Search ChatNU by username',
               onTap: () {
                 ref
                     .read(messengerDemoProvider.notifier)

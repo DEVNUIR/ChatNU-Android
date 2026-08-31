@@ -176,10 +176,10 @@ class LiveLocationController extends Notifier<ChatNuLiveLocationState> {
   }
 
   String _friendlyError(Object error) {
-    final raw = error.toString().replaceFirst('Bad state: ', '').replaceFirst(
-      'StateError: ',
-      '',
-    );
+    final raw = error
+        .toString()
+        .replaceFirst('Bad state: ', '')
+        .replaceFirst('StateError: ', '');
     final lower = raw.toLowerCase();
     if (lower.contains('permission')) {
       return 'Location permission is required to share Live Location.';

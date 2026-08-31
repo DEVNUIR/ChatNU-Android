@@ -1080,13 +1080,11 @@ class _RecordingAction extends StatelessWidget {
     required this.icon,
     required this.foreground,
     required this.onPressed,
-    this.background,
   });
 
   final String tooltip;
   final IconData icon;
   final Color foreground;
-  final Color? background;
   final VoidCallback onPressed;
 
   @override
@@ -1096,10 +1094,7 @@ class _RecordingAction extends StatelessWidget {
       onPressed: onPressed,
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints.tightFor(width: 38, height: 38),
-      style: IconButton.styleFrom(
-        foregroundColor: foreground,
-        backgroundColor: background,
-      ),
+      style: IconButton.styleFrom(foregroundColor: foreground),
       icon: Icon(icon, size: 20),
     );
   }

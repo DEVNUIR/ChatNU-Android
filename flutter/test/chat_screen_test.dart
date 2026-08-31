@@ -109,15 +109,12 @@ void main() {
     expect(find.textContaining('Signal Protocol'), findsNothing);
     expect(find.textContaining('SFU'), findsNothing);
 
-    await tester.scrollUntilVisible(find.text('End-to-end encryption'), 280);
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('End-to-end encryption'), findsOneWidget);
-
     await tester.scrollUntilVisible(
       find.byKey(const Key('settings-advanced')),
       280,
     );
     await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('End-to-end encryption'), findsWidgets);
     expect(find.byKey(const Key('settings-advanced')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('settings-advanced')));

@@ -1,0 +1,37 @@
+name: Phase 4 test formatter
+
+on:
+  push:
+    branches:
+      - chatgpt/phase-4-navigation-settings-ia
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/phase-4-navigation-settings-ia
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Canonically format Phase 4 tests
+        working-directory: flutter
+        run: dart format test/chat_screen_test.dart test/product_identity_test.dart
+      - name: Commit formatter output
+        run: |
+          if git diff --quiet -- flutter/test; then
+            echo "No formatting changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter/test
+          git commit -m "chore: format Phase 4 tests"
+          git push origin HEAD:chatgpt/phase-4-navigation-settings-ia

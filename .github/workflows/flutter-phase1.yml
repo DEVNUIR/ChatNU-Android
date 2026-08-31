@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - "flutter/**"
+      - "app/src/main/res/**"
       - ".github/workflows/flutter-phase1.yml"
   pull_request:
     paths:
       - "flutter/**"
+      - "app/src/main/res/**"
       - ".github/workflows/flutter-phase1.yml"
   workflow_dispatch:
 
@@ -34,8 +36,12 @@ jobs:
         run: |
           grep -q 'applicationId = "ir.devnu.chatnu"' android/app/build.gradle.kts
           grep -q 'android:label="ChatNU"' android/app/src/main/AndroidManifest.xml
-          grep -q 'android:icon="@drawable/ic_chatnu"' android/app/src/main/AndroidManifest.xml
-          test -f android/app/src/main/res/drawable/ic_chatnu.xml
+          grep -q 'android:icon="@mipmap/ic_launcher"' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          test -f android/app/src/main/res/drawable-xxxhdpi/chatnu_launcher_foreground.webp
+          cmp ../app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp
+          cmp ../app/src/main/res/drawable-xxxhdpi/chatnu_launcher_foreground.webp android/app/src/main/res/drawable-xxxhdpi/chatnu_launcher_foreground.webp
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Analyze

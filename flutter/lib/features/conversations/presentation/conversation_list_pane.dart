@@ -9,6 +9,8 @@ import 'package:chatnu/features/home/application/demo_messenger_controller.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+enum _ConversationAction { pin, mute }
+
 class ConversationListPane extends ConsumerStatefulWidget {
   const ConversationListPane({
     required this.onSelected,
@@ -173,8 +175,11 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                         selected:
                             conversation.id == state.selectedConversationId,
                         onTap: () => widget.onSelected(conversation.id),
-                        onContextMenu: () =>
-                            _showConversationMenu(context, conversation),
+                        onContextMenu: (position) => _showConversationMenu(
+                          context,
+                          conversation,
+                          globalPosition: position,
+                        ),
                       ),
                     );
                   },
@@ -189,25 +194,90 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
 
   Future<void> _showConversationMenu(
     BuildContext context,
-    ChatNuConversation conversation,
-  ) async {
+    ChatNuConversation conversation, {
+    Offset? globalPosition,
+  }) async {
     final strings = ChatNuStrings.of(context);
+    final pinLabel = conversation.isPinned ? strings.unpin : strings.pin;
+    final muteLabel = conversation.isMuted ? strings.unmute : strings.mute;
+
+    if (globalPosition != null) {
+      final overlay = Overlay.of(context).context.findRenderObject();
+      if (overlay is RenderBox) {
+        final selected = await showMenu<_ConversationAction>(
+          context: context,
+          position: RelativeRect.fromRect(
+            Rect.fromPoints(globalPosition, globalPosition),
+            Offset.zero & overlay.size,
+          ),
+          items: <PopupMenuEntry<_ConversationAction>>[
+            PopupMenuItem<_ConversationAction>(
+              value: _ConversationAction.pin,
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    conversation.isPinned
+                        ? Icons.push_pin_rounded
+                        : Icons.push_pin_outlined,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(pinLabel),
+                ],
+              ),
+            ),
+            PopupMenuItem<_ConversationAction>(
+              value: _ConversationAction.mute,
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    conversation.isMuted
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_off_outlined,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(muteLabel),
+                ],
+              ),
+            ),
+          ],
+        );
+        if (selected != null) {
+          _performConversationAction(conversation, selected);
+        }
+        return;
+      }
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => _ConversationActionSheet(
         conversation: conversation,
-        pinLabel: conversation.isPinned ? strings.unpin : strings.pin,
-        muteLabel: conversation.isMuted ? strings.unmute : strings.mute,
+        pinLabel: pinLabel,
+        muteLabel: muteLabel,
         onPin: () {
           Navigator.of(sheetContext).pop();
-          ref.read(messengerDemoProvider.notifier).togglePin(conversation.id);
+          _performConversationAction(conversation, _ConversationAction.pin);
         },
         onMute: () {
           Navigator.of(sheetContext).pop();
-          ref.read(messengerDemoProvider.notifier).toggleMute(conversation.id);
+          _performConversationAction(conversation, _ConversationAction.mute);
         },
       ),
     );
+  }
+
+  void _performConversationAction(
+    ChatNuConversation conversation,
+    _ConversationAction action,
+  ) {
+    switch (action) {
+      case _ConversationAction.pin:
+        ref.read(messengerDemoProvider.notifier).togglePin(conversation.id);
+      case _ConversationAction.mute:
+        ref.read(messengerDemoProvider.notifier).toggleMute(conversation.id);
+    }
   }
 }
 
@@ -257,7 +327,11 @@ class _SearchHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
+        IconButton(
+          tooltip: ChatNuStrings.of(context).closeSearch,
+          onPressed: onClose,
+          icon: const Icon(Icons.close_rounded),
+        ),
       ],
     );
   }
@@ -271,26 +345,33 @@ class _RecentPerson extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(30),
+    return Semantics(
+      button: true,
+      label: conversation.title,
       onTap: onTap,
-      child: SizedBox(
-        width: 58,
-        child: Column(
-          children: <Widget>[
-            _Avatar(
-              label: conversation.title,
-              imageUrl: conversation.avatarUrl,
-              size: 56,
-            ),
-            const SizedBox(height: 7),
-            Text(
-              conversation.title.split(' ').first,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-          ],
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        mouseCursor: SystemMouseCursors.click,
+        onTap: onTap,
+        child: SizedBox(
+          width: 58,
+          child: Column(
+            children: <Widget>[
+              _Avatar(
+                label: conversation.title,
+                imageUrl: conversation.avatarUrl,
+                size: 56,
+              ),
+              const SizedBox(height: 7),
+              Text(
+                conversation.title.split(' ').first,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -358,7 +439,7 @@ class _ConversationTile extends StatelessWidget {
   final String? draft;
   final bool selected;
   final VoidCallback onTap;
-  final VoidCallback onContextMenu;
+  final ValueChanged<Offset?> onContextMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -374,124 +455,147 @@ class _ConversationTile extends StatelessWidget {
               ? 'پیش‌نویس: $trimmedDraft'
               : 'Draft: $trimmedDraft')
         : conversation.lastMessagePreview;
+    final semanticValue = <String>[
+      if (preview.trim().isNotEmpty) preview,
+      time,
+      if (conversation.unreadCount > 0)
+        '${conversation.unreadCount} ${strings.unread}',
+      if (conversation.isPinned) strings.pinned,
+      if (conversation.isMuted) strings.muted,
+    ].join(', ');
+
     return Semantics(
+      container: true,
       button: true,
       selected: selected,
       label: conversation.title,
+      value: semanticValue,
+      onTap: onTap,
+      onLongPress: () => onContextMenu(null),
+      excludeSemantics: true,
       child: GestureDetector(
-        onSecondaryTapDown: (_) => onContextMenu(),
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onContextMenu,
-          child: AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : ChatNuMotion.micro,
-            color: selected ? palette.glassWeak : Colors.transparent,
-            padding: const EdgeInsetsDirectional.fromSTEB(20, 10, 18, 10),
-            child: Row(
-              children: <Widget>[
-                _Avatar(
-                  label: conversation.title,
-                  imageUrl: conversation.avatarUrl,
-                  size: 50,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(
-                              conversation.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            time,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: <Widget>[
-                          if (conversation.isPinned)
-                            Padding(
-                              padding: const EdgeInsetsDirectional.only(end: 5),
-                              child: Icon(
-                                Icons.push_pin_outlined,
-                                size: 14,
-                                color: palette.textMuted,
+        excludeFromSemantics: true,
+        behavior: HitTestBehavior.opaque,
+        onSecondaryTapDown: (details) =>
+            onContextMenu(details.globalPosition),
+        child: Material(
+          color: selected ? palette.glassWeak : Colors.transparent,
+          child: InkWell(
+            mouseCursor: SystemMouseCursors.click,
+            onTap: onTap,
+            onLongPress: () => onContextMenu(null),
+            hoverColor: palette.textPrimary.withValues(alpha: 0.045),
+            focusColor: palette.accentPrimary.withValues(alpha: 0.14),
+            highlightColor: palette.textPrimary.withValues(alpha: 0.065),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 10, 18, 10),
+              child: Row(
+                children: <Widget>[
+                  _Avatar(
+                    label: conversation.title,
+                    imageUrl: conversation.avatarUrl,
+                    size: 50,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                conversation.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ),
-                          if (conversation.isMuted)
-                            Padding(
-                              padding: const EdgeInsetsDirectional.only(end: 5),
-                              child: Tooltip(
-                                message: strings.muted,
-                                child: Icon(
-                                  Icons.notifications_off_outlined,
-                                  size: 14,
-                                  color: palette.textMuted,
+                            const SizedBox(width: 10),
+                            Text(
+                              time,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: <Widget>[
+                            if (conversation.isPinned)
+                              Padding(
+                                padding: const EdgeInsetsDirectional.only(end: 5),
+                                child: Tooltip(
+                                  message: strings.pinned,
+                                  child: Icon(
+                                    Icons.push_pin_outlined,
+                                    size: 14,
+                                    color: palette.textMuted,
+                                  ),
                                 ),
                               ),
-                            ),
-                          Expanded(
-                            child: Text(
-                              preview,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: conversation.unreadCount > 0
-                                        ? palette.textPrimary
-                                        : palette.textSecondary,
-                                    fontWeight:
-                                        trimmedDraft?.isNotEmpty == true ||
-                                            conversation.unreadCount > 0
-                                        ? FontWeight.w500
-                                        : FontWeight.w400,
+                            if (conversation.isMuted)
+                              Padding(
+                                padding: const EdgeInsetsDirectional.only(end: 5),
+                                child: Tooltip(
+                                  message: strings.muted,
+                                  child: Icon(
+                                    Icons.notifications_off_outlined,
+                                    size: 14,
+                                    color: palette.textMuted,
                                   ),
-                            ),
-                          ),
-                          if (conversation.unreadCount > 0)
-                            Container(
-                              constraints: const BoxConstraints(
-                                minWidth: 20,
-                                minHeight: 20,
+                                ),
                               ),
-                              margin: const EdgeInsetsDirectional.only(
-                                start: 9,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: palette.accentPrimary,
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              alignment: Alignment.center,
+                            Expanded(
                               child: Text(
-                                '${conversation.unreadCount}',
-                                style: Theme.of(context).textTheme.labelSmall
+                                preview,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.w700,
+                                      color: conversation.unreadCount > 0
+                                          ? palette.textPrimary
+                                          : palette.textSecondary,
+                                      fontWeight:
+                                          trimmedDraft?.isNotEmpty == true ||
+                                              conversation.unreadCount > 0
+                                          ? FontWeight.w500
+                                          : FontWeight.w400,
                                     ),
                               ),
                             ),
-                        ],
-                      ),
-                    ],
+                            if (conversation.unreadCount > 0)
+                              Container(
+                                constraints: const BoxConstraints(
+                                  minWidth: 20,
+                                  minHeight: 20,
+                                ),
+                                margin: const EdgeInsetsDirectional.only(
+                                  start: 9,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: palette.accentPrimary,
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${conversation.unreadCount}',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

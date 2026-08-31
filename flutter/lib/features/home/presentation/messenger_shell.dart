@@ -59,6 +59,9 @@ class _WideShell extends ConsumerWidget {
     final listWidth = windowClass == ChatNuWindowClass.desktop
         ? ChatNuSizing.conversationListDesktop
         : ChatNuSizing.conversationListTablet;
+    final transitionDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : ChatNuMotion.component;
     return Scaffold(
       backgroundColor: palette.backgroundPrimary,
       body: SafeArea(
@@ -91,7 +94,7 @@ class _WideShell extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
+                    duration: transitionDuration,
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
                     child: selectedId == null
@@ -116,7 +119,7 @@ class _WideShell extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 260),
+                    duration: transitionDuration,
                     child: KeyedSubtree(
                       key: ValueKey(state.destination),
                       child: _DestinationContent(state.destination),
@@ -174,6 +177,7 @@ class _PhoneShell extends ConsumerWidget {
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (child, animation) {
+          if (reduceMotion) return child;
           final fade = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
@@ -306,12 +310,20 @@ class _BottomIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : ChatNuMotion.micro;
     return Semantics(
       button: true,
       selected: selected,
       label: label,
+      onTap: onTap,
+      excludeSemantics: true,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: duration,
+        constraints: const BoxConstraints(
+          minHeight: ChatNuSizing.minTouchTarget,
+        ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           color: selected
@@ -320,6 +332,7 @@ class _BottomIcon extends StatelessWidget {
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
+          mouseCursor: SystemMouseCursors.click,
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 5),
@@ -328,7 +341,7 @@ class _BottomIcon extends StatelessWidget {
               children: <Widget>[
                 AnimatedScale(
                   scale: selected ? 1.06 : 1,
-                  duration: const Duration(milliseconds: 180),
+                  duration: duration,
                   child: Icon(
                     icon,
                     size: 23,
@@ -431,22 +444,34 @@ class _DesktopNavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : ChatNuMotion.micro;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: IconButton(
-        tooltip: label,
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          minimumSize: const Size(52, 52),
-          backgroundColor: selected
-              ? palette.glassMedium.withValues(alpha: 0.78)
-              : Colors.transparent,
-          foregroundColor: selected ? palette.textPrimary : palette.textMuted,
-        ),
-        icon: AnimatedScale(
-          scale: selected ? 1.08 : 1,
-          duration: const Duration(milliseconds: 180),
-          child: Icon(icon),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        onTap: onPressed,
+        excludeSemantics: true,
+        child: IconButton(
+          tooltip: label,
+          onPressed: onPressed,
+          style: IconButton.styleFrom(
+            minimumSize: const Size(52, 52),
+            backgroundColor: selected
+                ? palette.glassMedium.withValues(alpha: 0.78)
+                : Colors.transparent,
+            foregroundColor: selected
+                ? palette.textPrimary
+                : palette.textMuted,
+          ),
+          icon: AnimatedScale(
+            scale: selected ? 1.08 : 1,
+            duration: duration,
+            child: Icon(icon),
+          ),
         ),
       ),
     );

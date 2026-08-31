@@ -1,0 +1,997 @@
+name: Phase 5 accessibility polish apply
+
+on:
+  push:
+    branches:
+      - chatgpt/phase-5-accessibility-desktop-polish
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Apply Phase 5 polish
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  if new in text:
+                      return text
+                  raise SystemExit(f'missing expected snippet: {label}')
+              return text.replace(old, new, 1)
+
+          # Global touch targets and interaction-state theme.
+          path = Path('flutter/lib/core/theme/chatnu_theme.dart')
+          text = path.read_text()
+          if "chatnu_tokens.dart" not in text:
+              text = text.replace(
+                  "import 'package:flutter/material.dart';",
+                  "import 'package:chatnu/core/theme/chatnu_tokens.dart';\nimport 'package:flutter/material.dart';",
+                  1,
+              )
+          text = replace_once(
+              text,
+              """      scaffoldBackgroundColor: palette.backgroundPrimary,\n      extensions: <ThemeExtension<dynamic>>[palette],\n    );""",
+              """      scaffoldBackgroundColor: palette.backgroundPrimary,\n      extensions: <ThemeExtension<dynamic>>[palette],\n      materialTapTargetSize: MaterialTapTargetSize.padded,\n      visualDensity: VisualDensity.standard,\n    );""",
+              'theme base touch targets',
+          )
+          text = replace_once(
+              text,
+              """      focusColor: palette.accentPrimary.withValues(alpha: 0.22),""",
+              """      iconButtonTheme: IconButtonThemeData(\n        style: IconButton.styleFrom(\n          minimumSize: const Size.square(ChatNuSizing.minTouchTarget),\n          tapTargetSize: MaterialTapTargetSize.padded,\n        ),\n      ),\n      filledButtonTheme: FilledButtonThemeData(\n        style: FilledButton.styleFrom(\n          minimumSize: const Size(\n            ChatNuSizing.minTouchTarget,\n            ChatNuSizing.minTouchTarget,\n          ),\n        ),\n      ),\n      textButtonTheme: TextButtonThemeData(\n        style: TextButton.styleFrom(\n          minimumSize: const Size(\n            ChatNuSizing.minTouchTarget,\n            ChatNuSizing.minTouchTarget,\n          ),\n        ),\n      ),\n      outlinedButtonTheme: OutlinedButtonThemeData(\n        style: OutlinedButton.styleFrom(\n          minimumSize: const Size(\n            ChatNuSizing.minTouchTarget,\n            ChatNuSizing.minTouchTarget,\n          ),\n        ),\n      ),\n      hoverColor: palette.textPrimary.withValues(alpha: 0.045),\n      highlightColor: palette.textPrimary.withValues(alpha: 0.065),\n      focusColor: palette.accentPrimary.withValues(alpha: 0.22),""",
+              'global button themes',
+          )
+          path.write_text(text)
+
+          # Reusable glass buttons and segmented controls: keyboard, focus, hover,
+          # pressed feedback, minimum targets, and reduced-motion compliance.
+          path = Path('flutter/lib/core/glass/glass_components.dart')
+          text = path.read_text()
+          button = r'''class _GlassButtonState extends State<GlassButton> {
+            bool _pressed = false;
+            bool _hovered = false;
+            bool _focused = false;
+
+            @override
+            Widget build(BuildContext context) {
+              final palette = context.chatNu;
+              final enabled = widget.onPressed != null;
+              final reduceMotion = MediaQuery.disableAnimationsOf(context);
+              final foreground = widget.prominent || widget.destructive
+                  ? Colors.white
+                  : palette.textPrimary;
+              final baseBackground = widget.destructive
+                  ? palette.destructive
+                  : widget.prominent
+                  ? palette.accentPrimary
+                  : palette.glassMedium;
+              final background = enabled && (_hovered || _focused)
+                  ? Color.alphaBlend(
+                      palette.textPrimary.withValues(alpha: _focused ? 0.06 : 0.035),
+                      baseBackground,
+                    )
+                  : baseBackground;
+              final borderColor = _focused
+                  ? palette.accentPrimary
+                  : widget.prominent || widget.destructive
+                  ? Colors.white.withValues(alpha: 0.14)
+                  : palette.borderSubtle;
+
+              return Semantics(
+                button: true,
+                enabled: enabled,
+                label: widget.label,
+                onTap: enabled ? widget.onPressed : null,
+                child: ExcludeSemantics(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(ChatNuRadii.md),
+                      onTap: widget.onPressed,
+                      canRequestFocus: enabled,
+                      mouseCursor: enabled
+                          ? SystemMouseCursors.click
+                          : SystemMouseCursors.basic,
+                      onHighlightChanged: enabled
+                          ? (value) => setState(() => _pressed = value)
+                          : null,
+                      onHover: enabled
+                          ? (value) => setState(() => _hovered = value)
+                          : null,
+                      onFocusChange: enabled
+                          ? (value) => setState(() => _focused = value)
+                          : null,
+                      hoverColor: Colors.transparent,
+                      focusColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      child: AnimatedScale(
+                        scale: _pressed && !reduceMotion ? 0.98 : 1,
+                        duration: reduceMotion ? Duration.zero : ChatNuMotion.micro,
+                        curve: ChatNuMotion.standard,
+                        child: AnimatedOpacity(
+                          duration: reduceMotion ? Duration.zero : ChatNuMotion.micro,
+                          opacity: enabled ? 1 : 0.46,
+                          child: AnimatedContainer(
+                            duration: reduceMotion ? Duration.zero : ChatNuMotion.micro,
+                            constraints: const BoxConstraints(
+                              minHeight: ChatNuSizing.minTouchTarget,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: ChatNuSpacing.md,
+                            ),
+                            decoration: BoxDecoration(
+                              color: background,
+                              borderRadius: BorderRadius.circular(ChatNuRadii.md),
+                              border: Border.all(
+                                color: borderColor,
+                                width: _focused ? 1.5 : 1,
+                              ),
+                              boxShadow: _focused
+                                  ? <BoxShadow>[
+                                      BoxShadow(
+                                        color: palette.accentPrimary.withValues(alpha: 0.18),
+                                        blurRadius: 14,
+                                      ),
+                                    ]
+                                  : widget.prominent
+                                  ? <BoxShadow>[
+                                      BoxShadow(
+                                        color: palette.accentPrimary.withValues(alpha: 0.2),
+                                        blurRadius: 18,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ]
+                                  : const <BoxShadow>[],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: <Widget>[
+                                if (widget.icon != null) ...<Widget>[
+                                  Icon(widget.icon, size: 19, color: foreground),
+                                  const SizedBox(width: ChatNuSpacing.xs),
+                                ],
+                                Text(
+                                  widget.label,
+                                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: foreground,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }'''
+          text, count = re.subn(
+              r'class _GlassButtonState extends State<GlassButton> \{.*?\n\}\n\nclass GlassSearchField',
+              button + '\n\nclass GlassSearchField',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace GlassButton state')
+
+          segmented = r'''class GlassSegmentedControl<T> extends StatelessWidget {
+            const GlassSegmentedControl({
+              required this.value,
+              required this.items,
+              required this.onChanged,
+              super.key,
+            });
+
+            final T value;
+            final Map<T, String> items;
+            final ValueChanged<T> onChanged;
+
+            @override
+            Widget build(BuildContext context) {
+              final palette = context.chatNu;
+              final reduceMotion = MediaQuery.disableAnimationsOf(context);
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: GlassSurface(
+                  variant: GlassVariant.weak,
+                  borderRadius: ChatNuRadii.pill,
+                  padding: const EdgeInsets.all(3),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: items.entries
+                        .map((entry) {
+                          final selected = entry.key == value;
+                          return Padding(
+                            padding: const EdgeInsetsDirectional.only(end: 2),
+                            child: Semantics(
+                              button: true,
+                              selected: selected,
+                              label: entry.value,
+                              onTap: () => onChanged(entry.key),
+                              excludeSemantics: true,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(ChatNuRadii.pill),
+                                mouseCursor: SystemMouseCursors.click,
+                                onTap: () => onChanged(entry.key),
+                                child: AnimatedContainer(
+                                  duration: reduceMotion
+                                      ? Duration.zero
+                                      : ChatNuMotion.micro,
+                                  constraints: const BoxConstraints(
+                                    minHeight: ChatNuSizing.minTouchTarget,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: ChatNuSpacing.sm,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? palette.glassStrong
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(
+                                      ChatNuRadii.pill,
+                                    ),
+                                    border: Border.all(
+                                      color: selected
+                                          ? palette.borderHighlight
+                                          : Colors.transparent,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    entry.value,
+                                    style: Theme.of(context).textTheme.labelMedium
+                                        ?.copyWith(
+                                          color: selected
+                                              ? palette.textPrimary
+                                              : palette.textSecondary,
+                                          fontWeight: selected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        })
+                        .toList(growable: false),
+                  ),
+                ),
+              );
+            }
+          }'''
+          text, count = re.subn(
+              r'class GlassSegmentedControl<T> extends StatelessWidget \{.*?\n\}\n\nclass GlassDialog',
+              segmented + '\n\nclass GlassDialog',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace GlassSegmentedControl')
+          path.write_text(text)
+
+          # Desktop conversation menus + TalkBack-friendly conversation rows.
+          path = Path('flutter/lib/features/conversations/presentation/conversation_list_pane.dart')
+          text = path.read_text()
+          if 'enum _ConversationAction' not in text:
+              marker = "import 'package:flutter_riverpod/flutter_riverpod.dart';\n"
+              text = text.replace(
+                  marker,
+                  marker + '\nenum _ConversationAction { pin, mute }\n',
+                  1,
+              )
+          text = replace_once(
+              text,
+              """                        onContextMenu: () =>\n                            _showConversationMenu(context, conversation),""",
+              """                        onContextMenu: (position) => _showConversationMenu(\n                          context,\n                          conversation,\n                          globalPosition: position,\n                        ),""",
+              'conversation menu callback',
+          )
+          menu_impl = r'''  Future<void> _showConversationMenu(
+            BuildContext context,
+            ChatNuConversation conversation, {
+            Offset? globalPosition,
+          }) async {
+            final strings = ChatNuStrings.of(context);
+            final pinLabel = conversation.isPinned ? strings.unpin : strings.pin;
+            final muteLabel = conversation.isMuted ? strings.unmute : strings.mute;
+
+            if (globalPosition != null) {
+              final overlay = Overlay.of(context).context.findRenderObject();
+              if (overlay is RenderBox) {
+                final selected = await showMenu<_ConversationAction>(
+                  context: context,
+                  position: RelativeRect.fromRect(
+                    Rect.fromPoints(globalPosition, globalPosition),
+                    Offset.zero & overlay.size,
+                  ),
+                  items: <PopupMenuEntry<_ConversationAction>>[
+                    PopupMenuItem<_ConversationAction>(
+                      value: _ConversationAction.pin,
+                      child: Row(
+                        children: <Widget>[
+                          Icon(
+                            conversation.isPinned
+                                ? Icons.push_pin_rounded
+                                : Icons.push_pin_outlined,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(pinLabel),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<_ConversationAction>(
+                      value: _ConversationAction.mute,
+                      child: Row(
+                        children: <Widget>[
+                          Icon(
+                            conversation.isMuted
+                                ? Icons.notifications_active_outlined
+                                : Icons.notifications_off_outlined,
+                            size: 19,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(muteLabel),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+                if (selected != null) {
+                  _performConversationAction(conversation, selected);
+                }
+                return;
+              }
+            }
+
+            await showModalBottomSheet<void>(
+              context: context,
+              builder: (sheetContext) => _ConversationActionSheet(
+                conversation: conversation,
+                pinLabel: pinLabel,
+                muteLabel: muteLabel,
+                onPin: () {
+                  Navigator.of(sheetContext).pop();
+                  _performConversationAction(
+                    conversation,
+                    _ConversationAction.pin,
+                  );
+                },
+                onMute: () {
+                  Navigator.of(sheetContext).pop();
+                  _performConversationAction(
+                    conversation,
+                    _ConversationAction.mute,
+                  );
+                },
+              ),
+            );
+          }
+
+          void _performConversationAction(
+            ChatNuConversation conversation,
+            _ConversationAction action,
+          ) {
+            switch (action) {
+              case _ConversationAction.pin:
+                ref.read(messengerDemoProvider.notifier).togglePin(conversation.id);
+              case _ConversationAction.mute:
+                ref.read(messengerDemoProvider.notifier).toggleMute(conversation.id);
+            }
+          }
+        }'''
+          text, count = re.subn(
+              r'  Future<void> _showConversationMenu\(.*?\n  \}\n\}\n\nclass _SearchHeader',
+              menu_impl + '\n\nclass _SearchHeader',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace conversation menu implementation')
+          text = replace_once(
+              text,
+              """        IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),""",
+              """        IconButton(\n          tooltip: MaterialLocalizations.of(context).closeButtonTooltip,\n          onPressed: onClose,\n          icon: const Icon(Icons.close_rounded),\n        ),""",
+              'search close tooltip',
+          )
+          recent = r'''class _RecentPerson extends StatelessWidget {
+            const _RecentPerson({required this.conversation, required this.onTap});
+
+            final ChatNuConversation conversation;
+            final VoidCallback onTap;
+
+            @override
+            Widget build(BuildContext context) {
+              return Semantics(
+                button: true,
+                label: conversation.title,
+                onTap: onTap,
+                excludeSemantics: true,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(30),
+                  mouseCursor: SystemMouseCursors.click,
+                  onTap: onTap,
+                  child: SizedBox(
+                    width: 58,
+                    child: Column(
+                      children: <Widget>[
+                        _Avatar(
+                          label: conversation.title,
+                          imageUrl: conversation.avatarUrl,
+                          size: 56,
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          conversation.title.split(' ').first,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+          }'''
+          text, count = re.subn(
+              r'class _RecentPerson extends StatelessWidget \{.*?\n\}\n\nclass _ConversationEmptyState',
+              recent + '\n\nclass _ConversationEmptyState',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace recent person semantics')
+
+          tile = r'''class _ConversationTile extends StatelessWidget {
+            const _ConversationTile({
+              required this.conversation,
+              required this.draft,
+              required this.selected,
+              required this.onTap,
+              required this.onContextMenu,
+            });
+
+            final ChatNuConversation conversation;
+            final String? draft;
+            final bool selected;
+            final VoidCallback onTap;
+            final ValueChanged<Offset?> onContextMenu;
+
+            @override
+            Widget build(BuildContext context) {
+              final palette = context.chatNu;
+              final strings = ChatNuStrings.of(context);
+              final time = MaterialLocalizations.of(context).formatTimeOfDay(
+                TimeOfDay.fromDateTime(conversation.lastActivityAt),
+                alwaysUse24HourFormat: true,
+              );
+              final trimmedDraft = draft?.trim();
+              final preview = trimmedDraft?.isNotEmpty == true
+                  ? (strings.isPersian
+                        ? 'پیش‌نویس: $trimmedDraft'
+                        : 'Draft: $trimmedDraft')
+                  : conversation.lastMessagePreview;
+              final semanticValue = <String>[
+                if (preview.trim().isNotEmpty) preview,
+                time,
+                if (conversation.unreadCount > 0)
+                  '${conversation.unreadCount} ${strings.unread}',
+                if (conversation.isPinned) strings.pinned,
+                if (conversation.isMuted) strings.muted,
+              ].join(', ');
+
+              return Semantics(
+                container: true,
+                button: true,
+                selected: selected,
+                label: conversation.title,
+                value: semanticValue,
+                onTap: onTap,
+                onLongPress: () => onContextMenu(null),
+                excludeSemantics: true,
+                child: GestureDetector(
+                  excludeFromSemantics: true,
+                  behavior: HitTestBehavior.opaque,
+                  onSecondaryTapDown: (details) =>
+                      onContextMenu(details.globalPosition),
+                  child: Material(
+                    color: selected ? palette.glassWeak : Colors.transparent,
+                    child: InkWell(
+                      mouseCursor: SystemMouseCursors.click,
+                      onTap: onTap,
+                      onLongPress: () => onContextMenu(null),
+                      hoverColor: palette.textPrimary.withValues(alpha: 0.045),
+                      focusColor: palette.accentPrimary.withValues(alpha: 0.14),
+                      highlightColor: palette.textPrimary.withValues(alpha: 0.065),
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          20,
+                          10,
+                          18,
+                          10,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            _Avatar(
+                              label: conversation.title,
+                              imageUrl: conversation.avatarUrl,
+                              size: 50,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: Text(
+                                          conversation.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context).textTheme.titleMedium,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        time,
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: <Widget>[
+                                      if (conversation.isPinned)
+                                        Padding(
+                                          padding: const EdgeInsetsDirectional.only(
+                                            end: 5,
+                                          ),
+                                          child: Tooltip(
+                                            message: strings.pinned,
+                                            child: Icon(
+                                              Icons.push_pin_outlined,
+                                              size: 14,
+                                              color: palette.textMuted,
+                                            ),
+                                          ),
+                                        ),
+                                      if (conversation.isMuted)
+                                        Padding(
+                                          padding: const EdgeInsetsDirectional.only(
+                                            end: 5,
+                                          ),
+                                          child: Tooltip(
+                                            message: strings.muted,
+                                            child: Icon(
+                                              Icons.notifications_off_outlined,
+                                              size: 14,
+                                              color: palette.textMuted,
+                                            ),
+                                          ),
+                                        ),
+                                      Expanded(
+                                        child: Text(
+                                          preview,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context).textTheme.bodyMedium
+                                              ?.copyWith(
+                                                color: conversation.unreadCount > 0
+                                                    ? palette.textPrimary
+                                                    : palette.textSecondary,
+                                                fontWeight:
+                                                    trimmedDraft?.isNotEmpty == true ||
+                                                        conversation.unreadCount > 0
+                                                    ? FontWeight.w500
+                                                    : FontWeight.w400,
+                                              ),
+                                        ),
+                                      ),
+                                      if (conversation.unreadCount > 0)
+                                        Container(
+                                          constraints: const BoxConstraints(
+                                            minWidth: 20,
+                                            minHeight: 20,
+                                          ),
+                                          margin: const EdgeInsetsDirectional.only(
+                                            start: 9,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: palette.accentPrimary,
+                                            borderRadius: BorderRadius.circular(99),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            '${conversation.unreadCount}',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall
+                                                ?.copyWith(
+                                                  color: Colors.black,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }'''
+          text, count = re.subn(
+              r'class _ConversationTile extends StatelessWidget \{.*?\n\}\n\nclass _Avatar',
+              tile + '\n\nclass _Avatar',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace conversation tile')
+          path.write_text(text)
+
+          # Reduced-motion and explicit selected semantics in adaptive navigation.
+          path = Path('flutter/lib/features/home/presentation/messenger_shell.dart')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              """    final listWidth = windowClass == ChatNuWindowClass.desktop\n        ? ChatNuSizing.conversationListDesktop\n        : ChatNuSizing.conversationListTablet;""",
+              """    final listWidth = windowClass == ChatNuWindowClass.desktop\n        ? ChatNuSizing.conversationListDesktop\n        : ChatNuSizing.conversationListTablet;\n    final transitionDuration = MediaQuery.disableAnimationsOf(context)\n        ? Duration.zero\n        : ChatNuMotion.component;""",
+              'wide reduced motion duration',
+          )
+          text = text.replace(
+              'duration: const Duration(milliseconds: 280),',
+              'duration: transitionDuration,',
+              1,
+          )
+          text = text.replace(
+              'duration: const Duration(milliseconds: 260),',
+              'duration: transitionDuration,',
+              1,
+          )
+          bottom = r'''class _BottomIcon extends StatelessWidget {
+            const _BottomIcon({
+              required this.icon,
+              required this.label,
+              required this.selected,
+              required this.onTap,
+              super.key,
+            });
+
+            final IconData icon;
+            final String label;
+            final bool selected;
+            final VoidCallback onTap;
+
+            @override
+            Widget build(BuildContext context) {
+              final palette = context.chatNu;
+              final duration = MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : ChatNuMotion.micro;
+              return Semantics(
+                button: true,
+                selected: selected,
+                label: label,
+                onTap: onTap,
+                excludeSemantics: true,
+                child: AnimatedContainer(
+                  duration: duration,
+                  constraints: const BoxConstraints(
+                    minHeight: ChatNuSizing.minTouchTarget,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: selected
+                        ? palette.glassMedium.withValues(alpha: 0.72)
+                        : Colors.transparent,
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    mouseCursor: SystemMouseCursors.click,
+                    onTap: onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          AnimatedScale(
+                            scale: selected ? 1.06 : 1,
+                            duration: duration,
+                            child: Icon(
+                              icon,
+                              size: 23,
+                              color: selected
+                                  ? palette.textPrimary
+                                  : palette.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: selected
+                                  ? palette.textPrimary
+                                  : palette.textMuted,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }'''
+          text, count = re.subn(
+              r'class _BottomIcon extends StatelessWidget \{.*?\n\}\n\nclass _DesktopNavigation',
+              bottom + '\n\nclass _DesktopNavigation',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace bottom navigation item')
+          desktop = r'''class _DesktopNavButton extends StatelessWidget {
+            const _DesktopNavButton({
+              required this.icon,
+              required this.label,
+              required this.selected,
+              required this.onPressed,
+            });
+
+            final IconData icon;
+            final String label;
+            final bool selected;
+            final VoidCallback onPressed;
+
+            @override
+            Widget build(BuildContext context) {
+              final palette = context.chatNu;
+              final duration = MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : ChatNuMotion.micro;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Semantics(
+                  button: true,
+                  selected: selected,
+                  label: label,
+                  onTap: onPressed,
+                  excludeSemantics: true,
+                  child: IconButton(
+                    tooltip: label,
+                    onPressed: onPressed,
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(52, 52),
+                      backgroundColor: selected
+                          ? palette.glassMedium.withValues(alpha: 0.78)
+                          : Colors.transparent,
+                      foregroundColor: selected
+                          ? palette.textPrimary
+                          : palette.textMuted,
+                    ),
+                    icon: AnimatedScale(
+                      scale: selected ? 1.08 : 1,
+                      duration: duration,
+                      child: Icon(icon),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }'''
+          text, count = re.subn(
+              r'class _DesktopNavButton extends StatelessWidget \{.*?\n\}\n\nclass _DestinationContent',
+              desktop + '\n\nclass _DestinationContent',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace desktop nav button')
+          path.write_text(text)
+
+          # Recording controls were explicitly 38dp; lift them to the shared 48dp target.
+          path = Path('flutter/lib/features/messages/presentation/widgets/message_composer.dart')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              """    return AnimatedContainer(\n      duration: ChatNuMotion.micro,\n      constraints: const BoxConstraints(minHeight: 46),""",
+              """    return AnimatedContainer(\n      duration: MediaQuery.disableAnimationsOf(context)\n          ? Duration.zero\n          : ChatNuMotion.micro,\n      constraints: const BoxConstraints(\n        minHeight: ChatNuSizing.minTouchTarget,\n      ),""",
+              'recording status touch target',
+          )
+          text = replace_once(
+              text,
+              """              child: AnimatedSwitcher(\n                duration: ChatNuMotion.micro,""",
+              """              child: AnimatedSwitcher(\n                duration: MediaQuery.disableAnimationsOf(context)\n                    ? Duration.zero\n                    : ChatNuMotion.micro,""",
+              'recording reduced motion',
+          )
+          text = replace_once(
+              text,
+              """    return IconButton(\n      tooltip: tooltip,\n      onPressed: onPressed,\n      visualDensity: VisualDensity.compact,\n      constraints: const BoxConstraints.tightFor(width: 38, height: 38),\n      style: IconButton.styleFrom(\n        foregroundColor: foreground,\n        backgroundColor: background,\n      ),""",
+              """    return IconButton(\n      tooltip: tooltip,\n      onPressed: onPressed,\n      style: IconButton.styleFrom(\n        minimumSize: const Size.square(ChatNuSizing.minTouchTarget),\n        tapTargetSize: MaterialTapTargetSize.padded,\n        foregroundColor: foreground,\n        backgroundColor: background,\n      ),""",
+              'recording action 48dp',
+          )
+          path.write_text(text)
+
+          # Phase 5 focused automated coverage.
+          Path('flutter/test/phase5_accessibility_desktop_test.dart').write_text(r'''import 'dart:ui';
+
+import 'package:chatnu/app/chatnu_app.dart';
+import 'package:chatnu/core/di/app_providers.dart';
+import 'package:chatnu/core/glass/glass_components.dart';
+import 'package:chatnu/core/theme/chatnu_theme.dart';
+import 'package:chatnu/core/theme/chatnu_tokens.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  Future<void> useViewport(WidgetTester tester, Size size) async {
+    tester.view
+      ..physicalSize = size
+      ..devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+  }
+
+  Widget demoApp() => ProviderScope(
+    overrides: [appModeProvider.overrideWithValue(ChatNuAppMode.demo)],
+    child: const ChatNuApp(),
+  );
+
+  testWidgets('shared interactive controls keep a 48dp minimum target', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ChatNuTheme.light,
+        home: Scaffold(
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              GlassButton(label: 'Continue', onPressed: () {}),
+              GlassSegmentedControl<int>(
+                value: 0,
+                items: const <int, String>{0: 'All', 1: 'Unread'},
+                onChanged: (_) {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(find.byType(GlassButton)).height,
+      greaterThanOrEqualTo(ChatNuSizing.minTouchTarget),
+    );
+    final allInkWell = find.ancestor(
+      of: find.text('All'),
+      matching: find.byType(InkWell),
+    );
+    expect(
+      tester.getSize(allInkWell.first).height,
+      greaterThanOrEqualTo(ChatNuSizing.minTouchTarget),
+    );
+  });
+
+  testWidgets('GlassButton remains keyboard activatable', (tester) async {
+    var activations = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ChatNuTheme.light,
+        home: Scaffold(
+          body: GlassButton(
+            label: 'Continue',
+            onPressed: () => activations += 1,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(activations, 1);
+  });
+
+  testWidgets('desktop secondary click opens an anchored conversation menu', (
+    tester,
+  ) async {
+    await useViewport(tester, const Size(1440, 900));
+    await tester.pumpWidget(demoApp());
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Design team'), findsOneWidget);
+    await tester.tap(
+      find.text('Design team'),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pin'), findsOneWidget);
+    expect(find.text('Mute'), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+  });
+}
+''')
+          PY
+
+          dart format \
+            flutter/lib/core/theme/chatnu_theme.dart \
+            flutter/lib/core/glass/glass_components.dart \
+            flutter/lib/features/conversations/presentation/conversation_list_pane.dart \
+            flutter/lib/features/home/presentation/messenger_shell.dart \
+            flutter/lib/features/messages/presentation/widgets/message_composer.dart \
+            flutter/test/phase5_accessibility_desktop_test.dart
+
+          if git diff --quiet -- \
+            flutter/lib/core/theme/chatnu_theme.dart \
+            flutter/lib/core/glass/glass_components.dart \
+            flutter/lib/features/conversations/presentation/conversation_list_pane.dart \
+            flutter/lib/features/home/presentation/messenger_shell.dart \
+            flutter/lib/features/messages/presentation/widgets/message_composer.dart \
+            flutter/test/phase5_accessibility_desktop_test.dart; then
+            echo 'Phase 5 polish already applied.'
+            exit 0
+          fi
+
+          git config user.name 'DEVNU Phase 5 Bot'
+          git config user.email 'devnu@devnu.ir'
+          git add \
+            flutter/lib/core/theme/chatnu_theme.dart \
+            flutter/lib/core/glass/glass_components.dart \
+            flutter/lib/features/conversations/presentation/conversation_list_pane.dart \
+            flutter/lib/features/home/presentation/messenger_shell.dart \
+            flutter/lib/features/messages/presentation/widgets/message_composer.dart \
+            flutter/test/phase5_accessibility_desktop_test.dart
+          git commit -m 'feat: polish accessibility and desktop interactions'
+          git push origin HEAD:chatgpt/phase-5-accessibility-desktop-polish

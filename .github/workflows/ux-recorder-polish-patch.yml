@@ -17,22 +17,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: chatgpt/ux-recorder-blue-polish
-      - name: Apply focused Flutter UX and E2EE patch
-        shell: bash
-        run: |
-          cat .github/patch-chunks/ux-part-*.b64 | base64 -d > /tmp/ux_patch.py
-          python3 /tmp/ux_patch.py
-          git diff --check
-          git status --short
-      - name: Commit focused polish
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Canonicalize changed Dart sources
+        working-directory: flutter
+        run: dart format lib/features/home/presentation/messenger_shell.dart lib/features/messages/presentation/widgets/message_composer.dart
+      - name: Commit formatting
         shell: bash
         run: |
           git config user.name "ChatNU Build Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add flutter/lib/core/theme/chatnu_theme.dart \
-                  flutter/lib/features/home/presentation/messenger_shell.dart \
-                  flutter/lib/features/messages/presentation/widgets/message_composer.dart \
-                  flutter/lib/features/home/data/messenger_repository.dart
+          git add flutter/lib/features/home/presentation/messenger_shell.dart \
+                  flutter/lib/features/messages/presentation/widgets/message_composer.dart
           git diff --cached --quiet && exit 0
-          git commit -m "feat(flutter): polish recorder UX and blue identity"
+          git commit -m "style(flutter): canonicalize recorder UX polish"
           git push origin HEAD:chatgpt/ux-recorder-blue-polish

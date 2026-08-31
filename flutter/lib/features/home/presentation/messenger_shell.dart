@@ -463,9 +463,7 @@ class _DesktopNavButton extends StatelessWidget {
             backgroundColor: selected
                 ? palette.glassMedium.withValues(alpha: 0.78)
                 : Colors.transparent,
-            foregroundColor: selected
-                ? palette.textPrimary
-                : palette.textMuted,
+            foregroundColor: selected ? palette.textPrimary : palette.textMuted,
           ),
           icon: AnimatedScale(
             scale: selected ? 1.08 : 1,

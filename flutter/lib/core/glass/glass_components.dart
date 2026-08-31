@@ -335,7 +335,9 @@ class _GlassButtonState extends State<GlassButton> {
                         : widget.prominent
                         ? <BoxShadow>[
                             BoxShadow(
-                              color: palette.accentPrimary.withValues(alpha: 0.2),
+                              color: palette.accentPrimary.withValues(
+                                alpha: 0.2,
+                              ),
                               blurRadius: 18,
                               offset: const Offset(0, 8),
                             ),

@@ -476,8 +476,7 @@ class _ConversationTile extends StatelessWidget {
       child: GestureDetector(
         excludeFromSemantics: true,
         behavior: HitTestBehavior.opaque,
-        onSecondaryTapDown: (details) =>
-            onContextMenu(details.globalPosition),
+        onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
         child: Material(
           color: selected ? palette.glassWeak : Colors.transparent,
           child: InkWell(
@@ -523,7 +522,9 @@ class _ConversationTile extends StatelessWidget {
                           children: <Widget>[
                             if (conversation.isPinned)
                               Padding(
-                                padding: const EdgeInsetsDirectional.only(end: 5),
+                                padding: const EdgeInsetsDirectional.only(
+                                  end: 5,
+                                ),
                                 child: Tooltip(
                                   message: strings.pinned,
                                   child: Icon(
@@ -535,7 +536,9 @@ class _ConversationTile extends StatelessWidget {
                               ),
                             if (conversation.isMuted)
                               Padding(
-                                padding: const EdgeInsetsDirectional.only(end: 5),
+                                padding: const EdgeInsetsDirectional.only(
+                                  end: 5,
+                                ),
                                 child: Tooltip(
                                   message: strings.muted,
                                   child: Icon(

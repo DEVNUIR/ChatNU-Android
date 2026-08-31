@@ -173,7 +173,9 @@ class SettingsPane extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          strings.isPersian ? 'جلوه‌های بصری' : 'Visual effects',
+                          strings.isPersian
+                              ? 'جلوه‌های بصری'
+                              : 'Visual effects',
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
                         const SizedBox(height: ChatNuSpacing.xs),
@@ -378,7 +380,10 @@ Future<void> _showAdvancedSettingsSheet(
             const SizedBox(height: ChatNuSpacing.xs),
             _SettingsTile(
               icon: SettingsPane._connectionIcon(state.realtimeStatus),
-              title: SettingsPane._connectionLabel(strings, state.realtimeStatus),
+              title: SettingsPane._connectionLabel(
+                strings,
+                state.realtimeStatus,
+              ),
               subtitle: endpointLabel,
               trailing: IconButton(
                 tooltip: strings.refresh,

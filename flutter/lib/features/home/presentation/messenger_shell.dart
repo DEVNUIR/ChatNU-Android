@@ -332,9 +332,7 @@ class _BottomIcon extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 23,
-                    color: selected
-                        ? palette.textPrimary
-                        : palette.textMuted,
+                    color: selected ? palette.textPrimary : palette.textMuted,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -343,9 +341,7 @@ class _BottomIcon extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: selected
-                        ? palette.textPrimary
-                        : palette.textMuted,
+                    color: selected ? palette.textPrimary : palette.textMuted,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),

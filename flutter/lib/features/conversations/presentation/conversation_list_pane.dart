@@ -42,7 +42,8 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
     final query = _searchController.text.trim().toLowerCase();
     final conversations = state.conversations
         .where((conversation) {
-          final draft = state.drafts[conversation.id]?.trim().toLowerCase() ?? '';
+          final draft =
+              state.drafts[conversation.id]?.trim().toLowerCase() ?? '';
           return query.isEmpty ||
               conversation.title.toLowerCase().contains(query) ||
               conversation.lastMessagePreview.toLowerCase().contains(query) ||

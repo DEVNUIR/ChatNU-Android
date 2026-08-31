@@ -46,7 +46,7 @@ Legend:
 | File attachments | Integrated in this branch | encrypted attachment download + temporary decrypted file + native open/save handoff | Cards show type/name/size, indeterminate decrypt progress, Open in the OS, and Save; temporary decrypted files are cleaned up with the media widget lifecycle |
 | Recording state machine | Integrated in this branch | `ChatNuRecordingSession` + existing `record`/`camera` capture paths | Explicit idle → arming → holding → locked/paused → finishing states replace boolean-heavy recorder UI; cancel and lock gestures are mutually exclusive and RTL-aware |
 | Static location messages | Integrated in this branch | encrypted location payload + `MessageType.LOCATION` + `flutter_map` renderer | Current coordinates are permission-gated, encrypted in message content, and rendered as a non-interactive OSM-backed map card with attribution |
-| Live location | Partial foundation only | server `MessageType.LIVE_LOCATION` and Kotlin session model exist, but no audited production update/revoke stream yet | Attachment sheet shows the capability disabled; expiry/revoke and encrypted realtime-update semantics must exist before live sharing can be enabled |
+| Live location | Partial/local in this branch | repeated device-E2EE `MessageType.LIVE_LOCATION` messages driven by `LiveLocationController`; no dedicated server session/update/revoke resource | User can share for up to 15 minutes while ChatNU remains foregrounded; the client sends a fresh encrypted coordinate about every 30 seconds and stops on app background, explicit stop, or local expiry. No background sharing, cross-device stop, participant session, or server-authoritative countdown is claimed |
 | Contact message attachment | Not exposed | no audited encrypted contact-message payload in current server contract | Attachment sheet shows Contact disabled rather than serializing address-book data into an invented message format |
 | View-once media | Partial foundation only | server enum contains `VIEW_ONCE_IMAGE` / `VIEW_ONCE_VIDEO` | Needs one-view enforcement semantics before UI |
 | Message copy | Local capability | clipboard only | Context action exposed |
@@ -58,8 +58,9 @@ Legend:
 | Reactions | Not exposed | No audited reaction model/API | Do not fake |
 | Typing indicator | Not exposed | No production typing event surfaced to Flutter view state | Do not simulate |
 | Presence / Online | Not exposed | `lastSeenAt` exists but no audited presence contract | Header says encrypted rather than fabricating online state |
-| One-to-one audio calls | Integrated | WebRTC + realtime call signaling | Modern direct-call action + active-call overlay |
-| One-to-one video calls | Integrated | WebRTC + realtime call signaling | Modern video action + active-call overlay |
+| One-to-one audio calls | Integrated in this branch | WebRTC + realtime call signaling + `CallController` connection policy | Direct calls expose preparing, ringing, connecting, connected, reconnecting, and failure states; unanswered ringing is bounded to 45 seconds and transient disconnects receive an 8-second reconnect grace period |
+| One-to-one video calls | Integrated in this branch | WebRTC + realtime call signaling + `CallController` connection policy | Same resilient state model as voice calls while preserving real remote/local video, camera controls, and existing signaling |
+| Call permission / transport errors | Integrated in this branch | media-device/WebRTC exceptions mapped at the call application layer | Consumer UI receives friendly microphone/camera/network guidance instead of raw WebRTC, ICE, or WebSocket exception strings |
 | Mute / camera toggle | Integrated | `CallController` | Expose exactly supported controls |
 | Speaker route | Integrated in this branch | `flutter_webrtc` `Helper.setSpeakerphoneOn` | Active-call overlay exposes speaker on/off and resets routing on teardown |
 | Switch camera | Integrated in this branch | `flutter_webrtc` `Helper.switchCamera` | Video calls expose front/rear camera switching without changing signaling |
@@ -116,6 +117,13 @@ OpenStreetMap endpoint with attribution and a ChatNU user-agent. This is suitabl
 functional validation and light use; a production-scale deployment should use an
 OSM-compatible tile service or self-hosted tile infrastructure rather than treating the
 community tile endpoint as an unlimited application CDN.
+
+Phase 3 Live Location is deliberately not modeled as a durable server-side location
+session because the audited backend exposes the `LIVE_LOCATION` message type but no
+separate update/revoke/session resource. The foreground controller therefore emits a
+series of ordinary device-E2EE live-location messages on a local 15-minute timer. It stops
+when the app leaves the foreground and makes no promise that another device can revoke,
+resume, or share a synchronized expiry countdown for that local session.
 
 ## Performance boundary
 

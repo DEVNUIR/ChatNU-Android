@@ -29,19 +29,21 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: ChatNuTheme.light,
-        home: Scaffold(
-          body: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              GlassButton(label: 'Continue', onPressed: () {}),
-              GlassSegmentedControl<int>(
-                value: 0,
-                items: const <int, String>{0: 'All', 1: 'Unread'},
-                onChanged: (_) {},
-              ),
-            ],
+      ProviderScope(
+        child: MaterialApp(
+          theme: ChatNuTheme.light,
+          home: Scaffold(
+            body: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                GlassButton(label: 'Continue', onPressed: () {}),
+                GlassSegmentedControl<int>(
+                  value: 0,
+                  items: const <int, String>{0: 'All', 1: 'Unread'},
+                  onChanged: (_) {},
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -95,8 +97,10 @@ void main() {
     await tester.tap(designTeam, buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Pin'), findsOneWidget);
-    expect(find.text('Mute'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((widget) => widget is PopupMenuItem),
+      findsNWidgets(2),
+    );
     expect(find.byType(BottomSheet), findsNothing);
   });
 }

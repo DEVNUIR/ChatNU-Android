@@ -148,9 +148,8 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
                   ),
                   child: Text(
                     strings.chats,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleLarge?.copyWith(fontSize: 21),
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontSize: 21),
                   ),
                 ),
               ),

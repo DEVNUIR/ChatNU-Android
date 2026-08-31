@@ -343,7 +343,8 @@ class _AppearanceStudio extends ConsumerWidget {
     final palette = context.chatNu;
     final wallpaperLabel = switch (appearance.wallpaperStyle) {
       ChatWallpaperStyle.ambient => strings.isPersian ? 'محیطی' : 'Ambient',
-      ChatWallpaperStyle.softGrid => strings.isPersian ? 'شبکهٔ نرم' : 'Soft grid',
+      ChatWallpaperStyle.softGrid =>
+        strings.isPersian ? 'شبکهٔ نرم' : 'Soft grid',
       ChatWallpaperStyle.midnight => strings.isPersian ? 'نیمه‌شب' : 'Midnight',
       ChatWallpaperStyle.solid => strings.isPersian ? 'ساده' : 'Solid',
     };
@@ -379,7 +380,10 @@ class _AppearanceStudio extends ConsumerWidget {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: ChatNuSpacing.sm),
               Expanded(
@@ -428,9 +432,7 @@ class _AppearanceStudio extends ConsumerWidget {
           GlassSegmentedControl<GlassEffectLevel>(
             value: appearance.glassEffectLevel,
             onChanged: (level) => unawaited(
-              ref
-                  .read(appearanceProvider.notifier)
-                  .setGlassEffectLevel(level),
+              ref.read(appearanceProvider.notifier).setGlassEffectLevel(level),
             ),
             items: <GlassEffectLevel, String>{
               GlassEffectLevel.full: strings.glassFull,
@@ -463,7 +465,9 @@ class _AppearanceStudio extends ConsumerWidget {
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: ChatNuSpacing.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ChatNuSpacing.md,
+                ),
                 child: Row(
                   children: <Widget>[
                     Container(
@@ -642,9 +646,8 @@ class _ProfileHero extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           '@$username',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: palette.textMuted,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: palette.textMuted),
                         ),
                         if (bio?.trim().isNotEmpty == true) ...<Widget>[
                           const SizedBox(height: 5),
@@ -663,7 +666,9 @@ class _ProfileHero extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: palette.success.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(ChatNuRadii.pill),
+                            borderRadius: BorderRadius.circular(
+                              ChatNuRadii.pill,
+                            ),
                             border: Border.all(
                               color: palette.success.withValues(alpha: 0.18),
                             ),
@@ -748,10 +753,8 @@ class _SettingsSection extends StatelessWidget {
             ),
             child: Text(
               title,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: palette.accentPrimary,
-                letterSpacing: 0.2,
-              ),
+              style: Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(color: palette.accentPrimary, letterSpacing: 0.2),
             ),
           ),
           for (var index = 0; index < children.length; index++) ...<Widget>[
@@ -762,7 +765,9 @@ class _SettingsSection extends StatelessWidget {
                   start: 66,
                   end: ChatNuSpacing.md,
                 ),
-                child: Divider(color: palette.borderSubtle.withValues(alpha: 0.65)),
+                child: Divider(
+                  color: palette.borderSubtle.withValues(alpha: 0.65),
+                ),
               ),
           ],
         ],
@@ -792,6 +797,9 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
+    final chevron = Directionality.of(context) == TextDirection.rtl
+        ? Icons.chevron_left_rounded
+        : Icons.chevron_right_rounded;
     return ListTile(
       minTileHeight: 72,
       leading: Container(
@@ -815,16 +823,39 @@ class _SettingsTile extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: palette.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
+        style: Theme.of(context).textTheme.titleSmall
+            ?.copyWith(color: palette.textPrimary, fontWeight: FontWeight.w600),
       ),
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing:
           trailing ??
-          (onTap == null
-              ? null
-              : Icon(
-                  Directionality.of(context) == TextDirection.rtl
-                      ? Icons.chevron_left
+          (onTap == null ? null : Icon(chevron, color: palette.textMuted)),
+      onTap: onTap,
+    );
+  }
+}
+
+class _NoticeTile extends StatelessWidget {
+  const _NoticeTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => GlassPanel(
+    variant: GlassVariant.weak,
+    padding: EdgeInsets.zero,
+    child: ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(title),
+      subtitle: Text(subtitle),
+    ),
+  );
+}

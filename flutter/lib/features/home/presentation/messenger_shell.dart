@@ -67,70 +67,75 @@ class _WideShell extends ConsumerWidget {
       body: ChatNuAtmosphere(
         child: SafeArea(
           child: Row(
-          children: <Widget>[
-            _DesktopNavigation(destination: state.destination),
-            if (state.destination == MessengerDestination.chats) ...<Widget>[
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(0, 12, 0, 12),
-                child: SizedBox(
-                  width: listWidth,
-                  child: GlassSurface(
-                    variant: GlassVariant.weak,
-                    enableBlur: true,
-                    borderRadius: ChatNuRadii.lg,
-                    child: ConversationListPane(
-                      showComposeAction: true,
-                      onSelected: ref
-                          .read(messengerDemoProvider.notifier)
-                          .selectConversation,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(0, 12, 12, 12),
-                  child: GlassSurface(
-                    variant: GlassVariant.weak,
-                    enableBlur: true,
-                    borderRadius: ChatNuRadii.lg,
-                    child: AnimatedSwitcher(
-                      duration: transitionDuration,
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      child: selectedId == null
-                          ? _NoConversationSelected(
-                              key: const ValueKey('empty-conversation'),
-                              loading: state.isLoading,
-                            )
-                          : ConversationPane(
-                              key: ValueKey('conversation-$selectedId'),
-                              conversationId: selectedId!,
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-            ] else
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: GlassSurface(
-                    variant: GlassVariant.weak,
-                    enableBlur: true,
-                    borderRadius: ChatNuRadii.lg,
-                    child: AnimatedSwitcher(
-                      duration: transitionDuration,
-                      child: KeyedSubtree(
-                        key: ValueKey(state.destination),
-                        child: _DestinationContent(state.destination),
+            children: <Widget>[
+              _DesktopNavigation(destination: state.destination),
+              if (state.destination == MessengerDestination.chats) ...<Widget>[
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 12, 0, 12),
+                  child: SizedBox(
+                    width: listWidth,
+                    child: GlassSurface(
+                      variant: GlassVariant.weak,
+                      enableBlur: true,
+                      borderRadius: ChatNuRadii.lg,
+                      child: ConversationListPane(
+                        showComposeAction: true,
+                        onSelected: ref
+                            .read(messengerDemoProvider.notifier)
+                            .selectConversation,
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      0,
+                      12,
+                      12,
+                      12,
+                    ),
+                    child: GlassSurface(
+                      variant: GlassVariant.weak,
+                      enableBlur: true,
+                      borderRadius: ChatNuRadii.lg,
+                      child: AnimatedSwitcher(
+                        duration: transitionDuration,
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: selectedId == null
+                            ? _NoConversationSelected(
+                                key: const ValueKey('empty-conversation'),
+                                loading: state.isLoading,
+                              )
+                            : ConversationPane(
+                                key: ValueKey('conversation-$selectedId'),
+                                conversationId: selectedId!,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ] else
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: GlassSurface(
+                      variant: GlassVariant.weak,
+                      enableBlur: true,
+                      borderRadius: ChatNuRadii.lg,
+                      child: AnimatedSwitcher(
+                        duration: transitionDuration,
+                        child: KeyedSubtree(
+                          key: ValueKey(state.destination),
+                          child: _DestinationContent(state.destination),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -237,42 +242,41 @@ class _ReferenceBottomBar extends ConsumerWidget {
         height: 58,
         child: Row(
           children: <Widget>[
-                Expanded(
-                  child: _BottomIcon(
-                    key: const Key('phone-nav-chats'),
-                    icon: destination == MessengerDestination.chats
-                        ? Icons.chat_rounded
-                        : Icons.chat_outlined,
-                    label: strings.chats,
-                    selected: destination == MessengerDestination.chats,
-                    onTap: () =>
-                        _setDestination(ref, MessengerDestination.chats),
-                  ),
-                ),
-                Expanded(
-                  child: _BottomIcon(
-                    key: const Key('phone-nav-contacts'),
-                    icon: destination == MessengerDestination.contacts
-                        ? Icons.contacts_rounded
-                        : Icons.contacts_outlined,
-                    label: strings.contacts,
-                    selected: destination == MessengerDestination.contacts,
-                    onTap: () =>
-                        _setDestination(ref, MessengerDestination.contacts),
-                  ),
-                ),
-                Expanded(
-                  child: _BottomIcon(
-                    key: const Key('phone-nav-settings'),
-                    icon: destination == MessengerDestination.settings
-                        ? Icons.settings_rounded
-                        : Icons.settings_outlined,
-                    label: strings.settings,
-                    selected: destination == MessengerDestination.settings,
-                    onTap: () =>
-                        _setDestination(ref, MessengerDestination.settings),
-                  ),
-                ),
+            Expanded(
+              child: _BottomIcon(
+                key: const Key('phone-nav-chats'),
+                icon: destination == MessengerDestination.chats
+                    ? Icons.chat_rounded
+                    : Icons.chat_outlined,
+                label: strings.chats,
+                selected: destination == MessengerDestination.chats,
+                onTap: () => _setDestination(ref, MessengerDestination.chats),
+              ),
+            ),
+            Expanded(
+              child: _BottomIcon(
+                key: const Key('phone-nav-contacts'),
+                icon: destination == MessengerDestination.contacts
+                    ? Icons.contacts_rounded
+                    : Icons.contacts_outlined,
+                label: strings.contacts,
+                selected: destination == MessengerDestination.contacts,
+                onTap: () =>
+                    _setDestination(ref, MessengerDestination.contacts),
+              ),
+            ),
+            Expanded(
+              child: _BottomIcon(
+                key: const Key('phone-nav-settings'),
+                icon: destination == MessengerDestination.settings
+                    ? Icons.settings_rounded
+                    : Icons.settings_outlined,
+                label: strings.settings,
+                selected: destination == MessengerDestination.settings,
+                onTap: () =>
+                    _setDestination(ref, MessengerDestination.settings),
+              ),
+            ),
           ],
         ),
       ),
@@ -373,32 +377,32 @@ class _DesktopNavigation extends ConsumerWidget {
           borderRadius: ChatNuRadii.xl,
           child: Column(
             children: <Widget>[
-                  const SizedBox(height: 14),
-                  const ChatNuMark(size: 36),
-                  const SizedBox(height: 24),
-                  _DesktopNavButton(
-                    icon: Icons.chat_rounded,
-                    label: strings.chats,
-                    selected: destination == MessengerDestination.chats,
-                    onPressed: () =>
-                        _setDestination(ref, MessengerDestination.chats),
-                  ),
-                  _DesktopNavButton(
-                    icon: Icons.contacts_outlined,
-                    label: strings.contacts,
-                    selected: destination == MessengerDestination.contacts,
-                    onPressed: () =>
-                        _setDestination(ref, MessengerDestination.contacts),
-                  ),
-                  const Spacer(),
-                  _DesktopNavButton(
-                    icon: Icons.settings_rounded,
-                    label: strings.settings,
-                    selected: destination == MessengerDestination.settings,
-                    onPressed: () =>
-                        _setDestination(ref, MessengerDestination.settings),
-                  ),
-                  const SizedBox(height: 14),
+              const SizedBox(height: 14),
+              const ChatNuMark(size: 36),
+              const SizedBox(height: 24),
+              _DesktopNavButton(
+                icon: Icons.chat_rounded,
+                label: strings.chats,
+                selected: destination == MessengerDestination.chats,
+                onPressed: () =>
+                    _setDestination(ref, MessengerDestination.chats),
+              ),
+              _DesktopNavButton(
+                icon: Icons.contacts_outlined,
+                label: strings.contacts,
+                selected: destination == MessengerDestination.contacts,
+                onPressed: () =>
+                    _setDestination(ref, MessengerDestination.contacts),
+              ),
+              const Spacer(),
+              _DesktopNavButton(
+                icon: Icons.settings_rounded,
+                label: strings.settings,
+                selected: destination == MessengerDestination.settings,
+                onPressed: () =>
+                    _setDestination(ref, MessengerDestination.settings),
+              ),
+              const SizedBox(height: 14),
             ],
           ),
         ),

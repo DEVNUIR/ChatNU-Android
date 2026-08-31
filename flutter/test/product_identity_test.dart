@@ -28,7 +28,10 @@ void main() {
 
     final image = tester.widget<Image>(find.byType(Image));
     expect(image.image, isA<AssetImage>());
-    expect((image.image as AssetImage).assetName, 'assets/brand/chatnu_launcher.png');
+    expect(
+      (image.image as AssetImage).assetName,
+      'assets/brand/chatnu_launcher.png',
+    );
     expect(tester.takeException(), isNull);
   });
 

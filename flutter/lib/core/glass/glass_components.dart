@@ -354,9 +354,8 @@ class _GlassButtonState extends State<GlassButton> {
                       ],
                       Text(
                         widget.label,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.labelLarge?.copyWith(color: foreground),
+                        style: Theme.of(context).textTheme.labelLarge
+                            ?.copyWith(color: foreground),
                       ),
                     ],
                   ),
@@ -450,9 +449,8 @@ class _GlassSearchFieldState extends State<GlassSearchField> {
           suffixIcon: widget.controller.text.isEmpty
               ? null
               : IconButton(
-                  tooltip: MaterialLocalizations.of(
-                    context,
-                  ).deleteButtonTooltip,
+                  tooltip: MaterialLocalizations.of(context)
+                      .deleteButtonTooltip,
                   onPressed: () {
                     widget.controller.clear();
                     widget.onChanged?.call('');
@@ -574,10 +572,8 @@ class GlassBadge extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -605,64 +601,67 @@ class GlassSegmentedControl<T> extends StatelessWidget {
       borderRadius: ChatNuRadii.pill,
       padding: const EdgeInsets.all(3),
       child: Row(
-        children: items.entries.map((entry) {
-          final selected = entry.key == value;
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(end: 2),
-              child: Semantics(
-                button: true,
-                selected: selected,
-                label: entry.value,
-                onTap: () => onChanged(entry.key),
-                excludeSemantics: true,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(ChatNuRadii.pill),
-                  mouseCursor: SystemMouseCursors.click,
-                  onTap: () => onChanged(entry.key),
-                  child: AnimatedContainer(
-                    duration: reduceMotion
-                        ? Duration.zero
-                        : ChatNuMotion.micro,
-                    constraints: const BoxConstraints(
-                      minHeight: ChatNuSizing.minTouchTarget,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: ChatNuSpacing.sm,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? palette.glassStrong
-                          : Colors.transparent,
+        children: items.entries
+            .map((entry) {
+              final selected = entry.key == value;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 2),
+                  child: Semantics(
+                    button: true,
+                    selected: selected,
+                    label: entry.value,
+                    onTap: () => onChanged(entry.key),
+                    excludeSemantics: true,
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(ChatNuRadii.pill),
-                      border: Border.all(
-                        color: selected
-                            ? palette.borderHighlight
-                            : Colors.transparent,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      entry.value,
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: selected
-                            ? palette.textPrimary
-                            : palette.textSecondary,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                      mouseCursor: SystemMouseCursors.click,
+                      onTap: () => onChanged(entry.key),
+                      child: AnimatedContainer(
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : ChatNuMotion.micro,
+                        constraints: const BoxConstraints(
+                          minHeight: ChatNuSizing.minTouchTarget,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ChatNuSpacing.sm,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? palette.glassStrong
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(ChatNuRadii.pill),
+                          border: Border.all(
+                            color: selected
+                                ? palette.borderHighlight
+                                : Colors.transparent,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          entry.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: selected
+                                    ? palette.textPrimary
+                                    : palette.textSecondary,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          );
-        }).toList(growable: false),
+              );
+            })
+            .toList(growable: false),
       ),
     );
   }

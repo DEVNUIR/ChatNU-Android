@@ -94,9 +94,7 @@ class GlassSurface extends ConsumerWidget {
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(
-              alpha: dark ? 0.28 : 0.075,
-            ),
+            color: Colors.black.withValues(alpha: dark ? 0.28 : 0.075),
             blurRadius: variant == GlassVariant.strong ? 30 : 18,
             offset: const Offset(0, 12),
           ),

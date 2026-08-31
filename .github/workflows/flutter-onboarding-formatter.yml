@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - refactor/flutter-liquid-glass-2026
-      - chatgpt/phase-5-accessibility-desktop-polish
     paths:
       - ".github/workflows/flutter-onboarding-formatter.yml"
 
@@ -21,18 +20,16 @@ jobs:
           flutter-version: "3.44.0"
           channel: stable
           cache: true
-      - name: Remove analyzer-only Phase 5 imports
+      - name: Format onboarding sources
         run: |
-          sed -i "/import 'package:chatnu\/core\/theme\/chatnu_tokens.dart';/d" flutter/lib/features/conversations/presentation/conversation_list_pane.dart
-          sed -i "/import 'dart:ui';/d" flutter/test/phase5_accessibility_desktop_test.dart
           cd flutter
-          dart format lib/features/conversations/presentation/conversation_list_pane.dart test/phase5_accessibility_desktop_test.dart
-      - name: Commit analyzer cleanup
+          dart format lib test
+      - name: Commit canonical formatting
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add flutter/lib/features/conversations/presentation/conversation_list_pane.dart flutter/test/phase5_accessibility_desktop_test.dart
+          git add flutter/lib flutter/test
           if ! git diff --cached --quiet; then
-            git commit -m "fix(flutter): clean phase5 analyzer imports"
+            git commit -m "style(flutter): format onboarding journey"
             git push
           fi

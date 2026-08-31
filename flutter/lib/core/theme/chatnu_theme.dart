@@ -1,3 +1,4 @@
+import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:flutter/material.dart';
 
 class ChatNuPalette extends ThemeExtension<ChatNuPalette> {
@@ -179,6 +180,8 @@ abstract final class ChatNuTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: palette.backgroundPrimary,
       extensions: <ThemeExtension<dynamic>>[palette],
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
     );
     final textTheme = base.textTheme.copyWith(
       displaySmall: base.textTheme.displaySmall?.copyWith(
@@ -231,9 +234,41 @@ abstract final class ChatNuTheme {
     return base.copyWith(
       textTheme: textTheme,
       splashFactory: NoSplash.splashFactory,
-      highlightColor: Colors.transparent,
+      hoverColor: palette.textPrimary.withValues(alpha: 0.045),
+      highlightColor: palette.textPrimary.withValues(alpha: 0.065),
+      focusColor: palette.accentPrimary.withValues(alpha: 0.22),
       dividerColor: palette.borderSubtle,
       dividerTheme: DividerThemeData(color: palette.borderSubtle, space: 1),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(ChatNuSizing.minTouchTarget),
+          tapTargetSize: MaterialTapTargetSize.padded,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(
+            ChatNuSizing.minTouchTarget,
+            ChatNuSizing.minTouchTarget,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(
+            ChatNuSizing.minTouchTarget,
+            ChatNuSizing.minTouchTarget,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(
+            ChatNuSizing.minTouchTarget,
+            ChatNuSizing.minTouchTarget,
+          ),
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: palette.glassWeak,
@@ -280,7 +315,6 @@ abstract final class ChatNuTheme {
           color: brightness == Brightness.light ? Colors.white : Colors.black,
         ),
       ),
-      focusColor: palette.accentPrimary.withValues(alpha: 0.22),
     );
   }
 }

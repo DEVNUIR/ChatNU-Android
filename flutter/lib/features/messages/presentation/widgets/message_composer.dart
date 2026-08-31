@@ -610,7 +610,9 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     if (current.isSharingConversation(widget.conversationId)) {
       controller.stop();
       if (mounted) {
-        _showError(persian ? 'موقعیت زنده متوقف شد.' : 'Live Location stopped.');
+        _showError(
+          persian ? 'موقعیت زنده متوقف شد.' : 'Live Location stopped.',
+        );
       }
       return;
     }

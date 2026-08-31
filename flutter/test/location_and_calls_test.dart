@@ -41,16 +41,19 @@ void main() {
   });
 
   group('ChatNuLiveLocationPolicy', () {
-    test('is explicitly foreground-sized rather than an indefinite session', () {
-      expect(
-        ChatNuLiveLocationPolicy.shareDuration,
-        const Duration(minutes: 15),
-      );
-      expect(
-        ChatNuLiveLocationPolicy.updateInterval,
-        const Duration(seconds: 30),
-      );
-    });
+    test(
+      'is explicitly foreground-sized rather than an indefinite session',
+      () {
+        expect(
+          ChatNuLiveLocationPolicy.shareDuration,
+          const Duration(minutes: 15),
+        );
+        expect(
+          ChatNuLiveLocationPolicy.updateInterval,
+          const Duration(seconds: 30),
+        );
+      },
+    );
 
     test('remaining time clamps at zero after expiry', () {
       final start = DateTime.utc(2026, 8, 31, 12);

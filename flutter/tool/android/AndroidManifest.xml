@@ -12,8 +12,8 @@
     <application
         android:label="ChatNU"
         android:name="${applicationName}"
-        android:icon="@drawable/ic_chatnu"
-        android:roundIcon="@drawable/ic_chatnu">
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
         <activity
             android:name=".MainActivity"
             android:exported="true"

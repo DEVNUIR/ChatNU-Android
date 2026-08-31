@@ -198,8 +198,8 @@ class _PhoneShell extends ConsumerWidget {
           : FloatingActionButton.extended(
               key: const Key('new-chat-fab'),
               onPressed: () => unawaited(showNewChatSheet(context)),
-              backgroundColor: palette.textPrimary,
-              foregroundColor: palette.backgroundElevated,
+              backgroundColor: palette.accentPrimary,
+              foregroundColor: Colors.white,
               elevation: 2,
               icon: const Icon(Icons.edit_rounded, size: 19),
               label: Text(strings.newChat),
@@ -252,8 +252,8 @@ class _ReferenceBottomBar extends ConsumerWidget {
                   child: _BottomIcon(
                     key: const Key('phone-nav-chats'),
                     icon: destination == MessengerDestination.chats
-                        ? Icons.chat_bubble_rounded
-                        : Icons.chat_bubble_outline_rounded,
+                        ? Icons.chat_rounded
+                        : Icons.chat_outlined,
                     label: strings.chats,
                     selected: destination == MessengerDestination.chats,
                     onTap: () =>
@@ -264,8 +264,8 @@ class _ReferenceBottomBar extends ConsumerWidget {
                   child: _BottomIcon(
                     key: const Key('phone-nav-contacts'),
                     icon: destination == MessengerDestination.contacts
-                        ? Icons.people_alt_rounded
-                        : Icons.people_alt_outlined,
+                        ? Icons.contacts_rounded
+                        : Icons.contacts_outlined,
                     label: strings.contacts,
                     selected: destination == MessengerDestination.contacts,
                     onTap: () =>
@@ -276,8 +276,8 @@ class _ReferenceBottomBar extends ConsumerWidget {
                   child: _BottomIcon(
                     key: const Key('phone-nav-settings'),
                     icon: destination == MessengerDestination.settings
-                        ? Icons.tune_rounded
-                        : Icons.tune_outlined,
+                        ? Icons.settings_rounded
+                        : Icons.settings_outlined,
                     label: strings.settings,
                     selected: destination == MessengerDestination.settings,
                     onTap: () =>
@@ -327,7 +327,7 @@ class _BottomIcon extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           color: selected
-              ? palette.glassMedium.withValues(alpha: 0.72)
+              ? palette.accentPrimary.withValues(alpha: 0.12)
               : Colors.transparent,
         ),
         child: InkWell(
@@ -345,7 +345,7 @@ class _BottomIcon extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 23,
-                    color: selected ? palette.textPrimary : palette.textMuted,
+                    color: selected ? palette.accentPrimary : palette.textMuted,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -354,7 +354,7 @@ class _BottomIcon extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: selected ? palette.textPrimary : palette.textMuted,
+                    color: selected ? palette.accentPrimary : palette.textMuted,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
@@ -396,14 +396,14 @@ class _DesktopNavigation extends ConsumerWidget {
                   const ChatNuMark(size: 36),
                   const SizedBox(height: 24),
                   _DesktopNavButton(
-                    icon: Icons.chat_bubble_rounded,
+                    icon: Icons.chat_rounded,
                     label: strings.chats,
                     selected: destination == MessengerDestination.chats,
                     onPressed: () =>
                         _setDestination(ref, MessengerDestination.chats),
                   ),
                   _DesktopNavButton(
-                    icon: Icons.people_alt_outlined,
+                    icon: Icons.contacts_outlined,
                     label: strings.contacts,
                     selected: destination == MessengerDestination.contacts,
                     onPressed: () =>
@@ -411,7 +411,7 @@ class _DesktopNavigation extends ConsumerWidget {
                   ),
                   const Spacer(),
                   _DesktopNavButton(
-                    icon: Icons.tune_rounded,
+                    icon: Icons.settings_rounded,
                     label: strings.settings,
                     selected: destination == MessengerDestination.settings,
                     onPressed: () =>
@@ -461,9 +461,11 @@ class _DesktopNavButton extends StatelessWidget {
           style: IconButton.styleFrom(
             minimumSize: const Size(52, 52),
             backgroundColor: selected
-                ? palette.glassMedium.withValues(alpha: 0.78)
+                ? palette.accentPrimary.withValues(alpha: 0.12)
                 : Colors.transparent,
-            foregroundColor: selected ? palette.textPrimary : palette.textMuted,
+            foregroundColor: selected
+                ? palette.accentPrimary
+                : palette.textMuted,
           ),
           icon: AnimatedScale(
             scale: selected ? 1.08 : 1,
@@ -507,11 +509,7 @@ class _NoConversationSelected extends StatelessWidget {
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(
-                  Icons.chat_bubble_outline_rounded,
-                  color: palette.textMuted,
-                  size: 30,
-                ),
+                Icon(Icons.chat_outlined, color: palette.textMuted, size: 30),
                 const SizedBox(height: 12),
                 Text(
                   strings.noConversation,

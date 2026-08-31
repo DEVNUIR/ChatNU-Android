@@ -8,6 +8,6 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Backplate behind the supplied ChatNU adaptive launcher foreground. -->
-    <color name="chatnu_launcher_background">#FFF7F8FF</color>
+    <!-- Dark backplate from ChatNU Universal Icon Pack v1 recommended set. -->
+    <color name="chatnu_launcher_background">#FF070F1D</color>
 </resources>

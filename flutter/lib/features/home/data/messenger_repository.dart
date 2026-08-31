@@ -368,10 +368,10 @@ class MessengerRepository {
     required ChatNuMessageType type,
     required String plaintext,
   }) async {
-    final keys = await _api.conversationKeys(conversationId);
+    final keys = await _conversationKeysWithIdentityRepair(conversationId);
     if (keys.missingUserIds.isNotEmpty) {
       throw StateError(
-        'Some members must open an E2EE-capable ChatNU client before encrypted messages can be sent.',
+        'Encrypted messaging is waiting for another conversation member to register an E2EE device. Ask them to open the latest ChatNU and reconnect.',
       );
     }
     final serverType = EncryptedMessageMapper.serverType(type);
@@ -398,6 +398,32 @@ class MessengerRepository {
     final sent = await _mapper.toMessage(dto);
     await _localStore.replaceMessage(_scope, conversationId, clientId, sent);
     return sent;
+  }
+
+  Future<ConversationKeysResponse> _conversationKeysWithIdentityRepair(
+    String conversationId,
+  ) async {
+    var keys = await _api.conversationKeys(conversationId);
+    final session = _vault.session;
+    if (session == null) return keys;
+
+    bool currentDeviceIsMissing(ConversationKeysResponse value) =>
+        !value.devices.any((device) => device.deviceId == session.deviceId);
+
+    final shouldRepair =
+        currentDeviceIsMissing(keys) ||
+        keys.missingUserIds.contains(session.user.id);
+    if (!shouldRepair) return keys;
+
+    final publicKey = await _e2ee.publicKeyBase64(session.cryptoAccount);
+    await _api.updateIdentityKey(publicKey);
+    keys = await _api.conversationKeys(conversationId);
+    if (currentDeviceIsMissing(keys)) {
+      throw StateError(
+        'This device could not register its encryption identity. Reconnect or sign in again before sending encrypted messages.',
+      );
+    }
+    return keys;
   }
 
   Future<ChatNuConversation> _conversationFromDto(ConversationDto dto) async {

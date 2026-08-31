@@ -15,6 +15,11 @@ void main() {
     });
   }
 
+  Future<void> pumpNavigation(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+
   Widget demoApp() => ProviderScope(
     overrides: [appModeProvider.overrideWithValue(ChatNuAppMode.demo)],
     child: const ChatNuApp(),
@@ -67,23 +72,23 @@ void main() {
     expect(find.byKey(const Key('conversation-list-compose')), findsNothing);
 
     await tester.tap(find.byKey(const Key('phone-nav-contacts')));
-    await tester.pumpAndSettle();
+    await pumpNavigation(tester);
 
     expect(find.byKey(const Key('contact-search-field')), findsOneWidget);
     expect(find.textContaining('directory'), findsNothing);
     expect(find.byKey(const Key('new-chat-fab')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('phone-nav-chats')));
-    await tester.pumpAndSettle();
+    await pumpNavigation(tester);
     await tester.tap(find.text('Leila Farhadi').first);
-    await tester.pumpAndSettle();
+    await pumpNavigation(tester);
 
     expect(find.byKey(const Key('message-composer-field')), findsOneWidget);
     expect(find.byTooltip('Back'), findsOneWidget);
     expect(find.byKey(const Key('new-chat-fab')), findsNothing);
 
     await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
+    await pumpNavigation(tester);
 
     expect(find.byKey(const Key('conversation-list')), findsOneWidget);
     expect(find.byKey(const Key('new-chat-fab')), findsOneWidget);
@@ -98,12 +103,24 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('phone-nav-settings')));
-    await tester.pumpAndSettle();
+    await pumpNavigation(tester);
 
     expect(find.text('Visual effects'), findsOneWidget);
-    expect(find.text('End-to-end encryption'), findsOneWidget);
     expect(find.textContaining('Signal Protocol'), findsNothing);
     expect(find.textContaining('SFU'), findsNothing);
+
+    await tester.scrollUntilVisible(
+      find.text('End-to-end encryption'),
+      280,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('End-to-end encryption'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-advanced')),
+      280,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.byKey(const Key('settings-advanced')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('settings-advanced')));

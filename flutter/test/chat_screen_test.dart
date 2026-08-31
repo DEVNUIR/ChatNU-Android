@@ -109,13 +109,16 @@ void main() {
     expect(find.textContaining('Signal Protocol'), findsNothing);
     expect(find.textContaining('SFU'), findsNothing);
 
-    final advancedTile = find.byKey(const Key('settings-advanced')).last;
-    await tester.scrollUntilVisible(advancedTile, 280);
+    final settingsList = find.byType(ListView).last;
+    await tester.drag(settingsList, const Offset(0, -700));
     await tester.pump(const Duration(milliseconds: 100));
+    await tester.drag(settingsList, const Offset(0, -500));
+    await tester.pump(const Duration(milliseconds: 100));
+
     expect(find.text('End-to-end encryption'), findsWidgets);
     expect(find.byKey(const Key('settings-advanced')), findsWidgets);
 
-    await tester.tap(advancedTile);
+    await tester.tap(find.byKey(const Key('settings-advanced')).last);
     await tester.pumpAndSettle();
 
     expect(find.text('ChatNU Device Envelope v2'), findsOneWidget);

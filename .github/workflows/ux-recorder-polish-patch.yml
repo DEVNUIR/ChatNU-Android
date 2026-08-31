@@ -22,31 +22,87 @@ jobs:
           flutter-version: "3.44.0"
           channel: stable
           cache: true
-      - name: Remove obsolete action background parameter
+      - name: Preserve recorder gesture and repair device identity
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('flutter/lib/features/messages/presentation/widgets/message_composer.dart')
-          text = path.read_text()
-          for line in (
-              '    this.background,\n',
-              '  final Color? background;\n',
-              '        backgroundColor: background,\n',
-          ):
-              if text.count(line) != 1:
-                  raise SystemExit(f'expected one match for {line!r}, got {text.count(line)}')
-              text = text.replace(line, '', 1)
-          path.write_text(text)
+
+          composer = Path('flutter/lib/features/messages/presentation/widgets/message_composer.dart')
+          text = composer.read_text()
+          old = '''          onLongPressStart: enabled && !recording ? onLongPressStart : null,
+          onLongPressMoveUpdate: enabled && !recording
+              ? onLongPressMoveUpdate
+              : null,
+          onLongPressEnd: enabled && !recording ? onLongPressEnd : null,
+'''
+          new = '''          onLongPressStart: enabled ? onLongPressStart : null,
+          onLongPressMoveUpdate: enabled ? onLongPressMoveUpdate : null,
+          onLongPressEnd: enabled ? onLongPressEnd : null,
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one recorder gesture block, got {text.count(old)}')
+          composer.write_text(text.replace(old, new, 1))
+
+          repository = Path('flutter/lib/features/home/data/messenger_repository.dart')
+          text = repository.read_text()
+          old = '''  Future<ConversationKeysResponse> _conversationKeysWithIdentityRepair(
+    String conversationId,
+  ) async {
+    var keys = await _api.conversationKeys(conversationId);
+    final session = _vault.session;
+    if (session == null || !keys.missingUserIds.contains(session.user.id)) {
+      return keys;
+    }
+
+    final publicKey = await _e2ee.publicKeyBase64(session.cryptoAccount);
+    await _api.updateIdentityKey(publicKey);
+    keys = await _api.conversationKeys(conversationId);
+    return keys;
+  }
+'''
+          new = '''  Future<ConversationKeysResponse> _conversationKeysWithIdentityRepair(
+    String conversationId,
+  ) async {
+    var keys = await _api.conversationKeys(conversationId);
+    final session = _vault.session;
+    if (session == null) return keys;
+
+    bool currentDeviceIsMissing(ConversationKeysResponse value) =>
+        !value.devices.any((device) => device.deviceId == session.deviceId);
+
+    final shouldRepair =
+        currentDeviceIsMissing(keys) ||
+        keys.missingUserIds.contains(session.user.id);
+    if (!shouldRepair) return keys;
+
+    final publicKey = await _e2ee.publicKeyBase64(session.cryptoAccount);
+    await _api.updateIdentityKey(publicKey);
+    keys = await _api.conversationKeys(conversationId);
+    if (currentDeviceIsMissing(keys)) {
+      throw StateError(
+        'This device could not register its encryption identity. Reconnect or sign in again before sending encrypted messages.',
+      );
+    }
+    return keys;
+  }
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one E2EE repair block, got {text.count(old)}')
+          repository.write_text(text.replace(old, new, 1))
           PY
           cd flutter
-          dart format lib/features/messages/presentation/widgets/message_composer.dart
-      - name: Commit analyzer cleanup
+          dart format \
+            lib/features/messages/presentation/widgets/message_composer.dart \
+            lib/features/home/data/messenger_repository.dart
+      - name: Commit fixes
         shell: bash
         run: |
           git config user.name "ChatNU Build Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add flutter/lib/features/messages/presentation/widgets/message_composer.dart
+          git add \
+            flutter/lib/features/messages/presentation/widgets/message_composer.dart \
+            flutter/lib/features/home/data/messenger_repository.dart
           git diff --cached --quiet && exit 0
-          git commit -m "fix(flutter): remove obsolete recorder action styling"
+          git commit -m "fix(flutter): preserve recorder gesture and repair device E2EE identity"
           git push origin HEAD:chatgpt/ux-recorder-blue-polish

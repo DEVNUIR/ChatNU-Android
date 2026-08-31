@@ -41,43 +41,43 @@ class ChatNuPalette extends ThemeExtension<ChatNuPalette> {
   final Color destructive;
 
   static const dark = ChatNuPalette(
-    backgroundPrimary: Color(0xFF101010),
-    backgroundSecondary: Color(0xFF151515),
-    backgroundElevated: Color(0xFF1A1A1A),
-    glassWeak: Color(0xFF202020),
-    glassMedium: Color(0xFF252525),
-    glassStrong: Color(0xFF1A1A1A),
-    borderSubtle: Color(0xFF2B2B2B),
-    borderHighlight: Color(0xFF3B3B3B),
-    textPrimary: Color(0xFFF7F7F7),
-    textSecondary: Color(0xFFC7C7C7),
-    textMuted: Color(0xFF878787),
-    accentPrimary: Color(0xFF168CFF),
-    accentSecondary: Color(0xFF73C6FF),
-    accentCyan: Color(0xFF64B5F6),
-    success: Color(0xFF4FCF88),
-    warning: Color(0xFFFFCC00),
-    destructive: Color(0xFFFF5A5F),
+    backgroundPrimary: Color(0xFF060A12),
+    backgroundSecondary: Color(0xFF0B111D),
+    backgroundElevated: Color(0xFF111A2A),
+    glassWeak: Color(0xFF111A28),
+    glassMedium: Color(0xFF172338),
+    glassStrong: Color(0xFF1C2940),
+    borderSubtle: Color(0xFF24324A),
+    borderHighlight: Color(0xFF3B4E70),
+    textPrimary: Color(0xFFF7FAFF),
+    textSecondary: Color(0xFFB9C5D8),
+    textMuted: Color(0xFF75839B),
+    accentPrimary: Color(0xFF2F7CFF),
+    accentSecondary: Color(0xFF8068F2),
+    accentCyan: Color(0xFF24D5ED),
+    success: Color(0xFF37D38B),
+    warning: Color(0xFFF7BF4B),
+    destructive: Color(0xFFFF6574),
   );
 
   static const light = ChatNuPalette(
-    backgroundPrimary: Color(0xFFF3F3F3),
-    backgroundSecondary: Color(0xFFFFFFFF),
+    backgroundPrimary: Color(0xFFF2F6FC),
+    backgroundSecondary: Color(0xFFF8FAFE),
     backgroundElevated: Color(0xFFFFFFFF),
-    glassWeak: Color(0xFFF7F7F7),
-    glassMedium: Color(0xFFF2F2F2),
+    glassWeak: Color(0xFFF9FBFF),
+    glassMedium: Color(0xFFF1F6FD),
     glassStrong: Color(0xFFFFFFFF),
-    borderSubtle: Color(0xFFECECEC),
-    borderHighlight: Color(0xFFDADADA),
-    textPrimary: Color(0xFF111111),
-    textSecondary: Color(0xFF545454),
-    textMuted: Color(0xFF8A8A8A),
-    accentPrimary: Color(0xFF0B75E5),
-    accentSecondary: Color(0xFF38A9FF),
-    accentCyan: Color(0xFF1473E6),
-    success: Color(0xFF168A54),
-    warning: Color(0xFFB88600),
-    destructive: Color(0xFFD83A42),
+    borderSubtle: Color(0xFFDDE6F2),
+    borderHighlight: Color(0xFFCBD8E9),
+    textPrimary: Color(0xFF101828),
+    textSecondary: Color(0xFF475569),
+    textMuted: Color(0xFF8190A5),
+    accentPrimary: Color(0xFF1769E8),
+    accentSecondary: Color(0xFF6C56D9),
+    accentCyan: Color(0xFF0EAFC7),
+    success: Color(0xFF12835A),
+    warning: Color(0xFFA96F05),
+    destructive: Color(0xFFD93C50),
   );
 
   @override
@@ -177,53 +177,65 @@ abstract final class ChatNuTheme {
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      fontFamily: 'Manrope',
       colorScheme: colorScheme,
       scaffoldBackgroundColor: palette.backgroundPrimary,
       extensions: <ThemeExtension<dynamic>>[palette],
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
     );
-    final textTheme = base.textTheme.copyWith(
-      displaySmall: base.textTheme.displaySmall?.copyWith(
+    final typeBase = base.textTheme.apply(
+      fontFamily: 'Manrope',
+      fontFamilyFallback: const <String>['NotoSansArabic'],
+      bodyColor: palette.textPrimary,
+      displayColor: palette.textPrimary,
+    );
+    final textTheme = typeBase.copyWith(
+      displaySmall: typeBase.displaySmall?.copyWith(
         color: palette.textPrimary,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -1.2,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -1.15,
+        height: 1.08,
       ),
-      headlineMedium: base.textTheme.headlineMedium?.copyWith(
+      headlineMedium: typeBase.headlineMedium?.copyWith(
         color: palette.textPrimary,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
         letterSpacing: -0.8,
+        height: 1.12,
       ),
-      headlineSmall: base.textTheme.headlineSmall?.copyWith(
+      headlineSmall: typeBase.headlineSmall?.copyWith(
         color: palette.textPrimary,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.55,
+        height: 1.18,
       ),
-      titleLarge: base.textTheme.titleLarge?.copyWith(
+      titleLarge: typeBase.titleLarge?.copyWith(
         color: palette.textPrimary,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.35,
+        height: 1.2,
       ),
-      titleMedium: base.textTheme.titleMedium?.copyWith(
+      titleMedium: typeBase.titleMedium?.copyWith(
         color: palette.textPrimary,
         fontWeight: FontWeight.w600,
-        letterSpacing: -0.15,
+        letterSpacing: -0.1,
       ),
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(
+      bodyLarge: typeBase.bodyLarge?.copyWith(
         color: palette.textPrimary,
+        height: 1.5,
+      ),
+      bodyMedium: typeBase.bodyMedium?.copyWith(
+        color: palette.textSecondary,
+        height: 1.46,
+      ),
+      bodySmall: typeBase.bodySmall?.copyWith(
+        color: palette.textMuted,
         height: 1.42,
       ),
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(
-        color: palette.textSecondary,
-        height: 1.4,
-      ),
-      bodySmall: base.textTheme.bodySmall?.copyWith(
-        color: palette.textMuted,
-        height: 1.35,
-      ),
-      labelLarge: base.textTheme.labelLarge?.copyWith(
+      labelLarge: typeBase.labelLarge?.copyWith(
         color: palette.textPrimary,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.05,
       ),
     );
 
@@ -233,7 +245,7 @@ abstract final class ChatNuTheme {
     );
     return base.copyWith(
       textTheme: textTheme,
-      splashFactory: NoSplash.splashFactory,
+      splashFactory: InkSparkle.splashFactory,
       hoverColor: palette.textPrimary.withValues(alpha: 0.045),
       highlightColor: palette.textPrimary.withValues(alpha: 0.065),
       focusColor: palette.accentPrimary.withValues(alpha: 0.22),
@@ -243,6 +255,23 @@ abstract final class ChatNuTheme {
         style: IconButton.styleFrom(
           minimumSize: const Size.square(ChatNuSizing.minTouchTarget),
           tapTargetSize: MaterialTapTargetSize.padded,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: palette.backgroundElevated,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ChatNuRadii.lg),
+          side: BorderSide(color: palette.borderSubtle),
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        iconColor: palette.textSecondary,
+        textColor: palette.textPrimary,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ChatNuRadii.md),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(

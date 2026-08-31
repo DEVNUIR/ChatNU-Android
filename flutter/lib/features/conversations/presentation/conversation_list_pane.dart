@@ -57,7 +57,7 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
         .toList(growable: false);
 
     return ColoredBox(
-      color: palette.backgroundSecondary,
+      color: Colors.transparent,
       child: SafeArea(
         bottom: false,
         child: RefreshIndicator(

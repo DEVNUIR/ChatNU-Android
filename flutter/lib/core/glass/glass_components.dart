@@ -600,71 +600,69 @@ class GlassSegmentedControl<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.chatNu;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: GlassSurface(
-        variant: GlassVariant.weak,
-        borderRadius: ChatNuRadii.pill,
-        padding: const EdgeInsets.all(3),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: items.entries
-              .map((entry) {
-                final selected = entry.key == value;
-                return Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 2),
-                  child: Semantics(
-                    button: true,
-                    selected: selected,
-                    label: entry.value,
-                    onTap: () => onChanged(entry.key),
-                    excludeSemantics: true,
-                    child: InkWell(
+    return GlassSurface(
+      variant: GlassVariant.weak,
+      borderRadius: ChatNuRadii.pill,
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        children: items.entries.map((entry) {
+          final selected = entry.key == value;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: 2),
+              child: Semantics(
+                button: true,
+                selected: selected,
+                label: entry.value,
+                onTap: () => onChanged(entry.key),
+                excludeSemantics: true,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(ChatNuRadii.pill),
+                  mouseCursor: SystemMouseCursors.click,
+                  onTap: () => onChanged(entry.key),
+                  child: AnimatedContainer(
+                    duration: reduceMotion
+                        ? Duration.zero
+                        : ChatNuMotion.micro,
+                    constraints: const BoxConstraints(
+                      minHeight: ChatNuSizing.minTouchTarget,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ChatNuSpacing.sm,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? palette.glassStrong
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(ChatNuRadii.pill),
-                      mouseCursor: SystemMouseCursors.click,
-                      onTap: () => onChanged(entry.key),
-                      child: AnimatedContainer(
-                        duration: reduceMotion
-                            ? Duration.zero
-                            : ChatNuMotion.micro,
-                        constraints: const BoxConstraints(
-                          minHeight: ChatNuSizing.minTouchTarget,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: ChatNuSpacing.sm,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? palette.glassStrong
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(ChatNuRadii.pill),
-                          border: Border.all(
-                            color: selected
-                                ? palette.borderHighlight
-                                : Colors.transparent,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          entry.value,
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(
-                                color: selected
-                                    ? palette.textPrimary
-                                    : palette.textSecondary,
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                              ),
-                        ),
+                      border: Border.all(
+                        color: selected
+                            ? palette.borderHighlight
+                            : Colors.transparent,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      entry.value,
+                      maxLines: 1,
+                      overflow: TextOverflow.fade,
+                      softWrap: false,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: selected
+                            ? palette.textPrimary
+                            : palette.textSecondary,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                     ),
                   ),
-                );
-              })
-              .toList(growable: false),
-        ),
+                ),
+              ),
+            ),
+          );
+        }).toList(growable: false),
       ),
     );
   }

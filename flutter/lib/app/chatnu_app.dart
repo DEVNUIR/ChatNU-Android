@@ -24,6 +24,8 @@ class ChatNuApp extends ConsumerWidget {
       theme: ChatNuTheme.light,
       darkTheme: ChatNuTheme.dark,
       themeMode: themeMode,
+      themeAnimationDuration: const Duration(milliseconds: 360),
+      themeAnimationCurve: Curves.easeOutCubic,
       locale: locale,
       routerConfig: router,
       supportedLocales: const <Locale>[Locale('en'), Locale('fa')],

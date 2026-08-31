@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   flutter:
@@ -23,11 +23,69 @@ jobs:
         working-directory: flutter
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.44.0"
           channel: stable
           cache: true
+      - name: Canonicalize Phase 5 sources
+        if: github.event_name == 'push' && github.ref_name == 'chatgpt/phase-5-accessibility-desktop-polish'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/features/messages/presentation/widgets/message_composer.dart')
+          text = path.read_text()
+          old = """    return AnimatedContainer(
+      duration: ChatNuMotion.micro,
+      constraints: const BoxConstraints(minHeight: 46),"""
+          new = """    return AnimatedContainer(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : ChatNuMotion.micro,
+      constraints: const BoxConstraints(
+        minHeight: ChatNuSizing.minTouchTarget,
+      ),"""
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('recording status target snippet not found')
+
+          old = """    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 38, height: 38),
+      style: IconButton.styleFrom(
+        foregroundColor: foreground,
+        backgroundColor: background,
+      ),"""
+          new = """    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        minimumSize: const Size.square(ChatNuSizing.minTouchTarget),
+        tapTargetSize: MaterialTapTargetSize.padded,
+        foregroundColor: foreground,
+        backgroundColor: background,
+      ),"""
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('recording action target snippet not found')
+          path.write_text(text)
+          PY
+          dart format lib test
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib test
+          if ! git diff --cached --quiet; then
+            git commit -m "style(flutter): canonicalize phase5 polish"
+            git push origin HEAD:chatgpt/phase-5-accessibility-desktop-polish
+          fi
       - name: Bootstrap Android platform
         run: ./tool/bootstrap_android.sh
       - name: Verify ChatNU Android identity

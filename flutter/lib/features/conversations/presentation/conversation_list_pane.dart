@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:chatnu/core/localization/chatnu_strings.dart';
 import 'package:chatnu/core/theme/chatnu_theme.dart';
-import 'package:chatnu/core/theme/chatnu_tokens.dart';
 import 'package:chatnu/features/contacts/presentation/new_chat_sheet.dart';
 import 'package:chatnu/features/conversations/domain/conversation.dart';
 import 'package:chatnu/features/home/application/demo_messenger_controller.dart';

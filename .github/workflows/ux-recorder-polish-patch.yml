@@ -22,16 +22,31 @@ jobs:
           flutter-version: "3.44.0"
           channel: stable
           cache: true
-      - name: Canonicalize changed Dart sources
-        working-directory: flutter
-        run: dart format lib/features/home/presentation/messenger_shell.dart lib/features/messages/presentation/widgets/message_composer.dart
-      - name: Commit formatting
+      - name: Remove obsolete action background parameter
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('flutter/lib/features/messages/presentation/widgets/message_composer.dart')
+          text = path.read_text()
+          for line in (
+              '    this.background,\n',
+              '  final Color? background;\n',
+              '        backgroundColor: background,\n',
+          ):
+              if text.count(line) != 1:
+                  raise SystemExit(f'expected one match for {line!r}, got {text.count(line)}')
+              text = text.replace(line, '', 1)
+          path.write_text(text)
+          PY
+          cd flutter
+          dart format lib/features/messages/presentation/widgets/message_composer.dart
+      - name: Commit analyzer cleanup
         shell: bash
         run: |
           git config user.name "ChatNU Build Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add flutter/lib/features/home/presentation/messenger_shell.dart \
-                  flutter/lib/features/messages/presentation/widgets/message_composer.dart
+          git add flutter/lib/features/messages/presentation/widgets/message_composer.dart
           git diff --cached --quiet && exit 0
-          git commit -m "style(flutter): canonicalize recorder UX polish"
+          git commit -m "fix(flutter): remove obsolete recorder action styling"
           git push origin HEAD:chatgpt/ux-recorder-blue-polish

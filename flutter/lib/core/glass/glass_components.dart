@@ -246,76 +246,119 @@ class GlassButton extends StatefulWidget {
 
 class _GlassButtonState extends State<GlassButton> {
   bool _pressed = false;
+  bool _hovered = false;
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
     final enabled = widget.onPressed != null;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final foreground = widget.prominent || widget.destructive
         ? Colors.white
         : palette.textPrimary;
-    final background = widget.destructive
+    final baseBackground = widget.destructive
         ? palette.destructive
         : widget.prominent
         ? palette.accentPrimary
         : palette.glassMedium;
+    final background = enabled && (_hovered || _focused)
+        ? Color.alphaBlend(
+            palette.textPrimary.withValues(alpha: _focused ? 0.06 : 0.035),
+            baseBackground,
+          )
+        : baseBackground;
+    final borderColor = _focused
+        ? palette.accentPrimary
+        : widget.prominent || widget.destructive
+        ? Colors.white.withValues(alpha: 0.14)
+        : palette.borderSubtle;
+
     return Semantics(
       button: true,
       enabled: enabled,
       label: widget.label,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onPressed,
-        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-        onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-        onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
-        child: AnimatedScale(
-          scale: _pressed && !MediaQuery.disableAnimationsOf(context)
-              ? 0.98
-              : 1,
-          duration: ChatNuMotion.micro,
-          curve: ChatNuMotion.standard,
-          child: AnimatedOpacity(
-            duration: ChatNuMotion.micro,
-            opacity: enabled ? 1 : 0.46,
-            child: Container(
-              constraints: const BoxConstraints(
-                minHeight: ChatNuSizing.minTouchTarget,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: ChatNuSpacing.md),
-              decoration: BoxDecoration(
-                color: background,
-                borderRadius: BorderRadius.circular(ChatNuRadii.md),
-                border: Border.all(
-                  color: widget.prominent || widget.destructive
-                      ? Colors.white.withValues(alpha: 0.14)
-                      : palette.borderSubtle,
-                ),
-                boxShadow: widget.prominent
-                    ? <BoxShadow>[
-                        BoxShadow(
-                          color: palette.accentPrimary.withValues(alpha: 0.2),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ]
-                    : const <BoxShadow>[],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  if (widget.icon != null) ...<Widget>[
-                    Icon(widget.icon, size: 19, color: foreground),
-                    const SizedBox(width: ChatNuSpacing.xs),
-                  ],
-                  Text(
-                    widget.label,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelLarge?.copyWith(color: foreground),
+      onTap: enabled ? widget.onPressed : null,
+      child: ExcludeSemantics(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(ChatNuRadii.md),
+            onTap: widget.onPressed,
+            canRequestFocus: enabled,
+            mouseCursor: enabled
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
+            onHighlightChanged: enabled
+                ? (value) => setState(() => _pressed = value)
+                : null,
+            onHover: enabled
+                ? (value) => setState(() => _hovered = value)
+                : null,
+            onFocusChange: enabled
+                ? (value) => setState(() => _focused = value)
+                : null,
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: AnimatedScale(
+              scale: _pressed && !reduceMotion ? 0.98 : 1,
+              duration: reduceMotion ? Duration.zero : ChatNuMotion.micro,
+              curve: ChatNuMotion.standard,
+              child: AnimatedOpacity(
+                duration: reduceMotion ? Duration.zero : ChatNuMotion.micro,
+                opacity: enabled ? 1 : 0.46,
+                child: AnimatedContainer(
+                  duration: reduceMotion ? Duration.zero : ChatNuMotion.micro,
+                  constraints: const BoxConstraints(
+                    minHeight: ChatNuSizing.minTouchTarget,
                   ),
-                ],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: ChatNuSpacing.md,
+                  ),
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(ChatNuRadii.md),
+                    border: Border.all(
+                      color: borderColor,
+                      width: _focused ? 1.5 : 1,
+                    ),
+                    boxShadow: _focused
+                        ? <BoxShadow>[
+                            BoxShadow(
+                              color: palette.accentPrimary.withValues(
+                                alpha: 0.18,
+                              ),
+                              blurRadius: 14,
+                            ),
+                          ]
+                        : widget.prominent
+                        ? <BoxShadow>[
+                            BoxShadow(
+                              color: palette.accentPrimary.withValues(alpha: 0.2),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ]
+                        : const <BoxShadow>[],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      if (widget.icon != null) ...<Widget>[
+                        Icon(widget.icon, size: 19, color: foreground),
+                        const SizedBox(width: ChatNuSpacing.xs),
+                      ],
+                      Text(
+                        widget.label,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.labelLarge?.copyWith(color: foreground),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -379,7 +422,9 @@ class _GlassSearchFieldState extends State<GlassSearchField> {
   Widget build(BuildContext context) {
     final palette = context.chatNu;
     return AnimatedContainer(
-      duration: ChatNuMotion.micro,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : ChatNuMotion.micro,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(ChatNuRadii.md),
         boxShadow: _focusNode.hasFocus
@@ -552,6 +597,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: GlassSurface(
@@ -568,11 +614,20 @@ class GlassSegmentedControl<T> extends StatelessWidget {
                   child: Semantics(
                     button: true,
                     selected: selected,
+                    label: entry.value,
+                    onTap: () => onChanged(entry.key),
+                    excludeSemantics: true,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(ChatNuRadii.pill),
+                      mouseCursor: SystemMouseCursors.click,
                       onTap: () => onChanged(entry.key),
                       child: AnimatedContainer(
-                        duration: ChatNuMotion.micro,
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : ChatNuMotion.micro,
+                        constraints: const BoxConstraints(
+                          minHeight: ChatNuSizing.minTouchTarget,
+                        ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: ChatNuSpacing.sm,
                           vertical: 7,
@@ -588,6 +643,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
                                 : Colors.transparent,
                           ),
                         ),
+                        alignment: Alignment.center,
                         child: Text(
                           entry.value,
                           style: Theme.of(context).textTheme.labelMedium

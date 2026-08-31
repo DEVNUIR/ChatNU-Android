@@ -132,18 +132,18 @@ void main() {
     await tester.enterText(composer, 'Draft for Leila');
     await tester.pump();
 
-    await tester.tap(find.bySemanticsLabel('Design team'));
+    await tester.tap(find.text('Design team'));
     await tester.pumpAndSettle();
     expect(_composerText(tester), isEmpty);
 
     await tester.enterText(composer, 'Draft for design');
     await tester.pump();
 
-    await tester.tap(find.bySemanticsLabel('Leila Farhadi'));
+    await tester.tap(find.text('Leila Farhadi'));
     await tester.pumpAndSettle();
     expect(_composerText(tester), 'Draft for Leila');
 
-    await tester.tap(find.bySemanticsLabel('Design team'));
+    await tester.tap(find.text('Design team'));
     await tester.pumpAndSettle();
     expect(_composerText(tester), 'Draft for design');
     expect(tester.takeException(), isNull);

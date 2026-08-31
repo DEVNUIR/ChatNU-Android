@@ -1,0 +1,57 @@
+name: Phase 4 closeout
+
+on:
+  push:
+    branches:
+      - chatgpt/phase-4-navigation-settings-ia
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/phase-4-navigation-settings-ia
+      - name: Apply Phase 4 copy and parity closeout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          sheet = Path('flutter/lib/features/contacts/presentation/new_chat_sheet.dart')
+          text = sheet.read_text()
+          old = "Search the directory by username"
+          new = "Search ChatNU by username"
+          if old not in text:
+              raise SystemExit(f'missing New Chat copy anchor: {old!r}')
+          sheet.write_text(text.replace(old, new, 1))
+
+          parity = Path('flutter/FEATURE_PARITY.md')
+          text = parity.read_text()
+          old_row = "| Contact/user search | Integrated | server-backed username/display-name search | Real directory search; no fabricated server-side address book |"
+          new_row = "| Contact/user search | Integrated | server-backed username/display-name search | Real ChatNU user search; no fabricated server-side address book |"
+          if old_row not in text:
+              raise SystemExit('missing contact/user search parity anchor')
+          text = text.replace(old_row, new_row, 1)
+
+          anchor = "| Recent people strip | UI refactor | recent direct conversations | Real conversation peers; not a fabricated Stories feature |"
+          additions = """| Primary navigation | UI refactor | `MessengerShell` + existing `MessengerDestination` state | Phone exposes Chats, Contacts and Settings directly; wide layouts preserve the existing navigation rail. No unsupported Calls-history destination is invented. |
+          | New conversation entry point | UI refactor | existing `showNewChatSheet` flow | One dominant New Chat action per layout: a phone FAB outside conversations and one conversation-list header action on wide layouts; contextual empty-state/group actions remain supported. |
+          | Contacts information architecture | UI refactor | `ContactsPane` + local `ContactBookController` + server user search | Saved local contacts and real ChatNU user search share one consumer-facing Contacts experience without claiming a server-synchronized address book. |
+          | Settings information architecture | UI refactor | `SettingsPane` + existing appearance/session/server controllers | Primary settings use consumer language for calls, visual effects, E2EE and attachments; protocol, SFU and emergency-TLS implementation details live behind Advanced. |"""
+          if anchor not in text:
+              raise SystemExit('missing Phase 4 parity insertion anchor')
+          text = text.replace(anchor, anchor + "\n" + additions, 1)
+          parity.write_text(text)
+          PY
+      - name: Remove closeout helper and commit product-only diff
+        run: |
+          git rm .github/workflows/phase4-closeout.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter/lib/features/contacts/presentation/new_chat_sheet.dart flutter/FEATURE_PARITY.md
+          git commit -m "docs: close Phase 4 navigation and IA boundary"
+          git push origin HEAD:chatgpt/phase-4-navigation-settings-ia

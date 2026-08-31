@@ -405,13 +405,24 @@ class MessengerRepository {
   ) async {
     var keys = await _api.conversationKeys(conversationId);
     final session = _vault.session;
-    if (session == null || !keys.missingUserIds.contains(session.user.id)) {
-      return keys;
-    }
+    if (session == null) return keys;
+
+    bool currentDeviceIsMissing(ConversationKeysResponse value) =>
+        !value.devices.any((device) => device.deviceId == session.deviceId);
+
+    final shouldRepair =
+        currentDeviceIsMissing(keys) ||
+        keys.missingUserIds.contains(session.user.id);
+    if (!shouldRepair) return keys;
 
     final publicKey = await _e2ee.publicKeyBase64(session.cryptoAccount);
     await _api.updateIdentityKey(publicKey);
     keys = await _api.conversationKeys(conversationId);
+    if (currentDeviceIsMissing(keys)) {
+      throw StateError(
+        'This device could not register its encryption identity. Reconnect or sign in again before sending encrypted messages.',
+      );
+    }
     return keys;
   }
 

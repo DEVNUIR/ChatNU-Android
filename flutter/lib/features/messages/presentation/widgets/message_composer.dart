@@ -1198,11 +1198,9 @@ class _HoldRecordButton extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: enabled ? onTap : null,
-          onLongPressStart: enabled && !recording ? onLongPressStart : null,
-          onLongPressMoveUpdate: enabled && !recording
-              ? onLongPressMoveUpdate
-              : null,
-          onLongPressEnd: enabled && !recording ? onLongPressEnd : null,
+          onLongPressStart: enabled ? onLongPressStart : null,
+          onLongPressMoveUpdate: enabled ? onLongPressMoveUpdate : null,
+          onLongPressEnd: enabled ? onLongPressEnd : null,
           child: AnimatedContainer(
             duration: ChatNuMotion.micro,
             width: 46,

@@ -753,8 +753,10 @@ class _SettingsSection extends StatelessWidget {
             ),
             child: Text(
               title,
-              style: Theme.of(context).textTheme.labelLarge
-                  ?.copyWith(color: palette.accentPrimary, letterSpacing: 0.2),
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: palette.accentPrimary,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
           for (var index = 0; index < children.length; index++) ...<Widget>[
@@ -823,8 +825,10 @@ class _SettingsTile extends StatelessWidget {
       ),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall
-            ?.copyWith(color: palette.textPrimary, fontWeight: FontWeight.w600),
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          color: palette.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing:

@@ -354,8 +354,9 @@ class _GlassButtonState extends State<GlassButton> {
                       ],
                       Text(
                         widget.label,
-                        style: Theme.of(context).textTheme.labelLarge
-                            ?.copyWith(color: foreground),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.labelLarge?.copyWith(color: foreground),
                       ),
                     ],
                   ),
@@ -449,8 +450,9 @@ class _GlassSearchFieldState extends State<GlassSearchField> {
           suffixIcon: widget.controller.text.isEmpty
               ? null
               : IconButton(
-                  tooltip: MaterialLocalizations.of(context)
-                      .deleteButtonTooltip,
+                  tooltip: MaterialLocalizations.of(
+                    context,
+                  ).deleteButtonTooltip,
                   onPressed: () {
                     widget.controller.clear();
                     widget.onChanged?.call('');
@@ -572,8 +574,10 @@ class GlassBadge extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: Theme.of(context).textTheme.labelSmall
-              ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );

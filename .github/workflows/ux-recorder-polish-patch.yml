@@ -30,79 +30,32 @@ jobs:
 
           composer = Path('flutter/lib/features/messages/presentation/widgets/message_composer.dart')
           text = composer.read_text()
-          old = '''          onLongPressStart: enabled && !recording ? onLongPressStart : null,
-          onLongPressMoveUpdate: enabled && !recording
-              ? onLongPressMoveUpdate
-              : null,
-          onLongPressEnd: enabled && !recording ? onLongPressEnd : null,
-'''
-          new = '''          onLongPressStart: enabled ? onLongPressStart : null,
-          onLongPressMoveUpdate: enabled ? onLongPressMoveUpdate : null,
-          onLongPressEnd: enabled ? onLongPressEnd : null,
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one recorder gesture block, got {text.count(old)}')
-          composer.write_text(text.replace(old, new, 1))
+          needle = 'enabled && !recording'
+          if text.count(needle) != 3:
+              raise SystemExit(f'expected 3 recorder callback guards, got {text.count(needle)}')
+          composer.write_text(text.replace(needle, 'enabled'))
 
           repository = Path('flutter/lib/features/home/data/messenger_repository.dart')
           text = repository.read_text()
-          old = '''  Future<ConversationKeysResponse> _conversationKeysWithIdentityRepair(
-    String conversationId,
-  ) async {
-    var keys = await _api.conversationKeys(conversationId);
-    final session = _vault.session;
-    if (session == null || !keys.missingUserIds.contains(session.user.id)) {
-      return keys;
-    }
-
-    final publicKey = await _e2ee.publicKeyBase64(session.cryptoAccount);
-    await _api.updateIdentityKey(publicKey);
-    keys = await _api.conversationKeys(conversationId);
-    return keys;
-  }
-'''
-          new = '''  Future<ConversationKeysResponse> _conversationKeysWithIdentityRepair(
-    String conversationId,
-  ) async {
-    var keys = await _api.conversationKeys(conversationId);
-    final session = _vault.session;
-    if (session == null) return keys;
-
-    bool currentDeviceIsMissing(ConversationKeysResponse value) =>
-        !value.devices.any((device) => device.deviceId == session.deviceId);
-
-    final shouldRepair =
-        currentDeviceIsMissing(keys) ||
-        keys.missingUserIds.contains(session.user.id);
-    if (!shouldRepair) return keys;
-
-    final publicKey = await _e2ee.publicKeyBase64(session.cryptoAccount);
-    await _api.updateIdentityKey(publicKey);
-    keys = await _api.conversationKeys(conversationId);
-    if (currentDeviceIsMissing(keys)) {
-      throw StateError(
-        'This device could not register its encryption identity. Reconnect or sign in again before sending encrypted messages.',
-      );
-    }
-    return keys;
-  }
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one E2EE repair block, got {text.count(old)}')
-          repository.write_text(text.replace(old, new, 1))
+          old_guard = "    if (session == null || !keys.missingUserIds.contains(session.user.id)) {\n      return keys;\n    }\n\n"
+          new_guard = "    if (session == null) return keys;\n\n    bool currentDeviceIsMissing(ConversationKeysResponse value) =>\n        !value.devices.any((device) => device.deviceId == session.deviceId);\n\n    final shouldRepair =\n        currentDeviceIsMissing(keys) ||\n        keys.missingUserIds.contains(session.user.id);\n    if (!shouldRepair) return keys;\n\n"
+          if text.count(old_guard) != 1:
+              raise SystemExit(f'expected one E2EE guard, got {text.count(old_guard)}')
+          text = text.replace(old_guard, new_guard, 1)
+          old_retry = "    keys = await _api.conversationKeys(conversationId);\n    return keys;\n"
+          new_retry = "    keys = await _api.conversationKeys(conversationId);\n    if (currentDeviceIsMissing(keys)) {\n      throw StateError(\n        'This device could not register its encryption identity. Reconnect or sign in again before sending encrypted messages.',\n      );\n    }\n    return keys;\n"
+          if text.count(old_retry) != 1:
+              raise SystemExit(f'expected one E2EE retry return, got {text.count(old_retry)}')
+          repository.write_text(text.replace(old_retry, new_retry, 1))
           PY
           cd flutter
-          dart format \
-            lib/features/messages/presentation/widgets/message_composer.dart \
-            lib/features/home/data/messenger_repository.dart
+          dart format lib/features/messages/presentation/widgets/message_composer.dart lib/features/home/data/messenger_repository.dart
       - name: Commit fixes
         shell: bash
         run: |
           git config user.name "ChatNU Build Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add \
-            flutter/lib/features/messages/presentation/widgets/message_composer.dart \
-            flutter/lib/features/home/data/messenger_repository.dart
+          git add flutter/lib/features/messages/presentation/widgets/message_composer.dart flutter/lib/features/home/data/messenger_repository.dart
           git diff --cached --quiet && exit 0
           git commit -m "fix(flutter): preserve recorder gesture and repair device E2EE identity"
           git push origin HEAD:chatgpt/ux-recorder-blue-polish

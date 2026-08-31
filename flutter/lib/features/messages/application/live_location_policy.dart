@@ -7,8 +7,7 @@ class ChatNuLiveLocationPolicy {
 
   static DateTime endsAt(DateTime startedAt) => startedAt.add(shareDuration);
 
-  static bool isExpired(DateTime now, DateTime endsAt) =>
-      !now.isBefore(endsAt);
+  static bool isExpired(DateTime now, DateTime endsAt) => !now.isBefore(endsAt);
 
   static Duration remaining(DateTime now, DateTime endsAt) {
     if (isExpired(now, endsAt)) return Duration.zero;

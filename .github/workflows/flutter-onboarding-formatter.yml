@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - refactor/flutter-liquid-glass-2026
-      - chatgpt/phase-5-accessibility-desktop-polish
     paths:
       - ".github/workflows/flutter-onboarding-formatter.yml"
 
@@ -16,169 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.44.0"
           channel: stable
           cache: true
-      - name: Finish Phase 5 targets
-        if: github.ref_name == 'chatgpt/phase-5-accessibility-desktop-polish'
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('flutter/lib/features/messages/presentation/widgets/message_composer.dart')
-          text = path.read_text()
-          old = """    return AnimatedContainer(
-      duration: ChatNuMotion.micro,
-      constraints: const BoxConstraints(minHeight: 46),"""
-          new = """    return AnimatedContainer(
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : ChatNuMotion.micro,
-      constraints: const BoxConstraints(
-        minHeight: ChatNuSizing.minTouchTarget,
-      ),"""
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif new not in text:
-              raise SystemExit('recording status target snippet not found')
-
-          old = """    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints.tightFor(width: 38, height: 38),
-      style: IconButton.styleFrom(
-        foregroundColor: foreground,
-        backgroundColor: background,
-      ),"""
-          new = """    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      style: IconButton.styleFrom(
-        minimumSize: const Size.square(ChatNuSizing.minTouchTarget),
-        tapTargetSize: MaterialTapTargetSize.padded,
-        foregroundColor: foreground,
-        backgroundColor: background,
-      ),"""
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif new not in text:
-              raise SystemExit('recording action target snippet not found')
-          path.write_text(text)
-
-          test = Path('flutter/test/phase5_accessibility_desktop_test.dart')
-          test.write_text(r'''import 'dart:ui';
-
-import 'package:chatnu/app/chatnu_app.dart';
-import 'package:chatnu/core/di/app_providers.dart';
-import 'package:chatnu/core/glass/glass_components.dart';
-import 'package:chatnu/core/theme/chatnu_theme.dart';
-import 'package:chatnu/core/theme/chatnu_tokens.dart';
-import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
-
-void main() {
-  Future<void> useViewport(WidgetTester tester, Size size) async {
-    tester.view
-      ..physicalSize = size
-      ..devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-  }
-
-  Widget demoApp() => ProviderScope(
-    overrides: [appModeProvider.overrideWithValue(ChatNuAppMode.demo)],
-    child: const ChatNuApp(),
-  );
-
-  testWidgets('shared interactive controls keep a 48dp minimum target', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ChatNuTheme.light,
-        home: Scaffold(
-          body: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              GlassButton(label: 'Continue', onPressed: () {}),
-              GlassSegmentedControl<int>(
-                value: 0,
-                items: const <int, String>{0: 'All', 1: 'Unread'},
-                onChanged: (_) {},
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      tester.getSize(find.byType(GlassButton)).height,
-      greaterThanOrEqualTo(ChatNuSizing.minTouchTarget),
-    );
-    final segment = find.ancestor(
-      of: find.text('All'),
-      matching: find.byType(InkWell),
-    );
-    expect(
-      tester.getSize(segment.first).height,
-      greaterThanOrEqualTo(ChatNuSizing.minTouchTarget),
-    );
-  });
-
-  testWidgets('GlassButton remains keyboard activatable', (tester) async {
-    var activations = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ChatNuTheme.light,
-        home: Scaffold(
-          body: GlassButton(
-            label: 'Continue',
-            onPressed: () => activations += 1,
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pump();
-
-    expect(activations, 1);
-  });
-
-  testWidgets('desktop secondary click opens anchored conversation menu', (
-    tester,
-  ) async {
-    await useViewport(tester, const Size(1440, 900));
-    await tester.pumpWidget(demoApp());
-    await tester.pumpAndSettle();
-
-    final designTeam = find.text('Design team').first;
-    await tester.tap(designTeam, buttons: kSecondaryMouseButton);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Pin'), findsOneWidget);
-    expect(find.text('Mute'), findsOneWidget);
-    expect(find.byType(BottomSheet), findsNothing);
-  });
-}
-''')
-          PY
-      - name: Format Flutter sources
+      - name: Format onboarding sources
         run: |
           cd flutter
           dart format lib test
@@ -188,6 +30,6 @@ void main() {
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add flutter/lib flutter/test
           if ! git diff --cached --quiet; then
-            git commit -m "style(flutter): finish phase5 polish"
+            git commit -m "style(flutter): format onboarding journey"
             git push
           fi

@@ -32,11 +32,15 @@ Legend:
 | Smart message following / new-message-below | UI refactor | reverse message viewport + realtime message state | Follow newest messages when already near the bottom or after an own send; otherwise preserve reading position and show a local separator/count plus jump-to-latest control without changing server read semantics |
 | Conversation read state | Integrated | optimistic local clear + server rollback | Preserve existing semantics |
 | Conversation pin/mute | Integrated | optimistic mutation + rollback | Long-press/right-click sheet contains only supported operations |
-| Contact/user search | Integrated | server-backed username/display-name search | Real directory search; no fabricated server-side address book |
+| Contact/user search | Integrated | server-backed username/display-name search | Real ChatNU user search; no fabricated server-side address book |
 | Saved contacts | Partial/local | per-account + per-server secure local contact book | Search results can be saved/removed as contacts without pretending the server has a synchronized contacts resource |
 | Direct conversation creation | Integrated | `openDirect` | Real server-backed result opens immediately |
 | Group creation | Integrated | `createGroup` | Member selection then group details |
 | Recent people strip | UI refactor | recent direct conversations | Real conversation peers; not a fabricated Stories feature |
+| Primary navigation | UI refactor | `MessengerShell` + existing `MessengerDestination` state | Phone exposes Chats, Contacts and Settings directly; wide layouts preserve the existing navigation rail. No unsupported Calls-history destination is invented. |
+| New conversation entry point | UI refactor | existing `showNewChatSheet` flow | One dominant New Chat action per layout: a phone FAB outside conversations and one conversation-list header action on wide layouts; contextual empty-state/group actions remain supported. |
+| Contacts information architecture | UI refactor | `ContactsPane` + local `ContactBookController` + server user search | Saved local contacts and real ChatNU user search share one consumer-facing Contacts experience without claiming a server-synchronized address book. |
+| Settings information architecture | UI refactor | `SettingsPane` + existing appearance/session/server controllers | Primary settings use consumer language for calls, visual effects, E2EE and attachments; protocol, SFU and emergency-TLS implementation details live behind Advanced. |
 | Message attachments | Integrated | encrypt bytes before upload; decrypt after download | Attachment sheet exposes only real transport paths; Gallery, Camera, Video, Audio, File, and static Location use the existing encrypted message pipeline |
 | Image messages | Integrated transport + playback | server `MessageType.IMAGE`; encrypted attachment path; in-memory decrypted preview | Natural-ratio inline presentation after decryption plus a zoomable in-app viewer; encrypted images are not cropped into a fake fixed thumbnail |
 | Video messages | Integrated transport + playback | server `MessageType.VIDEO`; encrypted attachment path + `video_player` | Before decryption the UI uses an honest video poster rather than fabricating a thumbnail; after decryption the real first frame/player, duration, scrubbing, and progress are available |

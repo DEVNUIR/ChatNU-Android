@@ -463,7 +463,9 @@ class _DesktopNavButton extends StatelessWidget {
             backgroundColor: selected
                 ? palette.accentPrimary.withValues(alpha: 0.12)
                 : Colors.transparent,
-            foregroundColor: selected ? palette.accentPrimary : palette.textMuted,
+            foregroundColor: selected
+                ? palette.accentPrimary
+                : palette.textMuted,
           ),
           icon: AnimatedScale(
             scale: selected ? 1.08 : 1,
@@ -507,11 +509,7 @@ class _NoConversationSelected extends StatelessWidget {
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(
-                  Icons.chat_outlined,
-                  color: palette.textMuted,
-                  size: 30,
-                ),
+                Icon(Icons.chat_outlined, color: palette.textMuted, size: 30),
                 const SizedBox(height: 12),
                 Text(
                   strings.noConversation,

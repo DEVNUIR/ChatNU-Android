@@ -187,9 +187,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                         recording: busyRecording,
                         cancelArmed: _recordingSession.cancelArmed,
                         onTap: busyRecording
-                            ? () => unawaited(
-                                  _finishRecording(cancel: false),
-                                )
+                            ? () => unawaited(_finishRecording(cancel: false))
                             : _toggleRecordMode,
                         onLongPressStart: _startHold,
                         onLongPressMoveUpdate: _updateHold,
@@ -971,11 +969,7 @@ class _RecordingStatus extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: palette.accentPrimary.withValues(alpha: 0.12),
               ),
-              child: Icon(
-                Icons.videocam_rounded,
-                size: 19,
-                color: foreground,
-              ),
+              child: Icon(Icons.videocam_rounded, size: 19, color: foreground),
             )
           else
             SizedBox(
@@ -1210,8 +1204,9 @@ class _HoldRecordButton extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: enabled ? onTap : null,
           onLongPressStart: enabled && !recording ? onLongPressStart : null,
-          onLongPressMoveUpdate:
-              enabled && !recording ? onLongPressMoveUpdate : null,
+          onLongPressMoveUpdate: enabled && !recording
+              ? onLongPressMoveUpdate
+              : null,
           onLongPressEnd: enabled && !recording ? onLongPressEnd : null,
           child: AnimatedContainer(
             duration: ChatNuMotion.micro,
@@ -1248,9 +1243,7 @@ class _HoldRecordButton extends StatelessWidget {
                         ? Icons.close_rounded
                         : Icons.send_rounded
                   : icon,
-              key: ValueKey<String>(
-                '${mode.name}-$recording-$cancelArmed',
-              ),
+              key: ValueKey<String>('${mode.name}-$recording-$cancelArmed'),
               size: 22,
               color: recording ? Colors.white : palette.textPrimary,
             ),

@@ -16,15 +16,34 @@ if [[ ! -d android ]]; then
 fi
 
 mkdir -p android/app/src/main/kotlin/ir/devnu/chatnu
-mkdir -p android/app/src/main/res/drawable
 cp tool/android/MainActivity.kt android/app/src/main/kotlin/ir/devnu/chatnu/MainActivity.kt
 cp tool/android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-ICON_SOURCE="../app/src/main/res/drawable/ic_chatnu.xml"
-if grep -qi '#5B7CFF' "$ICON_SOURCE"; then
-  echo "Legacy blue ChatNU placeholder launcher icon is not allowed." >&2
-  exit 1
-fi
-cp "$ICON_SOURCE" android/app/src/main/res/drawable/ic_chatnu.xml
+
+# Keep the Flutter launcher identity pixel-identical to the canonical Android
+# app icon. The source assets come from the supplied ChatNU universal icon pack.
+NATIVE_RES="$ROOT/../app/src/main/res"
+for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+  target="android/app/src/main/res/mipmap-$density"
+  mkdir -p "$target"
+  rm -f "$target"/ic_launcher.* "$target"/ic_launcher_round.*
+  cp "$NATIVE_RES/mipmap-$density/ic_launcher.webp" "$target/ic_launcher.webp"
+  cp "$NATIVE_RES/mipmap-$density/ic_launcher_round.webp" "$target/ic_launcher_round.webp"
+done
+
+for version in mipmap-anydpi-v26 mipmap-anydpi-v33; do
+  target="android/app/src/main/res/$version"
+  mkdir -p "$target"
+  cp "$NATIVE_RES/$version/ic_launcher.xml" "$target/ic_launcher.xml"
+  cp "$NATIVE_RES/$version/ic_launcher_round.xml" "$target/ic_launcher_round.xml"
+done
+
+mkdir -p android/app/src/main/res/drawable-xxxhdpi
+cp "$NATIVE_RES/drawable-xxxhdpi/chatnu_launcher_foreground.webp" \
+  android/app/src/main/res/drawable-xxxhdpi/chatnu_launcher_foreground.webp
+cp "$NATIVE_RES/drawable-xxxhdpi/chatnu_launcher_monochrome.webp" \
+  android/app/src/main/res/drawable-xxxhdpi/chatnu_launcher_monochrome.webp
+mkdir -p android/app/src/main/res/values
+cp "$NATIVE_RES/values/colors.xml" android/app/src/main/res/values/colors.xml
 
 # Match the production Android application identity and security baseline so a
 # release signed with the existing ChatNU key can upgrade in place and retain

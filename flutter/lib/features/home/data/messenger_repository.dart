@@ -274,9 +274,7 @@ class MessengerRepository {
     return _sendEncryptedPayload(
       conversationId: conversationId,
       clientId: clientId,
-      type: live
-          ? ChatNuMessageType.liveLocation
-          : ChatNuMessageType.location,
+      type: live ? ChatNuMessageType.liveLocation : ChatNuMessageType.location,
       plaintext: jsonEncode(<String, dynamic>{
         'kind': 'location',
         'lat': latitude,

@@ -42,6 +42,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
 
   ChatNuRecordingSession _recordingSession = const ChatNuRecordingSession();
   CameraController? _cameraController;
+  OverlayEntry? _videoPreviewOverlay;
   StreamSubscription<Amplitude>? _amplitudeSubscription;
   Timer? _recordTimer;
   DateTime? _lastRecordTick;
@@ -78,6 +79,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     _recordTimer?.cancel();
     unawaited(_amplitudeSubscription?.cancel());
     unawaited(_audioRecorder.dispose());
+    _removeVideoPreviewOverlay();
     unawaited(_disposeCamera());
     super.dispose();
   }
@@ -138,15 +140,12 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                           key: const ValueKey<String>('recording-status'),
                           session: _recordingSession,
                           elapsed: _elapsed,
-                          cameraController: _cameraController,
                           waveform: _waveform,
                           onCancel: () =>
                               unawaited(_finishRecording(cancel: true)),
                           onPauseResume: () => unawaited(
                             _paused ? _resumeRecording() : _pauseRecording(),
                           ),
-                          onSend: () =>
-                              unawaited(_finishRecording(cancel: false)),
                         )
                       : _ComposerField(
                           key: const ValueKey<String>('composer-field'),
@@ -172,8 +171,8 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                         key: const Key('message-send-button'),
                         tooltip: strings.send,
                         style: IconButton.styleFrom(
-                          backgroundColor: palette.textPrimary,
-                          foregroundColor: palette.backgroundElevated,
+                          backgroundColor: palette.accentPrimary,
+                          foregroundColor: Colors.white,
                           minimumSize: const Size(46, 46),
                         ),
                         onPressed: _send,
@@ -184,11 +183,14 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                           'record-${_recordingSession.mode.name}',
                         ),
                         mode: _recordingSession.mode,
-                        enabled: !demo && _recordingSession.isIdle,
+                        enabled: !demo && !_finishing,
                         recording: busyRecording,
                         cancelArmed: _recordingSession.cancelArmed,
-                        locked: _recordingSession.isLocked,
-                        onTap: _toggleRecordMode,
+                        onTap: busyRecording
+                            ? () => unawaited(
+                                  _finishRecording(cancel: false),
+                                )
+                            : _toggleRecordMode,
                         onLongPressStart: _startHold,
                         onLongPressMoveUpdate: _updateHold,
                         onLongPressEnd: _endHold,
@@ -371,6 +373,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
       return;
     }
     setState(() {});
+    _showVideoPreviewOverlay(controller);
     await controller.startVideoRecording();
   }
 
@@ -542,7 +545,65 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     });
   }
 
+  void _showVideoPreviewOverlay(CameraController controller) {
+    _removeVideoPreviewOverlay();
+    final overlay = Overlay.of(context, rootOverlay: true);
+    _videoPreviewOverlay = OverlayEntry(
+      builder: (overlayContext) {
+        final palette = overlayContext.chatNu;
+        final shortestSide = MediaQuery.sizeOf(overlayContext).shortestSide;
+        final diameter = (shortestSide * 0.42).clamp(168.0, 240.0).toDouble();
+        return IgnorePointer(
+          child: Positioned.fill(
+            child: SafeArea(
+              child: Center(
+                child: Container(
+                  width: diameter,
+                  height: diameter,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: palette.backgroundElevated,
+                    border: Border.all(color: palette.accentPrimary, width: 3),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 28,
+                        offset: const Offset(0, 12),
+                      ),
+                      BoxShadow(
+                        color: palette.accentPrimary.withValues(alpha: 0.16),
+                        blurRadius: 32,
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: controller.value.previewSize?.height ?? 1,
+                        height: controller.value.previewSize?.width ?? 1,
+                        child: CameraPreview(controller),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    overlay.insert(_videoPreviewOverlay!);
+  }
+
+  void _removeVideoPreviewOverlay() {
+    _videoPreviewOverlay?.remove();
+    _videoPreviewOverlay = null;
+  }
+
   Future<void> _disposeCamera() async {
+    _removeVideoPreviewOverlay();
     final camera = _cameraController;
     _cameraController = null;
     if (camera != null) {
@@ -851,31 +912,22 @@ class _RecordingStatus extends StatelessWidget {
   const _RecordingStatus({
     required this.session,
     required this.elapsed,
-    required this.cameraController,
     required this.waveform,
     required this.onCancel,
     required this.onPauseResume,
-    required this.onSend,
     super.key,
   });
 
   final ChatNuRecordingSession session;
   final Duration elapsed;
-  final CameraController? cameraController;
   final List<double> waveform;
   final VoidCallback onCancel;
   final VoidCallback onPauseResume;
-  final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) {
     final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
-    final camera = cameraController;
-    final previewReady =
-        session.mode == ChatNuRecordingMode.video &&
-        camera != null &&
-        camera.value.isInitialized;
     final foreground = session.cancelArmed
         ? palette.destructive
         : palette.textPrimary;
@@ -900,21 +952,7 @@ class _RecordingStatus extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          if (previewReady)
-            ClipOval(
-              child: SizedBox.square(
-                dimension: 36,
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: camera.value.previewSize?.height ?? 1,
-                    height: camera.value.previewSize?.width ?? 1,
-                    child: CameraPreview(camera),
-                  ),
-                ),
-              ),
-            )
-          else if (session.phase == ChatNuRecordingPhase.arming)
+          if (session.phase == ChatNuRecordingPhase.arming)
             SizedBox.square(
               dimension: 34,
               child: Padding(
@@ -923,6 +961,20 @@ class _RecordingStatus extends StatelessWidget {
                   strokeWidth: 2,
                   color: foreground,
                 ),
+              ),
+            )
+          else if (session.mode == ChatNuRecordingMode.video)
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: palette.accentPrimary.withValues(alpha: 0.12),
+              ),
+              child: Icon(
+                Icons.videocam_rounded,
+                size: 19,
+                color: foreground,
               ),
             )
           else
@@ -972,13 +1024,6 @@ class _RecordingStatus extends StatelessWidget {
                   : Icons.pause_rounded,
               foreground: palette.textPrimary,
               onPressed: onPauseResume,
-            ),
-            _RecordingAction(
-              tooltip: strings.send,
-              icon: Icons.arrow_upward_rounded,
-              foreground: palette.backgroundElevated,
-              background: palette.accentPrimary,
-              onPressed: onSend,
             ),
           ] else
             Expanded(
@@ -1122,7 +1167,6 @@ class _HoldRecordButton extends StatelessWidget {
     required this.enabled,
     required this.recording,
     required this.cancelArmed,
-    required this.locked,
     required this.onTap,
     required this.onLongPressStart,
     required this.onLongPressMoveUpdate,
@@ -1134,7 +1178,6 @@ class _HoldRecordButton extends StatelessWidget {
   final bool enabled;
   final bool recording;
   final bool cancelArmed;
-  final bool locked;
   final VoidCallback onTap;
   final GestureLongPressStartCallback onLongPressStart;
   final GestureLongPressMoveUpdateCallback onLongPressMoveUpdate;
@@ -1147,7 +1190,9 @@ class _HoldRecordButton extends StatelessWidget {
     final icon = mode == ChatNuRecordingMode.voice
         ? Icons.mic_rounded
         : Icons.videocam_rounded;
-    final tooltip = mode == ChatNuRecordingMode.voice
+    final tooltip = recording
+        ? strings.send
+        : mode == ChatNuRecordingMode.voice
         ? (strings.isPersian
               ? 'صدا؛ لمس برای ویدیو، نگه‌دارید برای ضبط'
               : 'Voice; tap for video, hold to record')
@@ -1164,9 +1209,10 @@ class _HoldRecordButton extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: enabled ? onTap : null,
-          onLongPressStart: enabled ? onLongPressStart : null,
-          onLongPressMoveUpdate: enabled ? onLongPressMoveUpdate : null,
-          onLongPressEnd: enabled ? onLongPressEnd : null,
+          onLongPressStart: enabled && !recording ? onLongPressStart : null,
+          onLongPressMoveUpdate:
+              enabled && !recording ? onLongPressMoveUpdate : null,
+          onLongPressEnd: enabled && !recording ? onLongPressEnd : null,
           child: AnimatedContainer(
             duration: ChatNuMotion.micro,
             width: 46,
@@ -1176,8 +1222,6 @@ class _HoldRecordButton extends StatelessWidget {
               color: recording
                   ? cancelArmed
                         ? palette.destructive
-                        : locked
-                        ? palette.textPrimary
                         : palette.accentPrimary
                   : palette.glassWeak,
               border: Border.all(
@@ -1199,14 +1243,16 @@ class _HoldRecordButton extends StatelessWidget {
                   : const <BoxShadow>[],
             ),
             child: Icon(
-              locked ? Icons.lock_rounded : icon,
-              key: ValueKey<String>('${mode.name}-$locked'),
+              recording
+                  ? cancelArmed
+                        ? Icons.close_rounded
+                        : Icons.send_rounded
+                  : icon,
+              key: ValueKey<String>(
+                '${mode.name}-$recording-$cancelArmed',
+              ),
               size: 22,
-              color: recording
-                  ? locked
-                        ? palette.backgroundElevated
-                        : Colors.white
-                  : palette.textPrimary,
+              color: recording ? Colors.white : palette.textPrimary,
             ),
           ),
         ),

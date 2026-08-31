@@ -1,0 +1,99 @@
+name: ChatNU Windows Release
+
+on:
+  push:
+    branches:
+      - chatgpt/phase-5-accessibility-desktop-polish
+    paths:
+      - ".github/workflows/windows-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Enable Windows desktop
+        shell: pwsh
+        run: flutter config --enable-windows-desktop
+      - name: Generate Windows runner
+        shell: pwsh
+        run: flutter create . --platforms=windows --org ir.devnu --project-name chatnu
+      - name: Get dependencies
+        shell: pwsh
+        run: flutter pub get
+      - name: Build Windows release
+        shell: pwsh
+        run: flutter build windows --release
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          if (!(Test-Path "build/windows/x64/runner/Release/chatnu.exe")) { throw "chatnu.exe not found" }
+      - name: Stage portable bundle
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "ChatNU-1.2.0-Windows-Portable.zip" -Force
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+      - name: Create installer script
+        shell: pwsh
+        run: |
+          @'
+          [Setup]
+          AppId={{7BB03570-9A24-4D3B-9B70-CHATNU120005}}
+          AppName=ChatNU
+          AppVersion=1.2.0
+          AppPublisher=DEVNU
+          DefaultDirName={autopf}\ChatNU
+          DefaultGroupName=ChatNU
+          OutputDir=.
+          OutputBaseFilename=ChatNU-1.2.0-Windows-Setup
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          WizardStyle=modern
+          UninstallDisplayIcon={app}\chatnu.exe
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{autoprograms}\ChatNU"; Filename: "{app}\chatnu.exe"
+          Name: "{autodesktop}\ChatNU"; Filename: "{app}\chatnu.exe"; Tasks: desktopicon
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
+
+          [Run]
+          Filename: "{app}\chatnu.exe"; Description: "Launch ChatNU"; Flags: nowait postinstall skipifsilent
+          '@ | Set-Content -Path installer.iss -Encoding UTF8
+      - name: Build installer EXE
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
+          & $iscc installer.iss
+          if (!(Test-Path "ChatNU-1.2.0-Windows-Setup.exe")) { throw "installer EXE not found" }
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChatNU-Windows-Release
+          path: |
+            flutter/ChatNU-1.2.0-Windows-Setup.exe
+            flutter/ChatNU-1.2.0-Windows-Portable.zip
+          if-no-files-found: error
+          retention-days: 30

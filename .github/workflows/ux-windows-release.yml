@@ -42,7 +42,7 @@ jobs:
           if (!(Test-Path "build/windows/x64/runner/Release/chatnu.exe")) { throw "chatnu.exe not found" }
       - name: Stage portable bundle
         shell: pwsh
-        run: Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "ChatNU-1.2.0-BlueUX-Windows-Portable.zip" -Force
+        run: Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "ChatNU-1.2.0-Windows-Portable.zip" -Force
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup --no-progress -y
@@ -58,7 +58,7 @@ jobs:
           DefaultDirName={autopf}\ChatNU
           DefaultGroupName=ChatNU
           OutputDir=.
-          OutputBaseFilename=ChatNU-1.2.0-BlueUX-Windows-Setup
+          OutputBaseFilename=ChatNU-1.2.0-Windows-Setup
           Compression=lzma2
           SolidCompression=yes
           ArchitecturesAllowed=x64compatible
@@ -85,13 +85,13 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (!(Test-Path $iscc)) { $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
           & $iscc installer.iss
-          if (!(Test-Path "ChatNU-1.2.0-BlueUX-Windows-Setup.exe")) { throw "installer EXE not found" }
+          if (!(Test-Path "ChatNU-1.2.0-Windows-Setup.exe")) { throw "installer EXE not found" }
       - name: Upload Windows preview artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ChatNU-BlueUX-Windows-Preview
           path: |
-            flutter/ChatNU-1.2.0-BlueUX-Windows-Setup.exe
-            flutter/ChatNU-1.2.0-BlueUX-Windows-Portable.zip
+            flutter/ChatNU-1.2.0-Windows-Setup.exe
+            flutter/ChatNU-1.2.0-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 14

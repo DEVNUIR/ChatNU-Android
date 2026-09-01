@@ -70,6 +70,13 @@ The generated Flutter Android host must preserve:
 - application label: `ChatNU`
 - official ChatNU launcher icon/mark
 
+The Flutter client now keeps that identity in one reviewable source:
+
+- `assets/brand/chatnu_launcher.png` is the supplied glossy blue ChatNU launcher artwork used by the generated Android and Windows hosts
+- `assets/brand/chatnu_mark.png` is the transparent in-product mark used in navigation
+- Manrope is bundled for Latin UI and Noto Sans Arabic is bundled as the Persian/Arabic fallback; both remain available offline and their OFL licenses ship beside the font files
+- liquid-glass chrome uses refraction on supported Apple renderers, a clipped backdrop-blur compatibility renderer elsewhere, and a no-blur reduced-effects path
+
 The migration CI verifies these before analysis, tests, or release packaging.
 
 ## Local bootstrap and verification

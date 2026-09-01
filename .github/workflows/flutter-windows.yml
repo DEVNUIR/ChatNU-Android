@@ -1,0 +1,75 @@
+name: Flutter Windows Release
+
+on:
+  push:
+    paths:
+      - "flutter/**"
+      - ".github/workflows/flutter-windows.yml"
+  pull_request:
+    paths:
+      - "flutter/**"
+      - ".github/workflows/flutter-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-windows-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-release:
+    # Several upstream Flutter plugins still include MSVC's experimental
+    # coroutine header, which Visual Studio 2026 now rejects at compile time.
+    # Pin the supported VS 2022 image until those plugins migrate to C++20.
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
+      - name: Bootstrap Windows platform
+        shell: pwsh
+        run: ./tool/bootstrap_windows.ps1
+      - name: Verify Windows brand artwork
+        shell: pwsh
+        run: |
+          $icon = "tool/windows/chatnu.png"
+          if (!(Test-Path $icon) -or (Get-Item $icon).Length -lt 20000) {
+            throw "The ChatNU Windows icon is missing or truncated."
+          }
+          $signature = [System.IO.File]::ReadAllBytes($icon)[0..7]
+          $expected = [byte[]](137, 80, 78, 71, 13, 10, 26, 10)
+          if (Compare-Object $signature $expected) {
+            throw "The ChatNU Windows icon is not a valid PNG."
+          }
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+      - name: Test
+        run: flutter test
+      - name: Build Windows release
+        run: flutter build windows --release
+      - name: Stage portable Windows package
+        shell: pwsh
+        run: |
+          $source = "build/windows/x64/runner/Release"
+          $stage = "ChatNU-1.2.1-Windows-x64"
+          if (!(Test-Path $source)) {
+            throw "Windows release output is missing: $source"
+          }
+          Copy-Item -Recurse -Force $source $stage
+          Compress-Archive -Path "$stage/*" -DestinationPath "$stage.zip" -Force
+      - name: Upload Windows release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChatNU-Flutter-Windows-x64
+          path: flutter/ChatNU-1.2.1-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 30

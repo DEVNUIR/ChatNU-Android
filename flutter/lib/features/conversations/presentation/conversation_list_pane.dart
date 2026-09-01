@@ -38,7 +38,6 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
   @override
   Widget build(BuildContext context) {
     final strings = ChatNuStrings.of(context);
-    final palette = context.chatNu;
     final state = ref.watch(messengerDemoProvider);
     final query = _searchController.text.trim().toLowerCase();
     final conversations = state.conversations
@@ -57,7 +56,7 @@ class _ConversationListPaneState extends ConsumerState<ConversationListPane> {
         .toList(growable: false);
 
     return ColoredBox(
-      color: palette.backgroundSecondary,
+      color: Colors.transparent,
       child: SafeArea(
         bottom: false,
         child: RefreshIndicator(

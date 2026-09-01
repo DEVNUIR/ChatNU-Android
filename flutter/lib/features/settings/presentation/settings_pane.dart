@@ -24,8 +24,6 @@ class SettingsPane extends ConsumerWidget {
     final state = ref.watch(messengerDemoProvider);
     final session = ref.watch(sessionProvider);
     final endpoint = ref.watch(serverEndpointProvider);
-    final appearance = ref.watch(appearanceProvider);
-    final localeState = ref.watch(localeProvider);
     final strings = ChatNuStrings.of(context);
     final palette = context.chatNu;
     final isDemo = ref.watch(appModeProvider) == ChatNuAppMode.demo;
@@ -79,6 +77,8 @@ class SettingsPane extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: ChatNuSpacing.sm),
+              const _AppearanceStudio(),
+              const SizedBox(height: ChatNuSpacing.sm),
               _SettingsSection(
                 title: strings.account,
                 children: <Widget>[
@@ -110,16 +110,6 @@ class SettingsPane extends ConsumerWidget {
                 title: strings.isPersian ? 'گفت‌وگو و رسانه' : 'Chats & media',
                 children: <Widget>[
                   _SettingsTile(
-                    icon: Icons.wallpaper_rounded,
-                    title: strings.isPersian
-                        ? 'پس‌زمینهٔ گفتگو'
-                        : 'Chat background',
-                    subtitle: strings.isPersian
-                        ? 'محیطی، شبکهٔ نرم، نیمه‌شب یا ساده'
-                        : 'Ambient, soft grid, midnight or solid',
-                    onTap: () => unawaited(showWallpaperPickerSheet(context)),
-                  ),
-                  _SettingsTile(
                     icon: Icons.photo_library_outlined,
                     title: strings.isPersian
                         ? 'رسانه و فایل‌ها'
@@ -134,93 +124,6 @@ class SettingsPane extends ConsumerWidget {
                     subtitle: strings.isPersian
                         ? 'تماس صوتی و تصویری امن یک‌به‌یک'
                         : 'Secure 1:1 voice and video calls',
-                  ),
-                ],
-              ),
-              const SizedBox(height: ChatNuSpacing.sm),
-              _SettingsSection(
-                title: strings.appearance,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                      ChatNuSpacing.md,
-                      ChatNuSpacing.sm,
-                      ChatNuSpacing.md,
-                      ChatNuSpacing.xs,
-                    ),
-                    child: GlassSegmentedControl<ThemeMode>(
-                      value: appearance.themeMode,
-                      onChanged: (mode) => unawaited(
-                        ref
-                            .read(appearanceProvider.notifier)
-                            .setThemeMode(mode),
-                      ),
-                      items: <ThemeMode, String>{
-                        ThemeMode.system: strings.systemTheme,
-                        ThemeMode.light: strings.lightTheme,
-                        ThemeMode.dark: strings.darkTheme,
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                      ChatNuSpacing.md,
-                      ChatNuSpacing.xs,
-                      ChatNuSpacing.md,
-                      ChatNuSpacing.sm,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          strings.isPersian
-                              ? 'جلوه‌های بصری'
-                              : 'Visual effects',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        const SizedBox(height: ChatNuSpacing.xs),
-                        GlassSegmentedControl<GlassEffectLevel>(
-                          value: appearance.glassEffectLevel,
-                          onChanged: (level) => unawaited(
-                            ref
-                                .read(appearanceProvider.notifier)
-                                .setGlassEffectLevel(level),
-                          ),
-                          items: <GlassEffectLevel, String>{
-                            GlassEffectLevel.full: strings.glassFull,
-                            GlassEffectLevel.balanced: strings.glassBalanced,
-                            GlassEffectLevel.reduced: strings.glassReduced,
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: ChatNuSpacing.sm),
-              _SettingsSection(
-                title: strings.isPersian ? 'زبان' : 'Language',
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                      ChatNuSpacing.md,
-                      ChatNuSpacing.sm,
-                      ChatNuSpacing.md,
-                      ChatNuSpacing.md,
-                    ),
-                    child: GlassSegmentedControl<ChatNuLocalePreference>(
-                      value: localeState.preference,
-                      onChanged: (preference) => unawaited(
-                        ref
-                            .read(localeProvider.notifier)
-                            .setPreference(preference),
-                      ),
-                      items: const <ChatNuLocalePreference, String>{
-                        ChatNuLocalePreference.system: 'System',
-                        ChatNuLocalePreference.english: 'English',
-                        ChatNuLocalePreference.persian: 'فارسی',
-                      },
-                    ),
                   ),
                 ],
               ),
@@ -429,6 +332,219 @@ Future<void> _showAdvancedSettingsSheet(
   );
 }
 
+class _AppearanceStudio extends ConsumerWidget {
+  const _AppearanceStudio();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appearance = ref.watch(appearanceProvider);
+    final locale = ref.watch(localeProvider);
+    final strings = ChatNuStrings.of(context);
+    final palette = context.chatNu;
+    final wallpaperLabel = switch (appearance.wallpaperStyle) {
+      ChatWallpaperStyle.ambient => strings.isPersian ? 'محیطی' : 'Ambient',
+      ChatWallpaperStyle.softGrid =>
+        strings.isPersian ? 'شبکهٔ نرم' : 'Soft grid',
+      ChatWallpaperStyle.midnight => strings.isPersian ? 'نیمه‌شب' : 'Midnight',
+      ChatWallpaperStyle.solid => strings.isPersian ? 'ساده' : 'Solid',
+    };
+
+    return GlassPanel(
+      variant: GlassVariant.medium,
+      blur: true,
+      radius: ChatNuRadii.lg,
+      padding: const EdgeInsets.all(ChatNuSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(ChatNuRadii.md),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      palette.accentPrimary,
+                      palette.accentSecondary,
+                    ],
+                  ),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: palette.accentPrimary.withValues(alpha: 0.28),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: ChatNuSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      strings.appearance,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      strings.isPersian
+                          ? 'ظاهر ChatNU را بدون به‌هم‌ریختن خوانایی شخصی‌سازی کنید'
+                          : 'Tune ChatNU without sacrificing clarity',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: ChatNuSpacing.ml),
+          _PreferenceCaption(
+            label: strings.isPersian ? 'پوسته' : 'Theme',
+            icon: Icons.contrast_rounded,
+          ),
+          const SizedBox(height: ChatNuSpacing.xs),
+          GlassSegmentedControl<ThemeMode>(
+            value: appearance.themeMode,
+            onChanged: (mode) => unawaited(
+              ref.read(appearanceProvider.notifier).setThemeMode(mode),
+            ),
+            items: <ThemeMode, String>{
+              ThemeMode.system: strings.systemTheme,
+              ThemeMode.light: strings.lightTheme,
+              ThemeMode.dark: strings.darkTheme,
+            },
+          ),
+          const SizedBox(height: ChatNuSpacing.md),
+          _PreferenceCaption(
+            label: strings.isPersian ? 'جلوه‌های بصری' : 'Visual effects',
+            icon: Icons.blur_on_rounded,
+          ),
+          const SizedBox(height: ChatNuSpacing.xs),
+          GlassSegmentedControl<GlassEffectLevel>(
+            value: appearance.glassEffectLevel,
+            onChanged: (level) => unawaited(
+              ref.read(appearanceProvider.notifier).setGlassEffectLevel(level),
+            ),
+            items: <GlassEffectLevel, String>{
+              GlassEffectLevel.full: strings.glassFull,
+              GlassEffectLevel.balanced: strings.glassBalanced,
+              GlassEffectLevel.reduced: strings.glassReduced,
+            },
+          ),
+          const SizedBox(height: ChatNuSpacing.md),
+          _PreferenceCaption(
+            label: strings.isPersian ? 'پس‌زمینهٔ گفتگو' : 'Chat background',
+            icon: Icons.wallpaper_rounded,
+          ),
+          const SizedBox(height: ChatNuSpacing.xs),
+          InkWell(
+            borderRadius: BorderRadius.circular(ChatNuRadii.md),
+            onTap: () => unawaited(showWallpaperPickerSheet(context)),
+            child: Ink(
+              height: 76,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(ChatNuRadii.md),
+                border: Border.all(color: palette.borderSubtle),
+                gradient: LinearGradient(
+                  begin: AlignmentDirectional.topStart,
+                  end: AlignmentDirectional.bottomEnd,
+                  colors: <Color>[
+                    palette.accentPrimary.withValues(alpha: 0.24),
+                    palette.accentSecondary.withValues(alpha: 0.13),
+                    palette.glassWeak,
+                  ],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ChatNuSpacing.md,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: SweepGradient(
+                          colors: <Color>[
+                            palette.accentPrimary,
+                            palette.accentCyan,
+                            palette.accentSecondary,
+                            palette.accentPrimary,
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: ChatNuSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        wallpaperLabel,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    Icon(
+                      Directionality.of(context) == TextDirection.rtl
+                          ? Icons.chevron_left_rounded
+                          : Icons.chevron_right_rounded,
+                      color: palette.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: ChatNuSpacing.md),
+          _PreferenceCaption(
+            label: strings.isPersian ? 'زبان' : 'Language',
+            icon: Icons.translate_rounded,
+          ),
+          const SizedBox(height: ChatNuSpacing.xs),
+          GlassSegmentedControl<ChatNuLocalePreference>(
+            value: locale.preference,
+            onChanged: (preference) => unawaited(
+              ref.read(localeProvider.notifier).setPreference(preference),
+            ),
+            items: const <ChatNuLocalePreference, String>{
+              ChatNuLocalePreference.system: 'System',
+              ChatNuLocalePreference.english: 'English',
+              ChatNuLocalePreference.persian: 'فارسی',
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreferenceCaption extends StatelessWidget {
+  const _PreferenceCaption({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.chatNu;
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 17, color: palette.accentPrimary),
+        const SizedBox(width: ChatNuSpacing.xs),
+        Text(label, style: Theme.of(context).textTheme.labelLarge),
+      ],
+    );
+  }
+}
+
 class _ProfileHero extends StatelessWidget {
   const _ProfileHero({
     required this.displayName,
@@ -451,85 +567,148 @@ class _ProfileHero extends StatelessWidget {
     final palette = context.chatNu;
     final url = avatarUrl?.trim();
     return GlassPanel(
-      variant: GlassVariant.medium,
-      padding: const EdgeInsets.all(18),
+      variant: GlassVariant.strong,
+      blur: true,
+      padding: EdgeInsets.zero,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(ChatNuRadii.lg),
         onTap: onTap,
-        child: Row(
+        child: Stack(
           children: <Widget>[
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: palette.glassMedium,
-                border: Border.all(color: palette.borderHighlight),
-                image: url == null || url.isEmpty
-                    ? null
-                    : DecorationImage(
-                        image: NetworkImage(url),
-                        fit: BoxFit.cover,
-                      ),
+            PositionedDirectional(
+              top: -60,
+              end: -42,
+              child: IgnorePointer(
+                child: Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: <Color>[
+                        palette.accentPrimary.withValues(alpha: 0.26),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              alignment: Alignment.center,
-              child: url == null || url.isEmpty
-                  ? Text(
-                      _initials(displayName),
-                      style: Theme.of(context).textTheme.titleLarge,
-                    )
-                  : null,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.all(ChatNuSpacing.md),
+              child: Row(
                 children: <Widget>[
-                  Text(
-                    displayName,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '@$username',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: palette.textMuted),
-                  ),
-                  if (bio?.trim().isNotEmpty == true) ...<Widget>[
-                    const SizedBox(height: 5),
-                    Text(
-                      bio!.trim(),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                  const SizedBox(height: 7),
-                  Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.dns_outlined,
-                        size: 13,
-                        color: palette.textMuted,
+                  Container(
+                    padding: const EdgeInsets.all(2.5),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: <Color>[
+                          palette.accentCyan,
+                          palette.accentPrimary,
+                          palette.accentSecondary,
+                        ],
                       ),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          serverLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    child: Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: palette.backgroundElevated,
+                        image: url == null || url.isEmpty
+                            ? null
+                            : DecorationImage(
+                                image: NetworkImage(url),
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                      alignment: Alignment.center,
+                      child: url == null || url.isEmpty
+                          ? Text(
+                              _initials(displayName),
+                              style: Theme.of(context).textTheme.titleLarge,
+                            )
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: ChatNuSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          displayName,
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          '@$username',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: palette.textMuted),
+                        ),
+                        if (bio?.trim().isNotEmpty == true) ...<Widget>[
+                          const SizedBox(height: 5),
+                          Text(
+                            bio!.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: ChatNuSpacing.xs,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: palette.success.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(
+                              ChatNuRadii.pill,
+                            ),
+                            border: Border.all(
+                              color: palette.success.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: palette.success,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  serverLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(color: palette.textSecondary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Directionality.of(context) == TextDirection.rtl
+                        ? Icons.chevron_left_rounded
+                        : Icons.chevron_right_rounded,
+                    color: palette.textMuted,
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded),
           ],
         ),
       ),
@@ -557,8 +736,10 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.chatNu;
     return GlassPanel(
       variant: GlassVariant.weak,
+      radius: ChatNuRadii.lg,
       padding: const EdgeInsets.symmetric(vertical: ChatNuSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -570,9 +751,27 @@ class _SettingsSection extends StatelessWidget {
               ChatNuSpacing.md,
               ChatNuSpacing.xs,
             ),
-            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: palette.accentPrimary,
+                letterSpacing: 0.2,
+              ),
+            ),
           ),
-          ...children,
+          for (var index = 0; index < children.length; index++) ...<Widget>[
+            children[index],
+            if (index != children.length - 1)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(
+                  start: 66,
+                  end: ChatNuSpacing.md,
+                ),
+                child: Divider(
+                  color: palette.borderSubtle.withValues(alpha: 0.65),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -600,22 +799,41 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.chatNu;
+    final chevron = Directionality.of(context) == TextDirection.rtl
+        ? Icons.chevron_left_rounded
+        : Icons.chevron_right_rounded;
     return ListTile(
-      minTileHeight: 66,
+      minTileHeight: 72,
       leading: Container(
-        width: 38,
-        height: 38,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          color: palette.glassMedium,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(ChatNuRadii.sm),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[
+              (iconColor ?? palette.accentPrimary).withValues(alpha: 0.18),
+              palette.accentSecondary.withValues(alpha: 0.08),
+            ],
+          ),
+          border: Border.all(
+            color: (iconColor ?? palette.accentPrimary).withValues(alpha: 0.16),
+          ),
         ),
-        child: Icon(icon, size: 20, color: iconColor ?? palette.textPrimary),
+        child: Icon(icon, size: 20, color: iconColor ?? palette.accentPrimary),
       ),
-      title: Text(title),
+      title: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          color: palette.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing:
           trailing ??
-          (onTap == null ? null : const Icon(Icons.chevron_right_rounded)),
+          (onTap == null ? null : Icon(chevron, color: palette.textMuted)),
       onTap: onTap,
     );
   }

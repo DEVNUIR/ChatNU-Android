@@ -200,7 +200,7 @@ Future<void> showAboutSheet(BuildContext context) => _showSheet(
     const _InfoRow(
       icon: Icons.tag_rounded,
       title: 'Client',
-      value: 'ChatNU Flutter 1.2.0',
+      value: 'ChatNU Flutter 1.2.1',
     ),
     _InfoRow(
       icon: Icons.lock_rounded,

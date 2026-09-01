@@ -1,5 +1,8 @@
+import 'dart:ui';
+
 import 'package:chatnu/core/theme/chatnu_theme.dart';
 import 'package:chatnu/core/theme/chatnu_tokens.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
@@ -41,6 +44,7 @@ class GlassSurface extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.chatNu;
     final effectLevel = ref.watch(glassEffectLevelProvider);
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final base = switch (variant) {
       GlassVariant.weak => palette.glassWeak,
       GlassVariant.medium => palette.glassMedium,
@@ -48,10 +52,21 @@ class GlassSurface extends ConsumerWidget {
     };
     final qualityFactor = switch (effectLevel) {
       GlassEffectLevel.full => 1.0,
-      GlassEffectLevel.balanced => 0.62,
+      GlassEffectLevel.balanced => 0.58,
       GlassEffectLevel.reduced => 0.0,
     };
-    final shouldRenderLiquidGlass = enableBlur && qualityFactor > 0;
+    final blurSigma = switch (variant) {
+      GlassVariant.weak => ChatNuBlur.weak,
+      GlassVariant.medium => ChatNuBlur.medium,
+      GlassVariant.strong => ChatNuBlur.strong,
+    };
+    final shouldBlur = enableBlur && qualityFactor > 0;
+    final useRefraction =
+        shouldBlur &&
+        effectLevel == GlassEffectLevel.full &&
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS);
     final radius = BorderRadius.circular(borderRadius);
     final content = Container(
       padding: padding,
@@ -62,57 +77,92 @@ class GlassSurface extends ConsumerWidget {
           end: Alignment.bottomRight,
           colors: <Color>[
             Color.alphaBlend(
-              palette.borderHighlight.withValues(
-                alpha: 0.055 + (0.035 * qualityFactor),
+              Colors.white.withValues(
+                alpha: dark
+                    ? 0.035 + (0.025 * qualityFactor)
+                    : 0.1 + (0.06 * qualityFactor),
               ),
-              base.withValues(alpha: 0.88),
+              base.withValues(alpha: dark ? 0.76 : 0.68),
             ),
-            base.withValues(alpha: 0.78 + (0.12 * qualityFactor)),
+            base.withValues(alpha: dark ? 0.68 : 0.78),
           ],
         ),
         border: Border.all(
           color: variant == GlassVariant.strong
-              ? palette.borderHighlight
-              : palette.borderSubtle,
+              ? palette.borderHighlight.withValues(alpha: 0.9)
+              : palette.borderSubtle.withValues(alpha: 0.82),
         ),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(
-              alpha: Theme.of(context).brightness == Brightness.dark
-                  ? 0.22
-                  : 0.08,
-            ),
-            blurRadius: variant == GlassVariant.strong ? 24 : 14,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: dark ? 0.28 : 0.075),
+            blurRadius: variant == GlassVariant.strong ? 30 : 18,
+            offset: const Offset(0, 12),
           ),
           BoxShadow(
-            color: palette.borderHighlight.withValues(alpha: 0.08),
-            blurRadius: 1,
-            offset: const Offset(0, -1),
+            color: Colors.white.withValues(alpha: dark ? 0.035 : 0.55),
+            blurRadius: 1.5,
+            offset: const Offset(0, -1.2),
           ),
         ],
       ),
-      child: child,
+      child: Material(type: MaterialType.transparency, child: child),
     );
 
-    if (!shouldRenderLiquidGlass) {
-      return RepaintBoundary(
-        child: ClipRRect(borderRadius: radius, child: content),
-      );
+    final compatibilityGlass = ClipRRect(
+      borderRadius: radius,
+      child: Stack(
+        children: <Widget>[
+          if (shouldBlur)
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: blurSigma * qualityFactor,
+                  sigmaY: blurSigma * qualityFactor,
+                ),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          content,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    stops: const <double>[0, 0.36, 0.72, 1],
+                    colors: <Color>[
+                      Colors.white12,
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.white10,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!useRefraction) {
+      return RepaintBoundary(child: compatibilityGlass);
     }
 
     final refraction = switch (variant) {
       GlassVariant.weak => LiquidGlassRefraction(
-        distortion: 0.045 * qualityFactor,
-        distortionWidth: 16 * qualityFactor,
+        distortion: 0.035,
+        distortionWidth: 14,
       ),
       GlassVariant.medium => LiquidGlassRefraction(
-        distortion: 0.075 * qualityFactor,
-        distortionWidth: 22 * qualityFactor,
+        distortion: 0.065,
+        distortionWidth: 20,
       ),
       GlassVariant.strong => LiquidGlassRefraction(
-        distortion: 0.105 * qualityFactor,
-        distortionWidth: 28 * qualityFactor,
+        distortion: 0.09,
+        distortionWidth: 26,
       ),
     };
 
@@ -122,7 +172,7 @@ class GlassSurface extends ConsumerWidget {
           shape: LiquidGlassShape.squircle(cornerRadius: borderRadius),
           refraction: refraction,
         ),
-        child: content,
+        child: compatibilityGlass,
       ),
     );
   }

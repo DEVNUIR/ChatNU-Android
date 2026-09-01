@@ -51,7 +51,7 @@ class ChatNuPalette extends ThemeExtension<ChatNuPalette> {
     borderHighlight: Color(0xFF3B4E70),
     textPrimary: Color(0xFFF7FAFF),
     textSecondary: Color(0xFFB9C5D8),
-    textMuted: Color(0xFF75839B),
+    textMuted: Color(0xFF8492A9),
     accentPrimary: Color(0xFF2F7CFF),
     accentSecondary: Color(0xFF8068F2),
     accentCyan: Color(0xFF24D5ED),
@@ -71,7 +71,7 @@ class ChatNuPalette extends ThemeExtension<ChatNuPalette> {
     borderHighlight: Color(0xFFCBD8E9),
     textPrimary: Color(0xFF101828),
     textSecondary: Color(0xFF475569),
-    textMuted: Color(0xFF8190A5),
+    textMuted: Color(0xFF64748B),
     accentPrimary: Color(0xFF1769E8),
     accentSecondary: Color(0xFF6C56D9),
     accentCyan: Color(0xFF0EAFC7),
@@ -186,7 +186,12 @@ abstract final class ChatNuTheme {
     );
     final typeBase = base.textTheme.apply(
       fontFamily: 'Manrope',
-      fontFamilyFallback: const <String>['NotoSansArabic'],
+      fontFamilyFallback: const <String>[
+        'NotoSansArabic',
+        'Roboto',
+        'Arial',
+        'sans-serif',
+      ],
       bodyColor: palette.textPrimary,
       displayColor: palette.textPrimary,
     );

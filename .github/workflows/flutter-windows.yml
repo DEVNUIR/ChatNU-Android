@@ -38,6 +38,18 @@ jobs:
       - name: Bootstrap Windows platform
         shell: pwsh
         run: ./tool/bootstrap_windows.ps1
+      - name: Verify Windows brand artwork
+        shell: pwsh
+        run: |
+          $icon = "tool/windows/chatnu.png"
+          if (!(Test-Path $icon) -or (Get-Item $icon).Length -lt 20000) {
+            throw "The ChatNU Windows icon is missing or truncated."
+          }
+          $signature = [System.IO.File]::ReadAllBytes($icon)[0..7]
+          $expected = [byte[]](137, 80, 78, 71, 13, 10, 26, 10)
+          if (Compare-Object $signature $expected) {
+            throw "The ChatNU Windows icon is not a valid PNG."
+          }
       - name: Analyze
         run: flutter analyze --fatal-infos
       - name: Test
@@ -48,7 +60,7 @@ jobs:
         shell: pwsh
         run: |
           $source = "build/windows/x64/runner/Release"
-          $stage = "ChatNU-1.2.0-Windows-x64"
+          $stage = "ChatNU-1.2.1-Windows-x64"
           if (!(Test-Path $source)) {
             throw "Windows release output is missing: $source"
           }
@@ -58,6 +70,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ChatNU-Flutter-Windows-x64
-          path: flutter/ChatNU-1.2.0-Windows-x64.zip
+          path: flutter/ChatNU-1.2.1-Windows-x64.zip
           if-no-files-found: error
           retention-days: 30
